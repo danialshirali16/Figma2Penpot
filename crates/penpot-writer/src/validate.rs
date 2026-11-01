@@ -110,6 +110,46 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
     }
 
     let mut checks = 0usize;
+    let mut object_meta: HashMap<Uuid, String> = HashMap::new();
+    for (path, data) in &entries {
+        let Some(rest) = path.strip_prefix("objects/") else {
+            continue;
+        };
+        let Some(id_text) = rest.strip_suffix(".json") else {
+            continue;
+        };
+        let Ok(object_id) = Uuid::parse_str(id_text) else {
+            continue;
+        };
+        let object = parse_json(data, path)?;
+        let object = require_object(Some(&object), path)?;
+        if require_uuid(object.get("id"), "object.id")? != object_id {
+            return Err(ValidationError::Invalid(format!(
+                "{path}: object id does not match path"
+            )));
+        }
+        if require_str(object.get("bucket"), "object.bucket")? != "file-media-object" {
+            return Err(ValidationError::Invalid(format!(
+                "{path}: object bucket is not file-media-object"
+            )));
+        }
+        let content_type = require_str(object.get("contentType"), "object.contentType")?;
+        let size = require_u64(object.get("size"), "object.size")?;
+        let extension = object_extension(content_type);
+        let binary_path = format!("objects/{object_id}.{extension}");
+        let binary = entries.get(&binary_path).ok_or_else(|| {
+            ValidationError::Invalid(format!("missing media object binary {binary_path}"))
+        })?;
+        if binary.len() as u64 != size {
+            return Err(ValidationError::Invalid(format!(
+                "{binary_path}: size {} does not match metadata {size}",
+                binary.len()
+            )));
+        }
+        object_meta.insert(object_id, content_type.to_owned());
+        checks += 3;
+    }
+
     for (index, file_value) in files.iter().enumerate() {
         let file = require_object(Some(file_value), &format!("manifest.files[{index}]"))?;
         let file_id = require_uuid(file.get("id"), "manifest file id")?;
@@ -146,6 +186,48 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
             )));
         }
         checks += 4;
+
+        let media_prefix = format!("files/{file_id}/media/");
+        let mut media_ids = HashSet::new();
+        for (path, data) in &entries {
+            if !path.starts_with(&media_prefix) || !path.ends_with(".json") {
+                continue;
+            }
+            let rest = &path[media_prefix.len()..];
+            if rest.contains('/') {
+                continue;
+            }
+            let media = parse_json(data, path)?;
+            let media = require_object(Some(&media), path)?;
+            let media_id = require_uuid(media.get("id"), "media.id")?;
+            if !path.ends_with(&format!("/{media_id}.json")) {
+                return Err(ValidationError::Invalid(format!(
+                    "{path}: media id does not match path"
+                )));
+            }
+            require_str(media.get("name"), "media.name")?;
+            let width = require_u64(media.get("width"), "media.width")?;
+            let height = require_u64(media.get("height"), "media.height")?;
+            if width == 0 || height == 0 {
+                return Err(ValidationError::Invalid(format!(
+                    "{path}: media dimensions must be positive"
+                )));
+            }
+            let mtype = require_str(media.get("mtype"), "media.mtype")?;
+            let object_id = require_uuid(media.get("mediaId"), "media.mediaId")?;
+            let object_type = object_meta.get(&object_id).ok_or_else(|| {
+                ValidationError::Invalid(format!(
+                    "{path}: mediaId {object_id} has no object metadata"
+                ))
+            })?;
+            if object_type != mtype {
+                return Err(ValidationError::Invalid(format!(
+                    "{path}: mtype {mtype:?} does not match object type {object_type:?}"
+                )));
+            }
+            media_ids.insert(media_id);
+            checks += 3;
+        }
 
         let page_prefix = format!("files/{file_id}/pages/");
         let page_paths: Vec<&str> = entries
@@ -226,7 +308,7 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
             let mut checks_for_page = 0usize;
             for (shape_id, shape_json) in &shapes {
                 let shape = require_object(Some(shape_json), &format!("shape {shape_id}"))?;
-                validate_shape(shape, *shape_id)?;
+                validate_shape(shape, *shape_id, &media_ids)?;
                 for field in ["parentId", "frameId"] {
                     let reference = require_uuid(shape.get(field), field)?;
                     if !reference.is_nil() && !shapes.contains_key(&reference) {
@@ -289,6 +371,7 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
 fn validate_shape(
     shape: &serde_json::Map<String, Value>,
     expected_id: Uuid,
+    media_ids: &HashSet<Uuid>,
 ) -> Result<(), ValidationError> {
     if require_uuid(shape.get("id"), "shape.id")? != expected_id {
         return Err(ValidationError::Invalid("shape id mismatch".into()));
@@ -332,8 +415,7 @@ fn validate_shape(
     let fills = require_array(shape.get("fills"), "shape.fills")?;
     for fill in fills {
         let fill = require_object(Some(fill), "fill")?;
-        validate_hex(fill.get("fillColor"), "fillColor")?;
-        validate_unit(fill.get("fillOpacity"), "fillOpacity")?;
+        validate_fill(fill, media_ids)?;
     }
     let strokes = require_array(shape.get("strokes"), "shape.strokes")?;
     for stroke in strokes {
@@ -398,6 +480,142 @@ fn validate_shape(
                 )));
             }
         }
+    }
+    if let Some(shadows) = shape.get("shadow") {
+        for shadow in require_array(Some(shadows), "shape.shadow")? {
+            validate_shadow(shadow)?;
+        }
+    }
+    if let Some(blur) = shape.get("blur") {
+        validate_blur(blur, "layer-blur", "shape.blur")?;
+    }
+    if let Some(blur) = shape.get("backgroundBlur") {
+        validate_blur(blur, "background-blur", "shape.backgroundBlur")?;
+    }
+    Ok(())
+}
+
+fn object_extension(content_type: &str) -> &'static str {
+    match content_type {
+        "image/jpeg" => "jpg",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        "image/svg+xml" => "svg",
+        _ => "png",
+    }
+}
+
+fn validate_fill(
+    fill: &serde_json::Map<String, Value>,
+    media_ids: &HashSet<Uuid>,
+) -> Result<(), ValidationError> {
+    let has_color = fill.contains_key("fillColor");
+    let has_gradient = fill.contains_key("fillColorGradient");
+    let has_image = fill.contains_key("fillImage");
+    let kinds = [has_color, has_gradient, has_image]
+        .into_iter()
+        .filter(|value| *value)
+        .count();
+    if kinds != 1 {
+        return Err(ValidationError::Invalid(
+            "fill must have exactly one of fillColor, fillColorGradient, or fillImage".into(),
+        ));
+    }
+    if has_image {
+        let image = require_object(fill.get("fillImage"), "fillImage")?;
+        let width = require_u64(image.get("width"), "fillImage.width")?;
+        let height = require_u64(image.get("height"), "fillImage.height")?;
+        let mtype = require_str(image.get("mtype"), "fillImage.mtype")?;
+        let id = require_uuid(image.get("id"), "fillImage.id")?;
+        if width == 0 || height == 0 || mtype.is_empty() {
+            return Err(ValidationError::Invalid(
+                "fillImage has invalid dimensions or type".into(),
+            ));
+        }
+        if !media_ids.contains(&id) {
+            return Err(ValidationError::Invalid(format!(
+                "fillImage references missing media {id}"
+            )));
+        }
+    }
+    if has_color {
+        validate_hex(fill.get("fillColor"), "fillColor")?;
+    }
+    if has_gradient {
+        let gradient = require_object(fill.get("fillColorGradient"), "fillColorGradient")?;
+        let kind = require_str(gradient.get("type"), "gradient.type")?;
+        if !matches!(kind, "linear" | "radial") {
+            return Err(ValidationError::Invalid(format!(
+                "unsupported gradient type {kind:?}"
+            )));
+        }
+        for field in ["startX", "startY", "endX", "endY", "width"] {
+            require_finite(gradient.get(field), &format!("gradient.{field}"))?;
+        }
+        let stops = require_array(gradient.get("stops"), "gradient.stops")?;
+        if stops.is_empty() {
+            return Err(ValidationError::Invalid(
+                "gradient must have at least one stop".into(),
+            ));
+        }
+        for stop in stops {
+            let stop = require_object(Some(stop), "gradient stop")?;
+            validate_hex(stop.get("color"), "gradient stop color")?;
+            if let Some(opacity) = stop.get("opacity") {
+                validate_unit(Some(opacity), "gradient stop opacity")?;
+            }
+            let offset = require_finite(stop.get("offset"), "gradient stop offset")?;
+            if !(0.0..=1.0).contains(&offset) {
+                return Err(ValidationError::Invalid(
+                    "gradient stop offset must be between 0 and 1".into(),
+                ));
+            }
+        }
+    }
+    if let Some(opacity) = fill.get("fillOpacity") {
+        validate_unit(Some(opacity), "fillOpacity")?;
+    }
+    Ok(())
+}
+
+fn validate_shadow(value: &Value) -> Result<(), ValidationError> {
+    let shadow = require_object(Some(value), "shadow")?;
+    require_uuid(shadow.get("id"), "shadow.id")?;
+    let style = require_str(shadow.get("style"), "shadow.style")?;
+    if !matches!(style, "drop-shadow" | "inner-shadow") {
+        return Err(ValidationError::Invalid(format!(
+            "unknown shadow style {style:?}"
+        )));
+    }
+    for field in ["offsetX", "offsetY", "blur", "spread"] {
+        require_finite(shadow.get(field), &format!("shadow.{field}"))?;
+    }
+    let hidden = shadow.get("hidden").and_then(Value::as_bool);
+    if hidden.is_none() {
+        return Err(ValidationError::Invalid(
+            "shadow.hidden must be boolean".into(),
+        ));
+    }
+    let color = require_object(shadow.get("color"), "shadow.color")?;
+    validate_hex(color.get("color"), "shadow.color.color")?;
+    validate_unit(color.get("opacity"), "shadow.color.opacity")?;
+    Ok(())
+}
+
+fn validate_blur(value: &Value, expected: &str, context: &str) -> Result<(), ValidationError> {
+    let blur = require_object(Some(value), context)?;
+    require_uuid(blur.get("id"), "blur.id")?;
+    let kind = require_str(blur.get("type"), "blur.type")?;
+    if kind != expected {
+        return Err(ValidationError::Invalid(format!(
+            "{context} type {kind:?}, expected {expected:?}"
+        )));
+    }
+    require_finite(blur.get("value"), "blur.value")?;
+    if blur.get("hidden").and_then(Value::as_bool).is_none() {
+        return Err(ValidationError::Invalid(
+            "blur.hidden must be boolean".into(),
+        ));
     }
     Ok(())
 }

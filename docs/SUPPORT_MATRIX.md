@@ -1,8 +1,10 @@
 # Support Matrix
 
-Last updated: **2026-11-01** (M3.1). M2 features and filled vector paths imported
-successfully into a local Penpot 2.18.5 stack (`2.18.5-RC1`) and were inspected in the UI.
-Stroke-only vector outlines are Partial; booleans and editable networks remain Planned.
+Last updated: **2026-11-01** (M3.2–M3.5). M2 features, filled vector paths, gradients,
+shadows, blur, image fills, text metrics, and flex container settings imported successfully
+into a local Penpot 2.18.5 stack (`2.18.5-RC1`) and were inspected in the UI. Stroke-only
+vector outlines and Auto Layout child sizing are Partial; booleans, editable networks,
+masks, styles, components, and tokens remain Planned.
 
 Status vocabulary (no other labels are used):
 
@@ -23,7 +25,7 @@ Status vocabulary (no other labels are used):
 | `.deck` / `.jam` | Not supported | Out of v1 scope; explicit `UnsupportedFormat` error |
 | Embedded schema decode | **Implemented (unverified)** | M1; in-house bounded decoder, 550/627 defs |
 | zstd and deflate message decoding | **Implemented (unverified)** | M1; zstd window capped at 128 MiB |
-| Images embedded in the ZIP | **Partial** | Entries and sizes enumerated; bytes not loaded/mapped yet |
+| Images embedded in the ZIP | **Verified** | M3.3; bytes loaded with size caps, 8×8 PNG fill imported and rendered |
 | Unknown fields/node types | **Partial** | Unknown enum types reported (`BRUSH` fixture); unknown message fields error |
 | Safe archive/parser limits | **Implemented (unverified)** | M1; entry, size, ratio, node, depth, string caps |
 | `f2p-cli inspect` | **Implemented (unverified)** | M1; integration-tested on real fixtures |
@@ -66,21 +68,22 @@ Status vocabulary (no other labels are used):
 |---|---|---|
 | Solid fills | **Verified** | M2; red fill and green 50% fill inspected |
 | Solid strokes, width, alignment | **Verified** | M2; red rect black 2 px; circle stroke visible |
-| Gradient fills | Planned | M3.2; gradient transform is the hazard |
+| Gradient fills | **Verified** | M3.2; linear gradient with stops imported and rendered; radial mapped, not fixture-tested |
 | Opacity and blend modes | **Partial** | Fill opacity verified; node opacity and blend modes not fixture-tested |
-| Shadows (drop/inner) | Planned | M3.2 |
-| Blur (foreground/background) | Planned | M3.2 |
-| Procedural effects (grain, noise, glass, etc.) | Not supported | Reported as not converted |
-| Image fills | Planned | M3.3; dedup by hash |
+| Shadows (drop/inner) | **Verified** | M3.2; drop shadow imported and listed; inner shadow mapped, not fixture-tested |
+| Blur (foreground/background) | **Verified** | M3.2; layer blur and background blur imported and listed |
+| Procedural effects (grain, noise, glass, etc.) | Not supported | Reported as `F2P-EFFECT-UNSUPPORTED`; not converted |
+| Image fills | **Verified** | M3.3; PNG media/object packaged; red 8×8 image rendered in Penpot |
+| Masks and clipping | Planned | M3.2 follow-up; not implemented |
 
 ## 5. Text
 
 | Feature | Status | Notes |
 |---|---|---|
 | Single-style text | **Verified** | M2; Inter 16/400 text rendered and inspected |
-| Paragraphs and basic alignment | **Partial** | One paragraph/run; horizontal alignment not yet written |
-| Mixed/per-character styles | Planned | M3.4 |
-| Line height and letter spacing | Planned | M3.4 |
+| Paragraphs and basic alignment | **Implemented (unverified)** | M3.4; one paragraph/run; horizontal and vertical alignment written, unit-tested, not imported |
+| Mixed/per-character styles | Planned | M3.4 follow-up |
+| Line height and letter spacing | **Implemented (unverified)** | M3.4; percent/pixels/raw converted to Penpot units, unit-tested, not imported |
 | Text styles | Planned | M3.6 |
 | Lists (bulleted/numbered) | Not supported | Penpot has no list model; marker may be written into text and reported |
 | Missing fonts | **Partial** | Font name/style/size preserved; availability not checked; fallback is reported |
@@ -89,8 +92,8 @@ Status vocabulary (no other labels are used):
 
 | Feature | Status | Notes |
 |---|---|---|
-| Auto Layout → flex | Planned | M3.5 |
-| Grid layout | Planned | M3.5 |
+| Auto Layout → flex | **Partial** | M3.5; direction, gap, padding, and alignment verified in Penpot; child grow/fill sizing not mapped (`F2P-LAYOUT-PARTIAL`) |
+| Grid layout | Planned | M3.5 follow-up; Figma grid stack mode not mapped |
 | Paint/text/effect styles | Planned | M3.6 |
 | Components | Planned | M3.7 |
 | Instances and overrides | Planned | M3.7 |

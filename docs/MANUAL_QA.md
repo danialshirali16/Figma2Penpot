@@ -1,8 +1,9 @@
 # Manual QA
 
-Status: **M2 import PASSED** on a local Penpot 2.18.5 stack (backend reports
-`2.18.5-RC1`), 2026-11-01. The converter outputs imported without errors and the M2
-features were inspected in the Penpot UI. Reopen/edit persistence was not tested.
+Status: **M2 and M3.1–M3.5 imports PASSED** on a local Penpot 2.18.5 stack (backend
+reports `2.18.5-RC1`), 2026-11-01. The converter outputs imported without errors and the
+features below were inspected in the Penpot UI. Reopen/edit persistence was not tested.
+Text metrics (M3.4) are implemented and unit-tested but have **no import evidence** yet.
 
 Evidence:
 
@@ -94,7 +95,61 @@ line is a filled path rather than an editable stroke. The report labels it
 
 ---
 
-## 3. Future platform checklist (M4/M8)
+## 3. M3.2 — Gradients, shadows, blur
+
+Verified on the same Penpot 2.18.5 stack, 2026-11-01. Fixture:
+`effects-gradient.fig` (linear red→blue gradient, drop shadow, layer blur, background blur).
+
+- Import id: `17b9706f-02f0-8188-8008-e14cce8b07fa`; backend `error?=false`.
+- Screenshots: [`docs/qa/effects-gradient-import.png`](qa/effects-gradient-import.png),
+  [`docs/qa/effects-gradient-inspect.png`](qa/effects-gradient-inspect.png),
+  [`docs/qa/effects-gradient-panel.png`](qa/effects-gradient-panel.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Import | No error | **Pass** — `error?=false` |
+| 2 | Gradient fill | Red→blue linear gradient | **Pass** — rendered and listed as a gradient fill |
+| 3 | Drop shadow | Offset 2/4, blur 8, 25% black | **Pass** — shadow effect listed |
+| 4 | Layer blur | Blur 4 | **Pass** — listed in the effects panel |
+| 5 | Background blur | Blur 6 | **Pass** — listed in the effects panel |
+| 6 | Radial gradient / inner shadow | Mapped | **Untested** — code path exists, no fixture/import |
+
+## 4. M3.3 — Image fills
+
+- Import ids: `17b9706f-02f0-8188-8008-e1519513b5a7` (white pixel) and
+  `17b9706f-02f0-8188-8008-e153dadf0c7c` (red 8×8); backend `error?=false`.
+- Screenshots: [`docs/qa/image-import.png`](qa/image-import.png),
+  [`docs/qa/image-red-import.png`](qa/image-red-import.png),
+  [`docs/qa/image-inspect.png`](qa/image-inspect.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Import | No error | **Pass** — both archives; `error?=false` |
+| 2 | Media packaging | `files/<file>/media/<id>.json` + `objects/<id>.json` + binary | **Pass** — structural validator and import |
+| 3 | Image rendering | Red 8×8 image visible in the rect | **Pass** — rendered red |
+| 4 | Image fill inspector | Fill references packaged media | **Pass** — fill listed on `Image Fill` |
+| 5 | Deduplication | Identical hashes share one media entry | **Pass (unit)** — registry keyed by hash |
+| 6 | JPEG/GIF dimensions | Sniffed and converted | **Untested** — code path exists, no fixture |
+
+## 5. M3.5 — Auto Layout
+
+- Import id: `17b9706f-02f0-8188-8008-e1588bbf28a8`; backend `error?=false`.
+- Screenshots: [`docs/qa/auto-layout-import.png`](qa/auto-layout-import.png),
+  [`docs/qa/auto-layout-inspect.png`](qa/auto-layout-inspect.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Import | No error | **Pass** — `error?=false` |
+| 2 | Flex container | Layout = flex, direction row | **Pass** — inspector shows flex row |
+| 3 | Gap | 12 px column gap | **Pass** — inspector shows 12 |
+| 4 | Padding | Top 8, right 20, bottom 12, left 10 | **Pass** — inspector shows 8/20/12/10 |
+| 5 | Alignment | Primary center, counter center | **Pass** — inspector matches |
+| 6 | Child sizing | Grow/fill preserved | **Partial** — not mapped; report emits `F2P-LAYOUT-PARTIAL` |
+| 7 | Grid layout | Mapped | **Untested** — not implemented |
+
+---
+
+## 6. Future platform checklist (M4/M8)
 
 Not started. To be filled when the desktop app exists:
 

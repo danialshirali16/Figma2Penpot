@@ -117,13 +117,30 @@ impl Color {
     }
 }
 
-/// A fill or stroke paint. M2 maps solid paints; other kinds are reported.
+/// A gradient stop in Figma's 0-1 color space.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct GradientStop {
+    pub color: Color,
+    pub position: f32,
+}
+
+/// A gradient paint's stops and geometry transform.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Gradient {
+    pub kind: String,
+    pub stops: Vec<GradientStop>,
+    pub transform: Option<Matrix>,
+}
+
+/// A fill or stroke paint. M2 maps solid paints; M3.2 maps linear/radial gradients.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Paint {
     pub kind: String,
     pub color: Option<Color>,
     pub opacity: f32,
     pub visible: bool,
+    pub gradient: Option<Gradient>,
+    pub image_hash: Option<String>,
 }
 
 impl Default for Paint {
@@ -133,8 +150,22 @@ impl Default for Paint {
             color: None,
             opacity: 1.0,
             visible: true,
+            gradient: None,
+            image_hash: None,
         }
     }
+}
+
+/// A shadow or blur effect from Figma's `effects` array.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Effect {
+    pub kind: String,
+    pub color: Option<Color>,
+    pub offset_x: f32,
+    pub offset_y: f32,
+    pub radius: f32,
+    pub spread: f32,
+    pub visible: bool,
 }
 
 /// Basic text attributes extracted for M2.
@@ -145,7 +176,12 @@ pub struct TextData {
     pub font_style: Option<String>,
     pub font_size: Option<f32>,
     pub align_horizontal: Option<String>,
+    pub align_vertical: Option<String>,
     pub auto_resize: Option<String>,
+    pub line_height_value: Option<f32>,
+    pub line_height_units: Option<String>,
+    pub letter_spacing_value: Option<f32>,
+    pub letter_spacing_units: Option<String>,
 }
 
 /// A path geometry entry referencing a blob index in the decoded message.
@@ -182,9 +218,21 @@ pub struct FigNode {
     pub corner_radii: Option<[f32; 4]>,
     pub resize_to_fit: Option<bool>,
     pub text: Option<TextData>,
+    pub effects: Vec<Effect>,
     pub fill_geometry: Vec<VectorGeometry>,
     pub stroke_geometry: Vec<VectorGeometry>,
     pub has_vector_network: bool,
+    pub stack_mode: Option<String>,
+    pub stack_spacing: Option<f32>,
+    pub stack_counter_spacing: Option<f32>,
+    pub stack_horizontal_padding: Option<f32>,
+    pub stack_vertical_padding: Option<f32>,
+    pub stack_padding_right: Option<f32>,
+    pub stack_padding_bottom: Option<f32>,
+    pub stack_primary_align_items: Option<String>,
+    pub stack_counter_align_items: Option<String>,
+    pub stack_counter_align_content: Option<String>,
+    pub stack_wrap: Option<String>,
 }
 
 impl FigNode {
@@ -216,11 +264,12 @@ pub struct PageInfo {
     pub descendant_nodes: usize,
 }
 
-/// An image entry found in the ZIP container. Bytes are not loaded in M1.
+/// An image entry loaded from the ZIP container.
 #[derive(Debug, Clone)]
 pub struct ImageEntry {
     pub name: String,
     pub size: u64,
+    pub bytes: Vec<u8>,
 }
 
 /// Metadata from `meta.json`, when present and readable.

@@ -17,7 +17,7 @@ not change; add a new code instead.
 | `FIG-WARN-NONFINITE` | Warning | A node's size or transform contains NaN or infinity. | Preserve the raw value for diagnostics; do not emit invalid Penpot geometry. | Conversion fail path; explicit fixture pending |
 | `FIG-WARN-CYCLE` | Warning | Some active nodes are not reachable from a root because of a parent cycle or missing links. | Inspect the parent GUIDs; do not recurse indefinitely. | Pending synthetic fixture |
 
-## Conversion events (M2)
+## Conversion events (M2–M3.5)
 
 | Code | Severity | Outcome | Meaning | Test |
 |---|---|---|---|---|
@@ -26,12 +26,15 @@ not change; add a new code instead.
 | `F2P-NODE-UNSUPPORTED` | Warning | Unsupported | A Figma node type has no M2 mapping; the node and subtree were skipped. | `unsupported_vector_is_reported_not_dropped` |
 | `F2P-NODE-FAILED` | Error | Failed | A node had non-finite or unusable geometry and was skipped. | Unit path; explicit fixture pending |
 | `F2P-GROUP-EMPTY` | Warning | Skipped | An empty Figma group has no Penpot equivalent. | Pending explicit fixture |
-| `F2P-PAINT-UNSUPPORTED` | Warning | Converted with modification | A gradient/image/unknown paint was skipped; remaining solid paints were kept. | `gradient_paint_is_reported` |
+| `F2P-PAINT-UNSUPPORTED` | Warning | Converted with modification | An unknown/non-renderable paint was skipped; remaining fills were kept. Solid, linear/radial gradient, and image paints are supported. | `gradient_paint_is_reported` |
 | `F2P-STROKE-UNSUPPORTED` | Warning | Converted with modification | A non-solid stroke paint was skipped. | Unit path; fixture pending |
 | `F2P-STROKE-ALIGNMENT` | Warning | Converted with modification | An unknown stroke alignment was replaced with center. | `unknown_stroke_alignment_is_reported` |
 | `F2P-STROKE-WIDTH` | Warning | Converted with modification | A non-finite stroke width caused strokes to be skipped. | Unit path; fixture pending |
 | `F2P-VECTOR-STROKE-OUTLINE` | Warning | Converted with modification | A vector had only stroke geometry; the expanded outline was converted as a filled path. | `stroke_only_vector_is_reported_as_approximated` |
 | `F2P-VECTOR-NETWORK-LOST` | Warning | Converted with modification | `vectorData` network handles were not preserved; path commands were used instead. | `filled_vector_converts_to_multiple_paths` |
+| `F2P-EFFECT-UNSUPPORTED` | Warning | Converted with modification | A Figma effect type has no Penpot mapping and was skipped. | `map_effects` unit path; fixture pending |
+| `F2P-EFFECT-DUPLICATE` | Warning | Converted with modification | More than one layer or background blur was present; Penpot keeps one of each. | Unit path; fixture pending |
+| `F2P-LAYOUT-PARTIAL` | Warning | Converted with modification | Auto Layout was mapped to Penpot flex, but child grow/fill sizing was not preserved. | `auto_layout_maps_to_flex_container` |
 | `F2P-VECTOR-EMPTY` | Warning | Unsupported | A vector node had no fill or stroke geometry blobs. | Pending explicit fixture |
 | `F2P-VECTOR-FAILED` | Error | Failed | A vector blob index or command stream was invalid. | Pending explicit fixture |
 | `F2P-TEXT-EMPTY` | Warning | Skipped | A text node had no usable characters and was skipped. | `empty_text_is_skipped` |

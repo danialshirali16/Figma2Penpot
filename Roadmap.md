@@ -149,10 +149,11 @@ and move/edit persistence were not tested and are marked untested in `docs/MANUA
 
 ## M3 — Fidelity expansion
 
-**Status: In progress (2026-11-01).** M3.1 filled vector paths are implemented and verified
-in Penpot; stroke-only outlines are a reported approximation. Boolean operations, editable
-vector networks, gradients/effects/masks, images, text fidelity, layout, styles, components,
-and tokens remain.
+**Status: In progress (2026-11-01).** M3.1 filled vector paths, M3.2 gradients/shadows/blur,
+M3.3 images, and M3.5 flex containers are implemented and import-verified. M3.4 text metrics
+are implemented and unit-tested but not imported. Stroke-only outlines and Auto Layout child
+sizing are reported approximations. Booleans, editable vector networks, masks, grid layout,
+styles, components, and tokens remain.
 
 Ordered by user-visible value, not by implementation convenience. Each feature is its own
 slice: unit tests → golden test → expected diagnostics for unsupported variants → golden

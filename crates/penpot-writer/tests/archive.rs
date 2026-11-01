@@ -24,10 +24,7 @@ fn sample() -> PenpotDocument {
         Uuid::nil(),
         page_id,
     );
-    rect.fills = vec![penpot_writer::Fill {
-        fill_color: "#FF0000".to_owned(),
-        fill_opacity: 1.0,
-    }];
+    rect.fills = vec![penpot_writer::Fill::solid("#FF0000", 1.0)];
     let mut document = PenpotDocument::new(file_id, "Test");
     document.pages.push(PenpotPage {
         id: page_id,

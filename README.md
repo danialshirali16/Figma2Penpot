@@ -9,13 +9,15 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M3.1 vector paths verified in Penpot
+> ## Status: pre-alpha — M3.2–M3.5 verified in Penpot
 >
-> The Rust workspace reads real `.fig` files, converts the M2 slice plus filled vector paths
-> to `.penpot`, validates the archive, and writes an event-based JSON report. The M2 output
-> and a 20-path icon imported into a local **Penpot 2.18.5** stack and were inspected.
-> **No GUI or batch queue yet**; booleans, editable vector networks, gradients, components,
-> and tokens remain planned. Stroke-only vectors are a reported approximation. See
+> The Rust workspace reads real `.fig` files and converts the M2 slice plus filled vector
+> paths, gradients, shadows, blur, image fills, text metrics, and flex containers to
+> `.penpot`. It validates the archive and writes an event-based JSON report. M2–M3.3 and
+> M3.5 outputs imported into a local **Penpot 2.18.5** stack and were inspected.
+> **No GUI or batch queue yet**; booleans, editable vector networks, masks, styles,
+> components, and tokens remain planned. Stroke-only vectors and Auto Layout child sizing
+> are reported approximations; text metrics are unit-tested but not import-verified. See
 > [`PROGRESS.md`](PROGRESS.md) and [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
 
 ---

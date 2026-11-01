@@ -97,6 +97,37 @@ pub fn build_archive(document: &PenpotDocument) -> Result<Vec<u8>, WriteError> {
         }
     }
 
+    for media in &document.media {
+        write_json(
+            &mut writer,
+            options,
+            &format!("files/{file_id}/media/{}.json", media.id),
+            media,
+        )?;
+    }
+
+    for object in &document.objects {
+        write_json(
+            &mut writer,
+            options,
+            &format!("objects/{}.json", object.id),
+            &ObjectMeta {
+                id: object.id,
+                bucket: "file-media-object".to_owned(),
+                content_type: object.content_type.clone(),
+                size: object.bytes.len() as u64,
+            },
+        )?;
+        let extension = extension_for(&object.content_type);
+        writer.start_file(format!("objects/{}.{extension}", object.id), options)?;
+        writer
+            .write_all(&object.bytes)
+            .map_err(|source| WriteError::Io {
+                path: format!("objects/{}.{extension}", object.id),
+                source,
+            })?;
+    }
+
     let manifest = Manifest {
         version: crate::model::PENPOT_MANIFEST_VERSION,
         kind: "penpot/export-files".to_owned(),
@@ -124,6 +155,25 @@ struct PageMeta {
     index: usize,
     #[serde(skip_serializing_if = "Option::is_none")]
     background: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ObjectMeta {
+    id: Uuid,
+    bucket: String,
+    content_type: String,
+    size: u64,
+}
+
+fn extension_for(content_type: &str) -> &'static str {
+    match content_type {
+        "image/jpeg" => "jpg",
+        "image/gif" => "gif",
+        "image/webp" => "webp",
+        "image/svg+xml" => "svg",
+        _ => "png",
+    }
 }
 
 fn shape_path(file_id: Uuid, page_id: Uuid, shape_id: Uuid) -> String {

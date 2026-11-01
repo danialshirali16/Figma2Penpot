@@ -1,4 +1,7 @@
-use crate::document::{Blob, Color, FigNode, Guid, Matrix, Paint, Size, TextData, VectorGeometry};
+use crate::document::{
+    Blob, Color, Effect, FigNode, Gradient, GradientStop, Guid, Matrix, Paint, Size, TextData,
+    VectorGeometry,
+};
 use crate::error::{FigError, Result};
 use crate::limits::Limits;
 
@@ -128,9 +131,21 @@ fn decode_node(
         corner_radii: None,
         resize_to_fit: None,
         text: None,
+        effects: Vec::new(),
         fill_geometry: Vec::new(),
         stroke_geometry: Vec::new(),
         has_vector_network: false,
+        stack_mode: None,
+        stack_spacing: None,
+        stack_counter_spacing: None,
+        stack_horizontal_padding: None,
+        stack_vertical_padding: None,
+        stack_padding_right: None,
+        stack_padding_bottom: None,
+        stack_primary_align_items: None,
+        stack_counter_align_items: None,
+        stack_counter_align_content: None,
+        stack_wrap: None,
     };
     let mut has_guid = false;
 
@@ -217,6 +232,50 @@ fn decode_node(
                 node.has_vector_network = true;
                 skip_field(cursor, schema, field, limits, 1)?;
             }
+            "effects" => {
+                node.effects = read_effects(cursor, schema, field, limits, 1)?;
+            }
+            "stackMode" => {
+                node.stack_mode = Some(read_enum(cursor, schema, field, "stack mode")?.1);
+            }
+            "stackSpacing" => {
+                node.stack_spacing = Some(read_f32_field(cursor, field, "stack spacing")?);
+            }
+            "stackCounterSpacing" => {
+                node.stack_counter_spacing =
+                    Some(read_f32_field(cursor, field, "stack counter spacing")?);
+            }
+            "stackHorizontalPadding" => {
+                node.stack_horizontal_padding =
+                    Some(read_f32_field(cursor, field, "stack horizontal padding")?);
+            }
+            "stackVerticalPadding" => {
+                node.stack_vertical_padding =
+                    Some(read_f32_field(cursor, field, "stack vertical padding")?);
+            }
+            "stackPaddingRight" => {
+                node.stack_padding_right =
+                    Some(read_f32_field(cursor, field, "stack right padding")?);
+            }
+            "stackPaddingBottom" => {
+                node.stack_padding_bottom =
+                    Some(read_f32_field(cursor, field, "stack bottom padding")?);
+            }
+            "stackPrimaryAlignItems" => {
+                node.stack_primary_align_items =
+                    Some(read_enum(cursor, schema, field, "stack primary alignment")?.1);
+            }
+            "stackCounterAlignItems" => {
+                node.stack_counter_align_items =
+                    Some(read_enum(cursor, schema, field, "stack counter alignment")?.1);
+            }
+            "stackCounterAlignContent" => {
+                node.stack_counter_align_content =
+                    Some(read_enum(cursor, schema, field, "stack counter content alignment")?.1);
+            }
+            "stackWrap" => {
+                node.stack_wrap = Some(read_enum(cursor, schema, field, "stack wrap")?.1);
+            }
             "textData" => {
                 let text = node.text.get_or_insert_with(TextData::default);
                 read_text_data(cursor, schema, field, limits, text, 1)?;
@@ -236,6 +295,26 @@ fn decode_node(
                 node.text
                     .get_or_insert_with(TextData::default)
                     .align_horizontal = Some(align);
+            }
+            "textAlignVertical" => {
+                let align = read_enum(cursor, schema, field, "vertical alignment")?.1;
+                node.text
+                    .get_or_insert_with(TextData::default)
+                    .align_vertical = Some(align);
+            }
+            "lineHeight" => {
+                let (value, units) =
+                    read_number_unit(cursor, schema, field, limits, 1, "line height")?;
+                let text = node.text.get_or_insert_with(TextData::default);
+                text.line_height_value = Some(value);
+                text.line_height_units = Some(units);
+            }
+            "letterSpacing" => {
+                let (value, units) =
+                    read_number_unit(cursor, schema, field, limits, 1, "letter spacing")?;
+                let text = node.text.get_or_insert_with(TextData::default);
+                text.letter_spacing_value = Some(value);
+                text.letter_spacing_units = Some(units);
             }
             "textAutoResize" => {
                 let resize = read_enum(cursor, schema, field, "text auto resize")?.1;
@@ -327,6 +406,9 @@ fn read_paint(
         match field.name.as_str() {
             "type" => {
                 paint.kind = read_enum(cursor, schema, field, "paint type")?.1;
+                if let Some(gradient) = paint.gradient.as_mut() {
+                    gradient.kind = paint.kind.clone();
+                }
             }
             "color" => {
                 paint.color = Some(read_color(cursor, schema, field, limits, depth + 1)?);
@@ -337,11 +419,178 @@ fn read_paint(
             "visible" => {
                 paint.visible = read_bool_field(cursor, field, "paint visible flag")?;
             }
+            "stops" => {
+                let gradient = paint.gradient.get_or_insert_with(|| Gradient {
+                    kind: paint.kind.clone(),
+                    stops: Vec::new(),
+                    transform: None,
+                });
+                gradient.stops = read_gradient_stops(cursor, schema, field, limits, depth + 1)?;
+            }
+            "transform" => {
+                let transform = read_transform(cursor, schema, field, limits, depth + 1)?;
+                paint
+                    .gradient
+                    .get_or_insert_with(|| Gradient {
+                        kind: paint.kind.clone(),
+                        stops: Vec::new(),
+                        transform: None,
+                    })
+                    .transform = Some(transform);
+            }
+            "image" => {
+                paint.image_hash = read_image_hash(cursor, schema, field, limits, depth + 1)?;
+            }
             _ => skip_field(cursor, schema, field, limits, depth + 1)?,
         }
         Ok(())
     })?;
     Ok(paint)
+}
+
+fn read_gradient_stops(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<GradientStop>> {
+    if !field.is_array {
+        return Err(FigError::Decode("paint stops is not an array".into()));
+    }
+    let count = read_count(cursor, limits.max_array_items, "gradient stop count")?;
+    let def = schema.def(field.type_id as usize).ok_or_else(|| {
+        FigError::Decode(format!(
+            "gradient stop type {} does not exist",
+            field.type_id
+        ))
+    })?;
+    let mut stops = Vec::with_capacity(count.min(64));
+    for _ in 0..count {
+        let mut color = None;
+        let mut position = None;
+        read_object(cursor, schema, def, limits, depth, |field, cursor| {
+            match field.name.as_str() {
+                "color" => {
+                    color = Some(read_color(cursor, schema, field, limits, depth + 1)?);
+                }
+                "position" => {
+                    position = Some(read_f32_field(cursor, field, "gradient stop position")?);
+                }
+                _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+            }
+            Ok(())
+        })?;
+        stops.push(GradientStop {
+            color: color.ok_or_else(|| FigError::Decode("gradient stop has no color".into()))?,
+            position: position
+                .ok_or_else(|| FigError::Decode("gradient stop has no position".into()))?,
+        });
+    }
+    Ok(stops)
+}
+
+fn read_image_hash(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Option<String>> {
+    let def = object_def(schema, field, "paint image")?;
+    let mut name = None;
+    let mut hash = None;
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "name" => {
+                name = Some(read_string_field(
+                    cursor,
+                    field,
+                    limits.max_name_bytes,
+                    "image hash name",
+                )?);
+            }
+            "hash" => {
+                if !field.is_array || field.type_id != TYPE_BYTE {
+                    return Err(FigError::Decode("image hash is not a byte array".into()));
+                }
+                let len = read_count(cursor, 64, "image hash length")?;
+                let bytes = cursor
+                    .read_bytes(len)
+                    .map_err(|error| decode_error("image hash", error))?;
+                hash = Some(bytes.iter().map(|byte| format!("{byte:02x}")).collect());
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(name.or(hash))
+}
+
+fn read_effects(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<Effect>> {
+    if !field.is_array {
+        return Err(FigError::Decode("effects is not an array".into()));
+    }
+    let count = read_count(cursor, limits.max_array_items, "effect count")?;
+    let def = schema
+        .def(field.type_id as usize)
+        .ok_or_else(|| FigError::Decode(format!("effect type {} does not exist", field.type_id)))?;
+    let mut effects = Vec::with_capacity(count.min(16));
+    for _ in 0..count {
+        let mut effect = Effect {
+            kind: "UNKNOWN".to_owned(),
+            color: None,
+            offset_x: 0.0,
+            offset_y: 0.0,
+            radius: 0.0,
+            spread: 0.0,
+            visible: true,
+        };
+        read_object(cursor, schema, def, limits, depth, |field, cursor| {
+            match field.name.as_str() {
+                "type" => {
+                    effect.kind = read_enum(cursor, schema, field, "effect type")?.1;
+                }
+                "color" => {
+                    effect.color = Some(read_color(cursor, schema, field, limits, depth + 1)?);
+                }
+                "offset" => {
+                    let def = object_def(schema, field, "effect offset")?;
+                    read_object(cursor, schema, def, limits, depth + 1, |field, cursor| {
+                        match field.name.as_str() {
+                            "x" => {
+                                effect.offset_x = read_f32_field(cursor, field, "effect offset x")?;
+                            }
+                            "y" => {
+                                effect.offset_y = read_f32_field(cursor, field, "effect offset y")?;
+                            }
+                            _ => skip_field(cursor, schema, field, limits, depth + 2)?,
+                        }
+                        Ok(())
+                    })?;
+                }
+                "radius" => {
+                    effect.radius = read_f32_field(cursor, field, "effect radius")?;
+                }
+                "spread" => {
+                    effect.spread = read_f32_field(cursor, field, "effect spread")?;
+                }
+                "visible" => {
+                    effect.visible = read_bool_field(cursor, field, "effect visible")?;
+                }
+                _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+            }
+            Ok(())
+        })?;
+        effects.push(effect);
+    }
+    Ok(effects)
 }
 
 fn read_color(
@@ -394,6 +643,31 @@ fn read_text_data(
         }
         Ok(())
     })
+}
+
+fn read_number_unit(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+    what: &str,
+) -> Result<(f32, String)> {
+    let def = object_def(schema, field, what)?;
+    let mut value = None;
+    let mut units = None;
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "value" => value = Some(read_f32_field(cursor, field, what)?),
+            "units" => units = Some(read_enum(cursor, schema, field, what)?.1),
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok((
+        value.ok_or_else(|| FigError::Decode(format!("{what} has no value")))?,
+        units.ok_or_else(|| FigError::Decode(format!("{what} has no units")))?,
+    ))
 }
 
 fn read_font_name(

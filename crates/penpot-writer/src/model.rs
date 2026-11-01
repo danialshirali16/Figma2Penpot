@@ -105,6 +105,29 @@ pub const MIGRATIONS: &[&str] = &[
 pub struct PenpotDocument {
     pub file: PenpotFile,
     pub pages: Vec<PenpotPage>,
+    #[serde(skip)]
+    pub media: Vec<Media>,
+    #[serde(skip)]
+    pub objects: Vec<MediaObject>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Media {
+    pub id: Uuid,
+    pub name: String,
+    pub width: u32,
+    pub height: u32,
+    pub mtype: String,
+    pub media_id: Uuid,
+    pub is_local: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct MediaObject {
+    pub id: Uuid,
+    pub content_type: String,
+    pub bytes: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -142,6 +165,8 @@ impl PenpotDocument {
                 },
             },
             pages: Vec::new(),
+            media: Vec::new(),
+            objects: Vec::new(),
         }
     }
 }
@@ -221,6 +246,34 @@ pub struct Shape {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub svg_attrs: Option<SvgAttrs>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub shadow: Option<Vec<Shadow>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blur: Option<Blur>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub background_blur: Option<BackgroundBlur>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_flex_dir: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_gap: Option<LayoutGap>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_gap_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_padding: Option<LayoutPadding>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_padding_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_justify_content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_justify_items: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_align_content: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_align_items: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub layout_wrap_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub grow_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proportion: Option<f64>,
@@ -278,6 +331,20 @@ impl Shape {
             shapes: None,
             content: None,
             svg_attrs: None,
+            shadow: None,
+            blur: None,
+            background_blur: None,
+            layout: None,
+            layout_flex_dir: None,
+            layout_gap: None,
+            layout_gap_type: None,
+            layout_padding: None,
+            layout_padding_type: None,
+            layout_justify_content: None,
+            layout_justify_items: None,
+            layout_align_content: None,
+            layout_align_items: None,
+            layout_wrap_type: None,
             grow_type: None,
             proportion: None,
             proportion_lock: None,
@@ -299,10 +366,7 @@ impl Shape {
             Uuid::nil(),
             page_id,
         );
-        shape.fills = vec![Fill {
-            fill_color: "#FFFFFF".to_owned(),
-            fill_opacity: 1.0,
-        }];
+        shape.fills = vec![Fill::solid("#FFFFFF", 1.0)];
         shape.shapes = Some(children);
         shape.proportion = Some(1.0);
         shape.proportion_lock = Some(false);
@@ -408,8 +472,130 @@ impl Transform {
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Fill {
-    pub fill_color: String,
-    pub fill_opacity: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill_color: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill_opacity: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill_color_gradient: Option<GradientFill>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill_image: Option<ImageFill>,
+}
+
+impl Fill {
+    pub fn solid(color: impl Into<String>, opacity: f64) -> Self {
+        Self {
+            fill_color: Some(color.into()),
+            fill_opacity: Some(opacity),
+            fill_color_gradient: None,
+            fill_image: None,
+        }
+    }
+
+    pub fn gradient(gradient: GradientFill, opacity: f64) -> Self {
+        Self {
+            fill_color: None,
+            fill_opacity: Some(opacity),
+            fill_color_gradient: Some(gradient),
+            fill_image: None,
+        }
+    }
+
+    pub fn image(image: ImageFill, opacity: f64) -> Self {
+        Self {
+            fill_color: None,
+            fill_opacity: Some(opacity),
+            fill_color_gradient: None,
+            fill_image: Some(image),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ImageFill {
+    pub width: u32,
+    pub height: u32,
+    pub mtype: String,
+    pub id: Uuid,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GradientFill {
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub start_x: f64,
+    pub start_y: f64,
+    pub end_x: f64,
+    pub end_y: f64,
+    pub width: f64,
+    pub stops: Vec<GradientStop>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GradientStop {
+    pub color: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opacity: Option<f64>,
+    pub offset: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutGap {
+    pub row_gap: f64,
+    pub column_gap: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LayoutPadding {
+    pub p1: f64,
+    pub p2: f64,
+    pub p3: f64,
+    pub p4: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Shadow {
+    pub id: Uuid,
+    pub style: String,
+    pub offset_x: f64,
+    pub offset_y: f64,
+    pub blur: f64,
+    pub spread: f64,
+    pub hidden: bool,
+    pub color: ShadowColor,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ShadowColor {
+    pub color: String,
+    pub opacity: f64,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Blur {
+    pub id: Uuid,
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub value: f64,
+    pub hidden: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackgroundBlur {
+    pub id: Uuid,
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub value: f64,
+    pub hidden: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -463,6 +649,8 @@ pub struct SvgAttrs {
 pub struct TextContent {
     #[serde(rename = "type")]
     pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub vertical_align: Option<String>,
     pub children: Vec<TextParagraphSet>,
 }
 
@@ -490,6 +678,12 @@ pub struct TextRun {
     pub font_size: String,
     pub font_weight: String,
     pub font_style: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub text_align: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line_height: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub letter_spacing: Option<String>,
     pub fills: Vec<Fill>,
 }
 
@@ -497,6 +691,7 @@ impl TextContent {
     pub fn single_run(run: TextRun) -> Self {
         Self {
             kind: "root".to_owned(),
+            vertical_align: None,
             children: vec![TextParagraphSet {
                 kind: "paragraph-set".to_owned(),
                 children: vec![TextParagraph {

@@ -60,6 +60,7 @@ fn read_zip(bytes: &[u8], limits: &Limits) -> Result<ContainerData> {
 
     let mut warnings = Vec::new();
     let mut images = Vec::new();
+    let mut image_total: u64 = 0;
     let mut total_uncompressed: u64 = 0;
     let mut canvas_index: Option<usize> = None;
     let mut meta_index: Option<usize> = None;
@@ -68,7 +69,7 @@ fn read_zip(bytes: &[u8], limits: &Limits) -> Result<ContainerData> {
     let mut image_name_warnings = 0usize;
 
     for index in 0..entry_count {
-        let file = archive.by_index(index)?;
+        let mut file = archive.by_index(index)?;
         let name = file
             .name()
             .map_err(|error| FigError::Zip(error.to_string()))?
@@ -112,9 +113,28 @@ fn read_zip(bytes: &[u8], limits: &Limits) -> Result<ContainerData> {
                 if !is_sha1_hex(hash) {
                     image_name_warnings += 1;
                 }
+                if size > limits.max_image_bytes as u64 {
+                    return Err(FigError::limit_u64(
+                        "image entry size",
+                        size,
+                        limits.max_image_bytes as u64,
+                    ));
+                }
+                let bytes = read_limited(&mut file, limits.max_image_bytes, &name)?;
+                image_total = image_total
+                    .checked_add(bytes.len() as u64)
+                    .ok_or_else(|| FigError::Corrupt("image size overflow".into()))?;
+                if image_total > limits.max_total_image_bytes {
+                    return Err(FigError::limit_u64(
+                        "total image bytes",
+                        image_total,
+                        limits.max_total_image_bytes,
+                    ));
+                }
                 images.push(ImageEntry {
                     name: hash.to_owned(),
-                    size,
+                    size: bytes.len() as u64,
+                    bytes,
                 });
             }
             _ => unknown_entries += 1,

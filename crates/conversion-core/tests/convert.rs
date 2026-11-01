@@ -14,15 +14,26 @@ fn fixture(relative: &str) -> PathBuf {
 }
 
 fn run(relative: &str) -> (Vec<u8>, conversion_report::FileReport, Vec<Shape>) {
-    let document = read_fig(fixture(relative)).expect("fixture parses");
-    let mut collector = ReportCollector::new();
-    let penpot =
-        convert(&document, &ConvertOptions::default(), &mut collector).expect("conversion works");
+    let (bytes, report, penpot) = run_full(relative);
     let shapes: Vec<Shape> = penpot
         .pages
         .iter()
         .flat_map(|page| page.shapes.iter().cloned())
         .collect();
+    (bytes, report, shapes)
+}
+
+fn run_full(
+    relative: &str,
+) -> (
+    Vec<u8>,
+    conversion_report::FileReport,
+    penpot_writer::PenpotDocument,
+) {
+    let document = read_fig(fixture(relative)).expect("fixture parses");
+    let mut collector = ReportCollector::new();
+    let penpot =
+        convert(&document, &ConvertOptions::default(), &mut collector).expect("conversion works");
     let bytes = build_archive(&penpot).expect("archive builds");
     validate_archive(&bytes).expect("archive validates");
     let report = collector.finish(
@@ -33,7 +44,7 @@ fn run(relative: &str) -> (Vec<u8>, conversion_report::FileReport, Vec<Shape>) {
         "test",
         "2.18.5",
     );
-    (bytes, report, shapes)
+    (bytes, report, penpot)
 }
 
 #[test]
@@ -64,7 +75,7 @@ fn circle_converts_with_correct_counts() {
         (25.0, 25.0, 300.0, 300.0)
     );
     assert_eq!(ellipse.frame_id, frame.id);
-    assert_eq!(ellipse.fills[0].fill_color, "#FF0000");
+    assert_eq!(ellipse.fills[0].fill_color.as_deref(), Some("#FF0000"));
     assert_eq!(ellipse.strokes[0].stroke_width, 5.0);
 }
 
@@ -229,7 +240,78 @@ fn vector_report_snapshot() {
 }
 
 #[test]
-fn report_snapshot() {
+fn gradients_shadows_and_blur_convert() {
+    let (_bytes, report, shapes) = run("effects-gradient.fig");
+    assert_eq!(report.counts.detected, 2);
+    assert_eq!(report.counts.converted, 2);
+    assert_eq!(report.counts.failed, 0);
+    let shape = shapes
+        .iter()
+        .find(|shape| shape.name == "Gradient Shadow")
+        .expect("gradient rect");
+    let gradient = shape.fills[0]
+        .fill_color_gradient
+        .as_ref()
+        .expect("gradient fill");
+    assert_eq!(gradient.kind, "linear");
+    assert_eq!(gradient.stops.len(), 2);
+    assert_eq!(shape.shadow.as_ref().map(Vec::len), Some(1));
+    assert!(shape.blur.is_some());
+    assert!(shape.background_blur.is_some());
+}
+
+#[test]
+fn image_media_is_registered() {
+    let (_bytes, report, penpot) = run_full("image.fig");
+    assert_eq!(report.counts.detected, 2);
+    assert_eq!(report.counts.converted, 2);
+    assert_eq!(penpot.media.len(), 1);
+    assert_eq!(penpot.objects.len(), 1);
+    assert_eq!(penpot.media[0].mtype, "image/png");
+    assert_eq!(penpot.media[0].width, 8);
+    assert_eq!(penpot.media[0].height, 8);
+    assert_eq!(penpot.media[0].media_id, penpot.objects[0].id);
+    let shape = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Image Fill")
+        .expect("image rect");
+    let image = shape.fills[0].fill_image.as_ref().expect("image fill");
+    assert_eq!(image.id, penpot.media[0].id);
+}
+
+#[test]
+fn auto_layout_maps_to_flex_container() {
+    let (_bytes, report, shapes) = run("auto-layout.fig");
+    assert_eq!(report.counts.detected, 3);
+    assert_eq!(report.counts.converted, 2);
+    assert_eq!(report.counts.approximated, 1);
+    let frame = shapes
+        .iter()
+        .find(|shape| shape.name == "Auto Layout")
+        .expect("frame");
+    assert_eq!(frame.layout.as_deref(), Some("flex"));
+    assert_eq!(frame.layout_flex_dir.as_deref(), Some("row"));
+    assert_eq!(
+        frame
+            .layout_gap
+            .as_ref()
+            .map(|gap| (gap.row_gap, gap.column_gap)),
+        Some((0.0, 12.0))
+    );
+    assert_eq!(
+        frame
+            .layout_padding
+            .as_ref()
+            .map(|padding| (padding.p1, padding.p2, padding.p3, padding.p4)),
+        Some((8.0, 20.0, 12.0, 10.0))
+    );
+    assert_eq!(frame.layout_justify_content.as_deref(), Some("center"));
+    assert_eq!(frame.layout_align_items.as_deref(), Some("center"));
+}
+
+#[test]
+fn circle_report_snapshot() {
     let (_bytes, report, _shapes) = run("circle.fig");
     let mut value = serde_json::to_value(report).unwrap();
     value["source"] = serde_json::json!("circle.fig");

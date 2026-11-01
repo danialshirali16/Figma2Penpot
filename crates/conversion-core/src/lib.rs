@@ -9,10 +9,12 @@
 use std::collections::HashMap;
 
 use conversion_report::{DiagnosticSink, ElementRef, Outcome, ReportEvent, Severity};
-use fig_reader::{Color, FigDocument, FigNode, Guid, Paint};
+use fig_reader::{Color, FigDocument, FigNode, Guid, Paint, TextData};
 use penpot_writer::{
-    Content, Fill, PathCommand, PathParams, PenpotDocument, PenpotPage, Shape, ShapeType, Stroke,
-    SvgAttrs, TextContent, TextRun,
+    BackgroundBlur, Blur, Content, Fill, GradientFill, GradientStop as PenpotGradientStop,
+    ImageFill, LayoutGap, LayoutPadding, Media, MediaObject, PathCommand, PathParams,
+    PenpotDocument, PenpotPage, Shadow, ShadowColor, Shape, ShapeType, Stroke, SvgAttrs,
+    TextContent, TextRun,
 };
 use uuid::Uuid;
 
@@ -46,6 +48,7 @@ pub fn convert(
     sink: &mut dyn DiagnosticSink,
 ) -> Result<PenpotDocument, ConvertError> {
     let tree = Tree::new(&document.nodes);
+    let assets = AssetRegistry::new(document);
     let file_name = options
         .file_name
         .clone()
@@ -72,6 +75,7 @@ pub fn convert(
         for child in children {
             if let Some(mut child_shapes) = convert_node(
                 document,
+                &assets,
                 &tree,
                 child,
                 root_id,
@@ -100,8 +104,114 @@ pub fn convert(
             shapes,
         });
     }
+    penpot.media = assets.media;
+    penpot.objects = assets.objects;
 
     Ok(penpot)
+}
+
+struct AssetRegistry {
+    fills: HashMap<String, ImageFill>,
+    media: Vec<Media>,
+    objects: Vec<MediaObject>,
+}
+
+impl AssetRegistry {
+    fn new(document: &FigDocument) -> Self {
+        let mut registry = Self::empty();
+        for image in &document.images {
+            if registry.fills.contains_key(&image.name) {
+                continue;
+            }
+            let Some((mtype, width, height)) = image_info(&image.bytes) else {
+                continue;
+            };
+            let media_id = id_for("media", &image.name);
+            let object_id = id_for("object", &image.name);
+            registry.fills.insert(
+                image.name.clone(),
+                ImageFill {
+                    width,
+                    height,
+                    mtype: mtype.clone(),
+                    id: media_id,
+                },
+            );
+            registry.media.push(Media {
+                id: media_id,
+                name: image.name.clone(),
+                width,
+                height,
+                mtype: mtype.clone(),
+                media_id: object_id,
+                is_local: true,
+            });
+            registry.objects.push(MediaObject {
+                id: object_id,
+                content_type: mtype,
+                bytes: image.bytes.clone(),
+            });
+        }
+        registry
+    }
+
+    fn empty() -> Self {
+        Self {
+            fills: HashMap::new(),
+            media: Vec::new(),
+            objects: Vec::new(),
+        }
+    }
+
+    fn image(&self, hash: &str) -> Option<&ImageFill> {
+        self.fills.get(hash)
+    }
+}
+
+fn image_info(bytes: &[u8]) -> Option<(String, u32, u32)> {
+    if bytes.starts_with(&[0x89, b'P', b'N', b'G', 0x0D, 0x0A, 0x1A, 0x0A]) {
+        if bytes.len() >= 24 {
+            let width = u32::from_be_bytes(bytes[16..20].try_into().ok()?);
+            let height = u32::from_be_bytes(bytes[20..24].try_into().ok()?);
+            return Some(("image/png".to_owned(), width, height));
+        }
+        return None;
+    }
+    if bytes.starts_with(b"GIF87a") || bytes.starts_with(b"GIF89a") {
+        if bytes.len() >= 10 {
+            let width = u16::from_le_bytes(bytes[6..8].try_into().ok()?) as u32;
+            let height = u16::from_le_bytes(bytes[8..10].try_into().ok()?) as u32;
+            return Some(("image/gif".to_owned(), width, height));
+        }
+        return None;
+    }
+    if bytes.starts_with(&[0xFF, 0xD8]) {
+        let mut offset = 2usize;
+        while offset + 4 <= bytes.len() {
+            if bytes[offset] != 0xFF {
+                offset += 1;
+                continue;
+            }
+            let marker = bytes[offset + 1];
+            offset += 2;
+            if marker == 0xD9 || marker == 0xDA {
+                break;
+            }
+            let len = u16::from_be_bytes(bytes[offset..offset + 2].try_into().ok()?) as usize;
+            if len < 2 || offset + len > bytes.len() {
+                break;
+            }
+            if matches!(marker, 0xC0..=0xC3) && len >= 7 {
+                let height =
+                    u16::from_be_bytes(bytes[offset + 3..offset + 5].try_into().ok()?) as u32;
+                let width =
+                    u16::from_be_bytes(bytes[offset + 5..offset + 7].try_into().ok()?) as u32;
+                return Some(("image/jpeg".to_owned(), width, height));
+            }
+            offset += len;
+        }
+    }
+    None
 }
 
 struct Tree<'a> {
@@ -143,6 +253,7 @@ impl<'a> Tree<'a> {
 #[allow(clippy::too_many_arguments)]
 fn convert_node(
     document: &FigDocument,
+    assets: &AssetRegistry,
     tree: &Tree<'_>,
     index: usize,
     parent_id: Uuid,
@@ -225,7 +336,8 @@ fn convert_node(
 
     if kind == NodeClass::Vector {
         return convert_vector_node(
-            document, node, &element, absolute, width, height, parent_id, frame_id, page_id, sink,
+            document, assets, node, &element, absolute, width, height, parent_id, frame_id,
+            page_id, sink,
         );
     }
 
@@ -241,6 +353,7 @@ fn convert_node(
             for child in tree.children_of(node.guid) {
                 if let Some(child_shapes) = convert_node(
                     document,
+                    assets,
                     tree,
                     child,
                     id,
@@ -342,7 +455,14 @@ fn convert_node(
         reasons.push("non-finite opacity was replaced with 1".to_owned());
     }
 
-    let (fills, fills_modified) = map_fills(sink, &element, &node.fills);
+    let (fills, fills_modified) = map_fills(
+        sink,
+        &element,
+        &node.fills,
+        shape.width,
+        shape.height,
+        assets,
+    );
     shape.fills = fills;
     if fills_modified {
         modified = true;
@@ -353,6 +473,24 @@ fn convert_node(
     if strokes_modified {
         modified = true;
         reasons.push("one or more strokes were skipped".to_owned());
+    }
+    let (shadow, blur, background_blur, effects_modified) = map_effects(node, &element, sink);
+    shape.shadow = shadow;
+    shape.blur = blur;
+    shape.background_blur = background_blur;
+    if effects_modified {
+        modified = true;
+        reasons.push("one or more effects were skipped".to_owned());
+    }
+    if matches!(kind, NodeClass::Frame | NodeClass::Group) {
+        apply_layout(
+            node,
+            &mut shape,
+            &element,
+            sink,
+            &mut modified,
+            &mut reasons,
+        );
     }
 
     if kind == NodeClass::Rect {
@@ -431,6 +569,7 @@ fn convert_node(
 #[allow(clippy::too_many_arguments)]
 fn convert_vector_node(
     document: &FigDocument,
+    assets: &AssetRegistry,
     node: &FigNode,
     element: &ElementRef,
     absolute: Affine,
@@ -462,8 +601,9 @@ fn convert_vector_node(
         return None;
     }
 
-    let (mut fills, fills_modified) = map_fills(sink, element, &node.fills);
+    let (mut fills, fills_modified) = map_fills(sink, element, &node.fills, width, height, assets);
     let (mut strokes, strokes_modified) = map_strokes(sink, element, node);
+    let (shadow, blur, background_blur, effects_modified) = map_effects(node, element, sink);
     let using_stroke_outline = !using_fill;
     if using_stroke_outline {
         fills = fills_from_strokes(node);
@@ -576,6 +716,9 @@ fn convert_vector_node(
         });
         shape.fills = fills.clone();
         shape.strokes = strokes.clone();
+        shape.shadow = shadow.clone();
+        shape.blur = blur.clone();
+        shape.background_blur = background_blur.clone();
         shape.proportion = Some(1.0);
         shape.proportion_lock = Some(false);
         if node.visible == Some(false) {
@@ -588,8 +731,11 @@ fn convert_vector_node(
         shapes.push(shape);
     }
 
-    let modified =
-        using_stroke_outline || fills_modified || strokes_modified || node.has_vector_network;
+    let modified = using_stroke_outline
+        || fills_modified
+        || strokes_modified
+        || effects_modified
+        || node.has_vector_network;
     emit(
         sink,
         element,
@@ -636,10 +782,10 @@ fn fills_from_strokes(node: &FigNode) -> Vec<Fill> {
             if !color.is_finite() {
                 return None;
             }
-            Some(Fill {
-                fill_color: hex(color),
-                fill_opacity: (color.a as f64 * paint.opacity as f64).clamp(0.0, 1.0),
-            })
+            Some(Fill::solid(
+                hex(color),
+                (color.a as f64 * paint.opacity as f64).clamp(0.0, 1.0),
+            ))
         })
         .collect()
 }
@@ -763,10 +909,121 @@ fn bounds(children: &[Shape]) -> Option<(f64, f64, f64, f64)> {
     }
 }
 
+fn apply_layout(
+    node: &FigNode,
+    shape: &mut Shape,
+    element: &ElementRef,
+    sink: &mut dyn DiagnosticSink,
+    modified: &mut bool,
+    reasons: &mut Vec<String>,
+) {
+    let Some(mode) = node.stack_mode.as_deref() else {
+        return;
+    };
+    if mode != "HORIZONTAL" && mode != "VERTICAL" {
+        return;
+    }
+    let horizontal = mode == "HORIZONTAL";
+    let padding_h = node.stack_horizontal_padding.unwrap_or(0.0) as f64;
+    let padding_v = node.stack_vertical_padding.unwrap_or(0.0) as f64;
+    let p1 = padding_v;
+    let p2 = node
+        .stack_padding_right
+        .map(|value| value as f64)
+        .unwrap_or(padding_h);
+    let p3 = node
+        .stack_padding_bottom
+        .map(|value| value as f64)
+        .unwrap_or(padding_v);
+    let p4 = padding_h;
+    let primary = node.stack_spacing.unwrap_or(0.0) as f64;
+    let counter = node.stack_counter_spacing.unwrap_or(0.0) as f64;
+    shape.layout = Some("flex".to_owned());
+    shape.layout_flex_dir = Some(if horizontal { "row" } else { "column" }.to_owned());
+    shape.layout_gap = Some(if horizontal {
+        LayoutGap {
+            row_gap: counter,
+            column_gap: primary,
+        }
+    } else {
+        LayoutGap {
+            row_gap: primary,
+            column_gap: counter,
+        }
+    });
+    shape.layout_gap_type = Some("multiple".to_owned());
+    shape.layout_padding = Some(LayoutPadding { p1, p2, p3, p4 });
+    shape.layout_padding_type = Some(
+        if (p1 - p3).abs() < 1e-6 && (p2 - p4).abs() < 1e-6 {
+            "simple"
+        } else {
+            "multiple"
+        }
+        .to_owned(),
+    );
+    shape.layout_justify_content = Some(
+        match node.stack_primary_align_items.as_deref() {
+            Some("CENTER") => "center",
+            Some("MAX") => "end",
+            Some("SPACE_BETWEEN") | Some("SPACE_EVENLY") => "space-between",
+            _ => "start",
+        }
+        .to_owned(),
+    );
+    shape.layout_justify_items = Some("stretch".to_owned());
+    shape.layout_align_items = Some(
+        match node.stack_counter_align_items.as_deref() {
+            Some("MIN") => "start",
+            Some("CENTER") => "center",
+            Some("MAX") => "end",
+            _ => "stretch",
+        }
+        .to_owned(),
+    );
+    shape.layout_align_content = Some(
+        match node.stack_counter_align_content.as_deref() {
+            Some("SPACE_BETWEEN") => "space-between",
+            Some("MIN") => "start",
+            Some("CENTER") => "center",
+            Some("MAX") => "end",
+            _ => "stretch",
+        }
+        .to_owned(),
+    );
+    if horizontal {
+        shape.layout_wrap_type = Some(
+            if node.stack_wrap.as_deref() == Some("WRAP") {
+                "wrap"
+            } else {
+                "nowrap"
+            }
+            .to_owned(),
+        );
+    }
+    *modified = true;
+    reasons.push(
+        "Auto Layout container mapped to flex; child sizing is not fully preserved".to_owned(),
+    );
+    emit(
+        sink,
+        element,
+        "F2P-LAYOUT-PARTIAL",
+        Severity::Warning,
+        Outcome::ConvertedWithModification,
+        "Auto Layout mapped to a Penpot flex container".to_owned(),
+        Some("child grow/fill sizing is not yet mapped".to_owned()),
+        "preserved direction, gap, padding, and primary/counter alignment".to_owned(),
+        Some("Review child sizing after import.".to_owned()),
+    );
+}
+
 fn map_fills(
     sink: &mut dyn DiagnosticSink,
     element: &ElementRef,
     paints: &[Paint],
+    width: f64,
+    height: f64,
+    assets: &AssetRegistry,
 ) -> (Vec<Fill>, bool) {
     let mut fills = Vec::new();
     let mut modified = false;
@@ -774,28 +1031,217 @@ fn map_fills(
         if !paint.visible {
             continue;
         }
-        match solid_color(paint) {
-            Some((color, opacity)) => fills.push(Fill {
-                fill_color: color,
-                fill_opacity: opacity,
-            }),
-            None => {
+        if let Some((color, opacity)) = solid_color(paint) {
+            fills.push(Fill::solid(color, opacity));
+            continue;
+        }
+        if let Some(gradient) = gradient_fill(paint, width, height) {
+            fills.push(Fill::gradient(gradient, paint.opacity as f64));
+            continue;
+        }
+        if let Some(hash) = paint.image_hash.as_deref() {
+            if let Some(image) = assets.image(hash) {
+                fills.push(Fill::image(image.clone(), paint.opacity as f64));
+                continue;
+            }
+        }
+        modified = true;
+        emit(
+            sink,
+            element,
+            "F2P-PAINT-UNSUPPORTED",
+            Severity::Warning,
+            Outcome::ConvertedWithModification,
+            format!("{} fill was skipped", paint.kind),
+            Some("only solid and linear/radial gradient paints are supported".to_owned()),
+            "kept the remaining paints".to_owned(),
+            Some("Recreate this fill manually in Penpot.".to_owned()),
+        );
+    }
+    (fills, modified)
+}
+
+fn gradient_fill(paint: &Paint, width: f64, height: f64) -> Option<GradientFill> {
+    if width <= 0.0 || height <= 0.0 {
+        return None;
+    }
+    let kind = match paint.kind.as_str() {
+        "GRADIENT_LINEAR" => "linear",
+        "GRADIENT_RADIAL" => "radial",
+        _ => return None,
+    };
+    let gradient = paint.gradient.as_ref()?;
+    if gradient.stops.is_empty() {
+        return None;
+    }
+    let transform = gradient
+        .transform
+        .map(Affine::from)
+        .unwrap_or(Affine::IDENTITY);
+    let det = transform.m00 * transform.m11 - transform.m10 * transform.m01;
+    if det.abs() < 1e-12 {
+        return None;
+    }
+    let ia = transform.m11 / det;
+    let ic = -transform.m01 / det;
+    let ie = (transform.m01 * transform.m12 - transform.m11 * transform.m02) / det;
+    let ib = -transform.m10 / det;
+    let id = transform.m00 / det;
+    let if_ = (transform.m10 * transform.m02 - transform.m00 * transform.m12) / det;
+    let point = |gx: f64, gy: f64| {
+        let x = (ia * gx + ic * gy + ie) * width;
+        let y = (ib * gx + id * gy + if_) * height;
+        (x / width, y / height)
+    };
+    let (start_x, start_y, end_x, end_y) = if kind == "linear" {
+        let (sx, sy) = point(0.0, 0.5);
+        let (ex, ey) = point(1.0, 0.5);
+        (sx, sy, ex, ey)
+    } else {
+        let (cx, cy) = point(0.5, 0.5);
+        let (px, py) = point(1.0, 0.5);
+        let radius_x = ((px - cx).powi(2) + (py - cy).powi(2)).sqrt();
+        let angle = (py - cy).atan2(px - cx);
+        let ex = cx + angle.cos() * radius_x;
+        let ey = cy + angle.sin() * radius_x;
+        (cx, cy, ex, ey)
+    };
+    let mut stops: Vec<_> = gradient
+        .stops
+        .iter()
+        .map(|stop| PenpotGradientStop {
+            color: hex(stop.color),
+            opacity: Some(stop.color.a as f64),
+            offset: stop.position as f64,
+        })
+        .collect();
+    stops.sort_by(|a, b| a.offset.total_cmp(&b.offset));
+    Some(GradientFill {
+        kind: kind.to_owned(),
+        start_x,
+        start_y,
+        end_x,
+        end_y,
+        width: 1.0,
+        stops,
+    })
+}
+
+fn map_effects(
+    node: &FigNode,
+    element: &ElementRef,
+    sink: &mut dyn DiagnosticSink,
+) -> (
+    Option<Vec<Shadow>>,
+    Option<Blur>,
+    Option<BackgroundBlur>,
+    bool,
+) {
+    let mut shadows = Vec::new();
+    let mut blur = None;
+    let mut background_blur = None;
+    let mut modified = false;
+    for (order, effect) in node.effects.iter().enumerate() {
+        match effect.kind.as_str() {
+            "DROP_SHADOW" | "INNER_SHADOW" => {
+                let color = effect.color.unwrap_or(Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.25,
+                });
+                shadows.push(Shadow {
+                    id: id_for("shadow", &format!("{}:{}", node.guid, order)),
+                    style: if effect.kind == "INNER_SHADOW" {
+                        "inner-shadow".to_owned()
+                    } else {
+                        "drop-shadow".to_owned()
+                    },
+                    offset_x: effect.offset_x as f64,
+                    offset_y: effect.offset_y as f64,
+                    blur: effect.radius as f64,
+                    spread: effect.spread as f64,
+                    hidden: !effect.visible,
+                    color: ShadowColor {
+                        color: hex(color),
+                        opacity: color.a as f64,
+                    },
+                });
+            }
+            "LAYER_BLUR" | "FOREGROUND_BLUR" => {
+                if blur.is_none() {
+                    blur = Some(Blur {
+                        id: id_for("blur", &node.guid.to_string()),
+                        kind: "layer-blur".to_owned(),
+                        value: effect.radius as f64,
+                        hidden: !effect.visible,
+                    });
+                } else {
+                    modified = true;
+                    emit(
+                        sink,
+                        element,
+                        "F2P-EFFECT-DUPLICATE",
+                        Severity::Warning,
+                        Outcome::ConvertedWithModification,
+                        "shape has more than one layer blur".to_owned(),
+                        Some("Penpot keeps a single layer blur per shape".to_owned()),
+                        "kept the first layer blur".to_owned(),
+                        Some("Review the blur in Penpot.".to_owned()),
+                    );
+                }
+            }
+            "BACKGROUND_BLUR" => {
+                if background_blur.is_none() {
+                    background_blur = Some(BackgroundBlur {
+                        id: id_for("background-blur", &node.guid.to_string()),
+                        kind: "background-blur".to_owned(),
+                        value: effect.radius as f64,
+                        hidden: !effect.visible,
+                    });
+                } else {
+                    modified = true;
+                    emit(
+                        sink,
+                        element,
+                        "F2P-EFFECT-DUPLICATE",
+                        Severity::Warning,
+                        Outcome::ConvertedWithModification,
+                        "shape has more than one background blur".to_owned(),
+                        Some("Penpot keeps a single background blur per shape".to_owned()),
+                        "kept the first background blur".to_owned(),
+                        Some("Review the blur in Penpot.".to_owned()),
+                    );
+                }
+            }
+            other => {
                 modified = true;
                 emit(
                     sink,
                     element,
-                    "F2P-PAINT-UNSUPPORTED",
+                    "F2P-EFFECT-UNSUPPORTED",
                     Severity::Warning,
                     Outcome::ConvertedWithModification,
-                    format!("{} fill was skipped", paint.kind),
-                    Some("only solid paints are supported in M2".to_owned()),
-                    "kept the remaining paints".to_owned(),
-                    Some("Recreate this fill manually in Penpot.".to_owned()),
+                    format!("{other} effect was skipped"),
+                    Some("no Penpot equivalent in M3.2".to_owned()),
+                    "kept the remaining effects".to_owned(),
+                    Some("Recreate this effect manually in Penpot.".to_owned()),
                 );
             }
         }
     }
-    (fills, modified)
+    // Penpot paints shadow[0] on top; Figma's effects array runs bottom to top.
+    shadows.reverse();
+    (
+        if shadows.is_empty() {
+            None
+        } else {
+            Some(shadows)
+        },
+        blur,
+        background_blur,
+        modified,
+    )
 }
 
 fn map_strokes(
@@ -929,6 +1375,20 @@ fn map_text(
     };
     let style = text.font_style.as_deref().unwrap_or("Regular");
     let (weight, font_style) = font_properties(style);
+    let text_align = match text.align_horizontal.as_deref() {
+        Some("CENTER") => "center",
+        Some("RIGHT") => "right",
+        Some("JUSTIFIED") => "justify",
+        _ => "left",
+    };
+    let line_height = line_height_string(text, font_size);
+    let letter_spacing = letter_spacing_string(text, font_size);
+    let vertical_align = match text.align_vertical.as_deref() {
+        Some("CENTER") => Some("center".to_owned()),
+        Some("BOTTOM") => Some("bottom".to_owned()),
+        Some("TOP") | None => Some("top".to_owned()),
+        Some(_) => None,
+    };
     let (grow_type, resized) = match text.auto_resize.as_deref() {
         Some("HEIGHT") => ("auto-height", false),
         Some("WIDTH_AND_HEIGHT") => ("auto-width", true),
@@ -943,22 +1403,46 @@ fn map_text(
     let run_fills = if run_fills.is_empty() {
         modified = true;
         reason = Some("text had no solid fill; used black".to_owned());
-        vec![Fill {
-            fill_color: "#000000".to_owned(),
-            fill_opacity: 1.0,
-        }]
+        vec![Fill::solid("#000000", 1.0)]
     } else {
         run_fills
     };
-    let content = TextContent::single_run(TextRun {
+    let mut content = TextContent::single_run(TextRun {
         text: characters.to_owned(),
         font_family,
         font_size: format_number(font_size as f64),
         font_weight: weight.to_owned(),
         font_style: font_style.to_owned(),
+        text_align: Some(text_align.to_owned()),
+        line_height: Some(line_height),
+        letter_spacing: Some(letter_spacing),
         fills: run_fills,
     });
+    content.vertical_align = vertical_align;
     Ok((content, grow_type.to_owned(), modified, reason))
+}
+
+fn line_height_string(text: &TextData, font_size: f32) -> String {
+    let value = text.line_height_value.unwrap_or(1.2 * font_size) as f64;
+    let size = font_size as f64;
+    let ratio = match text.line_height_units.as_deref() {
+        Some("PERCENT") => value / 100.0,
+        Some("RAW") => value,
+        Some("PIXELS") if size > 0.0 => value / size,
+        _ if size > 0.0 => value / size,
+        _ => 1.2,
+    };
+    format_number(ratio)
+}
+
+fn letter_spacing_string(text: &TextData, font_size: f32) -> String {
+    let value = text.letter_spacing_value.unwrap_or(0.0) as f64;
+    let size = font_size as f64;
+    let px = match text.letter_spacing_units.as_deref() {
+        Some("PERCENT") => (value / 100.0) * size,
+        _ => value,
+    };
+    format_number(px)
 }
 
 fn font_properties(style: &str) -> (&'static str, &'static str) {
@@ -1135,9 +1619,21 @@ mod tests {
             corner_radii: None,
             resize_to_fit: None,
             text: None,
+            effects: Vec::new(),
             fill_geometry: Vec::new(),
             stroke_geometry: Vec::new(),
             has_vector_network: false,
+            stack_mode: None,
+            stack_spacing: None,
+            stack_counter_spacing: None,
+            stack_horizontal_padding: None,
+            stack_vertical_padding: None,
+            stack_padding_right: None,
+            stack_padding_bottom: None,
+            stack_primary_align_items: None,
+            stack_counter_align_items: None,
+            stack_counter_align_content: None,
+            stack_wrap: None,
         }
     }
 
@@ -1152,6 +1648,8 @@ mod tests {
             }),
             opacity: 1.0,
             visible: true,
+            gradient: None,
+            image_hash: None,
         }
     }
 
@@ -1163,8 +1661,17 @@ mod tests {
             color: None,
             opacity: 1.0,
             visible: true,
+            gradient: None,
+            image_hash: None,
         }];
-        let (fills, modified) = map_fills(&mut sink, &element(), &paints);
+        let (fills, modified) = map_fills(
+            &mut sink,
+            &element(),
+            &paints,
+            10.0,
+            10.0,
+            &AssetRegistry::empty(),
+        );
         assert!(fills.is_empty());
         assert!(modified);
         assert!(sink
@@ -1188,6 +1695,30 @@ mod tests {
             .events()
             .iter()
             .any(|event| event.code == "F2P-STROKE-ALIGNMENT"));
+    }
+
+    #[test]
+    fn text_metrics_are_mapped() {
+        let mut node = blank_node();
+        node.kind = "TEXT".to_owned();
+        node.text = Some(TextData {
+            characters: Some("Metrics".to_owned()),
+            font_family: Some("Inter".to_owned()),
+            font_size: Some(20.0),
+            line_height_value: Some(150.0),
+            line_height_units: Some("PERCENT".to_owned()),
+            letter_spacing_value: Some(10.0),
+            letter_spacing_units: Some("PERCENT".to_owned()),
+            align_horizontal: Some("CENTER".to_owned()),
+            align_vertical: Some("CENTER".to_owned()),
+            ..TextData::default()
+        });
+        let (content, _grow, _modified, _reason) = map_text(&node, &[]).unwrap();
+        assert_eq!(content.vertical_align.as_deref(), Some("center"));
+        let run = &content.children[0].children[0].children[0];
+        assert_eq!(run.text_align.as_deref(), Some("center"));
+        assert_eq!(run.line_height.as_deref(), Some("1.5"));
+        assert_eq!(run.letter_spacing.as_deref(), Some("2"));
     }
 
     #[test]

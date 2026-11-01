@@ -24,11 +24,15 @@ here.
 | `vector-network/straight-2-point-line.fig` | `142a92771c49289510d0a025736d62fa49e9e3a9ff3477bd483f2436b1cd8c7b` | Smallest vector-network case, 627 schema definitions |
 | `vector-network/corner-radius-middle-dot-20.fig` | `46cba181920fb1d018f6fdbe2d85301129dc78a0efc62a06bb7eaab9aab6e67f` | Vertex style-ID case |
 | `text-group.fig` | `467910fd3b66dacb1c0e341f4c89182ad51971f954e523d41a3cb66e25372f12` | **Synthetic**, project-owned: frame, resizeToFit group, rect with solid fill/stroke/radii, ellipse, single-run text |
+| `effects-gradient.fig` | `2b25cda8f65410f73558c558f7f50d390e15dd3fd7d8c393aca52425ddf20dbc` | **Synthetic**, project-owned: linear gradient, drop shadow, layer blur, background blur |
+| `image.fig` | `34abf1459abbd0bcb2a07f82506cf741bf8172af804d0a862106f448c23c157c` | **Synthetic**, project-owned: 8×8 PNG image fill |
+| `auto-layout.fig` | `93547f3365b3566e64f7d02184bd23e6eef4ccccfe8013f83b76773970b7cc8a` | **Synthetic**, project-owned: horizontal flex, asymmetric padding, gap, alignment |
 
-`text-group.fig` was generated with the MIT `openfig-core` encoder from our own node
-definitions. It is not upstream sample data and is licensed under this project's
-MIT/Apache-2.0 terms. It exists to exercise M2 text and group conversion; its provenance is
-recorded here so it is never mistaken for a real Figma export.
+The synthetic fixtures were generated with the MIT `openfig-core` encoder from our own node
+definitions. They are not upstream sample data and are licensed under this project's
+MIT/Apache-2.0 terms. They exercise M2 text/groups, M3.2 effects, M3.3 images, and M3.5
+flex layout; their provenance is recorded here so they are never mistaken for real Figma
+exports.
 
 ## Attribution
 

@@ -29,6 +29,10 @@ pub struct Limits {
     pub max_blobs: usize,
     /// Maximum size of a single blob.
     pub max_blob_bytes: usize,
+    /// Maximum size of a single image entry.
+    pub max_image_bytes: usize,
+    /// Maximum total bytes of all image entries.
+    pub max_total_image_bytes: u64,
     /// Maximum element count for a non-byte Kiwi array.
     pub max_array_items: usize,
     /// Maximum Kiwi nesting depth (schema types and messages).
@@ -61,6 +65,8 @@ impl Default for Limits {
             max_nodes: 1_000_000,
             max_blobs: 1_000_000,
             max_blob_bytes: 256 * 1024 * 1024,
+            max_image_bytes: 100 * 1024 * 1024,
+            max_total_image_bytes: 1024 * 1024 * 1024,
             max_array_items: 4_000_000,
             max_depth: 64,
             max_schema_name_bytes: 4_096,
@@ -88,6 +94,8 @@ impl Limits {
             max_nodes: 2_000,
             max_blobs: 2_000,
             max_blob_bytes: 256 * 1024,
+            max_image_bytes: 256 * 1024,
+            max_total_image_bytes: 1024 * 1024,
             max_array_items: 4_000,
             max_depth: 32,
             max_schema_name_bytes: 256,

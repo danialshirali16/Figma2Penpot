@@ -2,20 +2,21 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-01** (session 4, M3.1).
+Last updated: **2026-11-01** (session 5, M3.2–M3.5).
 
 ---
 
 ## 1. Where we are
 
-**Milestone: M3 in progress. M3.1 filled vector paths are complete and import-verified.**
+**Milestone: M3 in progress. M3.1–M3.5 are implemented; M3.1–M3.3 and M3.5 container
+properties are import-verified. M3.4 text metrics are unit-tested but not imported.**
 
-The workspace reads real `.fig` files, converts the M2 subset plus vector path geometry to
-`.penpot`, validates archives structurally, and writes event-based JSON reports. M2 and
-M3.1 outputs imported into a local **Penpot 2.18.5** stack (`2.18.5-RC1`) with
-`error?=false`; geometry, fills, strokes, text, groups, and vector icons were inspected.
-Booleans, editable vector networks, gradients/effects/masks, images, advanced text, layout,
-styles, components, and tokens remain planned.
+The workspace reads real `.fig` files, converts the M2 subset plus vector geometry,
+gradients, shadows, blur, image fills, text metrics, and flex containers to `.penpot`,
+validates archives structurally, and writes event-based JSON reports. M2–M3.3 and M3.5
+outputs imported into a local **Penpot 2.18.5** stack (`2.18.5-RC1`) with `error?=false`.
+Booleans, editable vector networks, masks, Auto Layout child sizing, styles, components, and
+tokens remain planned.
 
 M3.1 acceptance so far:
 
@@ -30,6 +31,20 @@ M3.1 acceptance so far:
 | Vector network handles | Partial / reported | `F2P-VECTOR-NETWORK-LOST` |
 | Booleans | Planned | not implemented |
 | Golden test | Done | `filled_vector_converts_to_multiple_paths`; 20 paths; `openfigs.report.json` |
+
+M3.2–M3.5 acceptance:
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Gradients (linear/radial) | Done | normalized start/end + stops; linear import verified |
+| Shadows (drop/inner) | Done | Penpot `shadow` array; drop import verified |
+| Layer and background blur | Done | Penpot `blur`/`backgroundBlur`; both import verified |
+| Masks/clipping | Planned | not implemented |
+| Images + hash dedup | Done | media/object archive; red 8×8 PNG rendered |
+| Text alignment | Done (unverified) | horizontal/vertical strings; unit test only |
+| Line height / letter spacing | Done (unverified) | percent/pixels/raw → ratio/px; unit test only |
+| Auto Layout → flex | Partial | direction/gap/padding/alignment verified; child sizing reported |
+| Grid layout | Planned | not implemented |
 
 M2 acceptance remains as recorded below.
 
@@ -82,7 +97,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **56 tests pass** (unit/integration + 1 doctest) |
+| `cargo test --offline --workspace` | **60 tests pass** (unit/integration + 1 doctest) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -90,6 +105,14 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Penpot import OpenFigs | `d047d42d-cd5b-80cd-8008-e1452fac5611`, `error?=false`, 0.158 s |
 | Penpot import straight line | `d047d42d-cd5b-80cd-8008-e145acec5587`, `error?=false`, 0.052 s |
 | UI inspection | 20 path layers under the OpenFigs frame; icon rendered; green stroke-only line rendered |
+| `convert effects-gradient.fig` | 2 detected, 2 converted; validation passed (14 checks) |
+| `convert image.fig` | 2 detected, 2 converted; validation passed (20 checks) |
+| `convert auto-layout.fig` | 3 detected, 2 converted, 1 approximated; validation passed (15 checks) |
+| Penpot import effects | `17b9706f-02f0-8188-8008-e14cce8b07fa`, `error?=false` |
+| Penpot import image (white) | `17b9706f-02f0-8188-8008-e1519513b5a7`, `error?=false` |
+| Penpot import image (red) | `17b9706f-02f0-8188-8008-e153dadf0c7c`, `error?=false` |
+| Penpot import auto layout | `17b9706f-02f0-8188-8008-e1588bbf28a8`, `error?=false` |
+| UI inspection (M3.2–M3.5) | gradient/shadow/blur rendered; red image rendered; flex row gap 12, padding 8/20/12/10 |
 | CI (M2/M3.1) | run 41329353648: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
@@ -100,16 +123,22 @@ backend string, not just the tag, in future checks.
 ## 5. Implemented behavior
 
 - Reader: ZIP/raw containers, bounded Kiwi schema/message decoding, nodes, transforms,
-  solid paints/strokes, opacity, corner radii, `resizeToFit`, basic text attributes, vector
-  geometry blob references, and `vectorData` presence.
+  paints (solid/gradient/image), effects, opacity, corner radii, `resizeToFit`, text
+  metrics, stack/Auto Layout fields, vector geometry blob references, and `vectorData`
+  presence; image bytes are loaded under per-entry and total caps.
 - Conversion:
   - visible pages; internal-only canvas excluded;
   - frames, frame-encoded groups (resizeToFit), rectangles, ellipses, basic text;
   - filled vector paths from `commandsBlob`, multiple subpaths per node, absolute commands;
   - absolute world coordinates (ADR-0005);
   - solid fills and strokes, alpha → fill/stroke opacity, node opacity;
+  - linear/radial gradients from normalized geometry and stops;
+  - drop/inner shadows, layer blur, background blur;
+  - image fills backed by deterministic media/object entries;
   - corner radii r1–r4;
-  - text: single paragraph/run, family/style/size, weight, fill; auto-height mapping;
+  - text: single paragraph/run, family/style/size, weight, fill, horizontal/vertical
+    alignment, line height, letter spacing; auto-height mapping;
+  - Auto Layout → flex direction, gap, padding, wrap, alignment;
   - unsupported node types, non-solid paints, unknown stroke alignment, empty text/groups,
     stroke-only outlines, and lost vector networks are reported with stable codes.
 - Writer: Penpot 2.18.5/v67 archive, deterministic UUIDs (ADR-0007), manifest last,
@@ -120,9 +149,9 @@ backend string, not just the tag, in future checks.
 
 ## 6. Explicitly not implemented
 
-- Booleans, editable vector networks (handle-level), gradients, effects, masks, images,
-  layout constraints, styles, components/instances/variants, tokens.
-- Text: mixed styles, paragraph alignment, line height, letter spacing, lists, text styles.
+- Booleans, editable vector networks (handle-level), masks, grid layout, Auto Layout child
+  sizing/constraints, styles, components/instances/variants, tokens.
+- Text: mixed/per-character styles, multiple paragraphs, lists, text styles.
 - Rotation/flip is approximated/reported; not preserved.
 - Locked/blocked, page background.
 - HTML/CSV report export.
@@ -146,14 +175,16 @@ backend string, not just the tag, in future checks.
 
 - **Verified (Penpot 2.18.5-RC1):** M2 pages, frames, groups, rectangles/radii, ellipses,
   solid fills/strokes, basic text, absolute positions, layer hierarchy, CLI convert;
-  M3.1 filled vector paths.
+  M3.1 filled vector paths; M3.2 gradients/shadows/layer+background blur; M3.3 image fills;
+  M3.5 flex direction/gap/padding/alignment.
 - **Implemented (unverified):** JSON report/validator beyond the inspected subset; opacity
   node-level; other node types handled by unit tests.
+- **Implemented (unverified):** M3.4 text alignment/line height/letter spacing; radial
+  gradients; inner shadows; JPEG/GIF image sniffing.
 - **Partial:** stroke-only vectors (filled outline), vector network handles, layer order
-  complex cases, hidden/locked, text paragraphs/alignment, missing fonts, images enumeration,
-  rotation.
-- **Planned:** booleans, gradients/effects/masks, images, layout, styles, components, tokens,
-  reports UI/exports, GUI, batch.
+  complex cases, hidden/locked, missing fonts, Auto Layout child sizing, rotation.
+- **Planned:** booleans, masks, grid layout, styles, components, tokens, reports UI/exports,
+  GUI, batch.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -173,15 +204,19 @@ backend string, not just the tag, in future checks.
    remains pure Rust and the fixture is project-owned.
 9. **Vector handle metadata is not read.** Paths are command-array geometry; current reports
    emit `F2P-VECTOR-NETWORK-LOST` when `vectorData` is present.
+10. **Auto Layout child sizing is not mapped.** The container is flex and verified, but child
+    grow/fill behavior is reported via `F2P-LAYOUT-PARTIAL`.
+11. **Text metrics have no import evidence yet.** Alignment, line height, and letter spacing
+    are unit-tested only; add a text fixture and import before marking Verified.
 
 ## 10. Next steps (in order)
 
-1. Push M3.1; confirm CI green on Linux/macOS/Windows.
-2. M3.1 remainder: booleans and editable vector networks (handle-level) with fixtures.
-3. M3.2 gradients/effects/masks with explicit fallbacks and Penpot import.
-4. M3.3 images with hash dedup and media writer.
-5. Then text fidelity (M3.4), layout/constraints (M3.5), styles (M3.6), components (M3.7),
-   tokens (M3.8), each with support-matrix rows and import evidence.
+1. Commit and push M3.2–M3.5; confirm CI green on Linux/macOS/Windows.
+2. M3.6 styles (paint/text/effect) with a fixture and import.
+3. M3.7 components, instances, and variants with a fixture and import.
+4. M3.8 variables/tokens with an explicit lossy-mapping report.
+5. M3.1 remainder: booleans and editable vector networks (handle-level).
+6. M3.4 follow-up: text-metrics fixture and import; masks; child sizing/constraints.
 
 ## 11. How to resume
 
@@ -218,6 +253,17 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 5 — 2026-11-01
+
+- Added paint gradients/images, effects, text metrics, and stack fields to the reader.
+- Implemented gradients, shadows, layer/background blur, image media/object packaging,
+  text alignment/line height/letter spacing, and Auto Layout → flex.
+- Added synthetic fixtures `effects-gradient.fig`, `image.fig`, `auto-layout.fig` with
+  provenance and hashes; added integration tests (60 tests total).
+- Imported all four outputs into Penpot 2.18.5; `error?=false`; UI inspected and
+  screenshots added under `docs/qa/`.
+- Updated support matrix, issue codes, manual QA, and fixture README.
 
 ### Session 4 — 2026-11-01
 
