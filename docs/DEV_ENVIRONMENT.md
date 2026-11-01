@@ -38,6 +38,8 @@ be bounded and memory-aware, and why streaming is preferred over holding decoded
 | `cargo-deny` | absent | M8 / compliance gate |
 | `cargo-audit` | absent | M8 / compliance gate |
 | `insta` CLI | absent (crate can still be used) | Not needed yet |
+| Desktop stack | `eframe`/`egui` 0.36.2, `rfd` 0.16.1, `dirs` 7.0.0 | M4.1; rfd uses GTK3 on Linux |
+| Screen capture | `screencapture -l <id>` works; full-screen capture blocked | Terminal lacks Screen Recording permission; window capture succeeds |
 
 Because `rustup` is absent, the workspace must be buildable with the Homebrew toolchain
 and CI must pin its own stable version. Minimum supported Rust version (MSRV) is an M1
@@ -52,7 +54,7 @@ decision driven by the slowest-moving dependency (`eframe 0.37` currently declar
 | GitHub API unauthenticated | Yes, rate-limited |
 | npm registry | Yes, used only to inspect upstream packages |
 | crates.io | Yes, used to check licenses and versions |
-| Penpot instance | **Available for M2**: local Docker stack, image `2.18.5` (backend `2.18.5-RC1`), telemetry disabled |
+| Penpot instance | Local Docker stack used for M2–M3.8, image `2.18.5` (backend `2.18.5-RC1`); stopped after verification |
 | Figma account / plugin runtime | Not required; Figma.app is installed but was not used |
 
 **Conversion must not require any of this.** Network access is a development-time capability

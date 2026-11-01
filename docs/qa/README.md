@@ -1,4 +1,4 @@
-# M2–M3.8 QA evidence
+# M2–M4.1 QA evidence
 
 Screenshots from a local Penpot **2.18.5** stack (backend reports `2.18.5-RC1`) on
 2026-11-01. The stack used the official `docker/images/docker-compose.yaml` at tag 2.18.5,
@@ -40,6 +40,9 @@ Only project-owned or MIT-licensed fixtures were imported. No private designs ar
 | `masks-boolean-import.png` | First mask/boolean import (boolean masked out) |
 | `masks-boolean2-import.png` | Masked red lens plus the green boolean donut |
 | `text-metrics-inspect.png` | Styled text selected, showing the `Heading` typography link |
+| `desktop-home.png` | Native desktop Home/Import screen with drop zone and navigation |
+| `desktop-queue.png` | File Queue with `circle.fig` staged, size, Ready state, and Remove |
+| `desktop-light.png` | Light theme loaded from saved settings |
 Import log evidence is recorded in `docs/MANUAL_QA.md`. Reopen and move/edit persistence
 were not tested. Text line-height/letter-spacing fields were not independently read back;
 the imported typography style and link were verified.

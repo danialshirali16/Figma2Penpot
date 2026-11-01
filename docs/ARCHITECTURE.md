@@ -1,9 +1,8 @@
 # Architecture
 
-Status: M0 design baseline; updated at M3.8. The reader, M2 converter, vector-path
-expansion, gradients/effects, image media, text metrics, flex layout, styles,
-components/variants, tokens, `.penpot` writer, structural validator, JSON report, and CLI
-are implemented. The GUI, batch queue, and HTML/CSV export are not.
+Status: M0 design baseline; updated at M4.1. The reader, M2/M3 converter, `.penpot` writer,
+structural validator, JSON report, CLI, and native desktop shell are implemented. The batch
+queue, report exports, and release packaging are not.
 
 This document describes the intended Rust system, what was learned from the upstream
 projects, and why the implementation is a reimplementation rather than a port.
@@ -99,9 +98,9 @@ figma-2-penpot/
 │   ├── conversion-core/       IR, passes, mapping rules, diagnostics
 │   ├── penpot-writer/         Penpot document model + archive writer + validator
 │   ├── conversion-report/     event model, counts, JSON/HTML/CSV
-│   ├── conversion-queue/      jobs, scheduler, cancellation, progress
-│   ├── f2p-cli/               headless inspect/convert/batch
-│   └── desktop-app/           egui/eframe UI
+│   ├── conversion-queue/      planned (M5): jobs, scheduler, cancellation
+│   ├── f2p-cli/               headless inspect/convert
+│   └── desktop-app/           egui/eframe UI + std-thread worker (M4.1)
 ├── tests/
 │   ├── fixtures/              redistributable inputs + provenance
 │   ├── integration/           end-to-end batch and failure tests
@@ -113,11 +112,12 @@ figma-2-penpot/
 Dependency direction:
 
 ```text
-desktop-app -> conversion-queue -> conversion-core -> fig-reader
-                                                   -> penpot-writer
-                                                   -> conversion-report
-f2p-cli     -> conversion-queue -> conversion-core
+desktop-app -> fig-reader, conversion-core, penpot-writer, conversion-report
+f2p-cli     -> fig-reader, conversion-core, penpot-writer, conversion-report
+conversion-core -> fig-reader, penpot-writer, conversion-report
 ```
+
+`conversion-queue` will sit between the two front-ends and `conversion-core` in M5.
 
 `conversion-core` must not depend on `egui`, `rfd`, or any UI crate. The report crate is a
 sink, not a global logger; core receives a `&mut dyn DiagnosticSink`.

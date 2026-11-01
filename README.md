@@ -9,17 +9,18 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — all M3 fidelity waves implemented and import-checked
+> ## Status: pre-alpha — M4 desktop shell in progress
 >
 > The Rust workspace reads real `.fig` files and converts the M2 slice plus vectors, masks,
 > boolean fallbacks, gradients, shadows, blur, image fills, text metrics, flex containers,
 > styles, components/variants, and design tokens to `.penpot`. It validates the archive and
 > writes an event-based JSON report. M2–M3.8 outputs imported into a local **Penpot 2.18.5**
-> stack and were inspected. **No GUI or batch queue yet.** Stroke-only vectors, editable
-> network handles, fixed constraints, Auto Layout child sizing, effect style linkage,
-> instance swaps, mixed text runs, and non-paint variable bindings are documented Partial
-> items with runtime diagnostics. See [`PROGRESS.md`](PROGRESS.md) and
-> [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
+> stack and were inspected. The native desktop shell now exists with eight screens, native
+> file dialogs, background conversion, and headless UI tests; batch conversion is not built
+> yet. Stroke-only vectors, editable network handles, fixed constraints, Auto Layout child
+> sizing, effect style linkage, instance swaps, mixed text runs, and non-paint variable
+> bindings are documented Partial items with runtime diagnostics. See
+> [`PROGRESS.md`](PROGRESS.md) and [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
 
 ---
 
@@ -104,8 +105,8 @@ Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Impleme
 | M0 | Research, format findings, license assessment, architecture | **Done** — evidence in `PROGRESS.md` |
 | M1 | Cargo workspace, `.fig` container/decode, `f2p-cli inspect` | **Done** — evidence in `PROGRESS.md` |
 | M2 | Minimal end-to-end conversion + validator + JSON report | **Done** — imported and inspected in Penpot 2.18.5-RC1 |
-| M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **In progress** — M3.1 vector paths verified |
-| M4 | Native desktop application (eight screens) | **Planned** |
+| M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **Done with Partial items** — import-verified in Penpot 2.18.5-RC1 |
+| M4 | Native desktop application (eight screens) | **In progress** — M4.1 shell and worker |
 | M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **Planned** |
 | M6 | Report UI and JSON/HTML/CSV exports | **Planned** |
 | M7 | Reliability, fuzzing, performance benchmarks | **Planned** |
@@ -116,20 +117,21 @@ Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Impleme
 ```text
 .fig
   → fig-reader          container detection, safe extraction, schema + data decode   [implemented]
-  → conversion-core     Figma IR, ordered mapping passes, diagnostics at every decision   [M2 slice]
-  → penpot-writer       Penpot document model → .penpot archive   [M2 slice]
-  → validation          structural checks against derived Penpot rules   [M2]
+  → conversion-core     Figma IR, ordered mapping passes, diagnostics at every decision   [M2–M3]
+  → penpot-writer       Penpot document model → .penpot archive   [implemented]
+  → validation          structural checks against derived Penpot rules   [implemented]
   → atomic write        temp file in destination volume → validate → rename   [implemented]
   → report              per-file and batch reports (JSON / HTML / CSV)   [JSON implemented]
 ```
 
-A thin headless CLI (`f2p-cli`) wraps the same API as the GUI so conversion is testable in
-CI. The core crates never depend on the UI.
+A thin headless CLI (`f2p-cli`) wraps the same API as the desktop app so conversion stays
+testable in CI. The core crates never depend on the UI.
 
 ## Building
 
-Requires a stable Rust toolchain. The workspace currently contains the reader and CLI; the
-GUI and converter crates arrive in later milestones.
+Requires a stable Rust toolchain. Linux desktop builds need GTK3 and the usual X11/Wayland/
+OpenGL development packages; macOS and Windows use native dialogs and need no extra system
+packages.
 
 ```bash
 cargo build --workspace
@@ -137,9 +139,21 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 
-# Inspect and convert a real file
+# Native desktop app
+cargo run -p desktop-app
+
+# Inspect and convert a real file (headless)
 cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
 cargo run -p f2p-cli -- convert tests/fixtures/circle.fig --out /tmp/f2p-out
+```
+
+On Linux, install the desktop build dependencies first:
+
+```bash
+sudo apt-get install -y libgtk-3-dev libxkbcommon-dev libxkbcommon-x11-dev \
+  libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev \
+  libegl1-mesa-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+  libwayland-dev
 ```
 
 Optional fuzzing (the harness is in `fuzz/`):

@@ -1,7 +1,8 @@
 # Manual QA
 
 Status: **M2 and M3.1–M3.8 imports PASSED** on a local Penpot 2.18.5 stack (backend
-reports `2.18.5-RC1`), 2026-11-01. The converter outputs imported without errors and the
+reports `2.18.5-RC1`), 2026-11-01. **M4.1 desktop shell partially checked** on macOS;
+native dialog/drag-drop interaction remains manual. The converter outputs imported without errors and the
 features below were inspected in the Penpot UI. Reopen/edit persistence was not tested.
 Text line-height/letter-spacing values are unit-tested and carried through the imported
 typography style, but were not independently read from the form fields.
@@ -235,7 +236,33 @@ No separate import; the `styles.fig` text uses the `Heading` typography with lin
 
 ---
 
-## 11. Future platform checklist (M4/M8)
+## 11. M4.1 — Desktop shell
+
+Captured on macOS 27.2 (arm64), 2026-11-01. Desktop tests pass headlessly; native dialog
+and drag-drop interaction were not automated. Screenshots:
+[`docs/qa/desktop-home.png`](qa/desktop-home.png),
+[`docs/qa/desktop-queue.png`](qa/desktop-queue.png),
+[`docs/qa/desktop-light.png`](qa/desktop-light.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Launch | Native window opens | **Pass** — 1180×792 titled `Figma 2 Penpot` |
+| 2 | Home | Brand, drop zone, Choose files, nav | **Pass** — captured |
+| 3 | Queue | File staged from CLI argument; size/state/Remove visible | **Pass** — `circle.fig`, 31.5 KiB, `— Ready` |
+| 4 | Eight screens | All render without panic | **Pass** — headless `egui` smoke test |
+| 5 | Background conversion | Worker converts fixture and writes archive/report | **Pass** — desktop integration test |
+| 6 | Results/Report | Real report data renders | **Pass** — headless end-to-end test |
+| 7 | Settings persistence | JSON round-trip and malformed fallback | **Pass (unit)** |
+| 8 | Native file dialog | Choose `.fig` | **Untested** — requires OS interaction |
+| 9 | Drag and drop | Dropped file enters queue | **Untested** — requires OS interaction |
+| 10 | Light theme | Readable light appearance | **Pass** — settings file selected Light; captured |
+| 11 | Preferences reload | Saved settings load on launch | **Pass** — Light theme loaded from disk |
+
+Observed harness limitation: this terminal lacks Screen Recording permission, so the window
+was captured with `screencapture -x -l <window-id>` after locating the window via
+CoreGraphics. That does not affect the app.
+
+## 12. Future platform checklist (M4/M8)
 
 Not started. To be filled when the desktop app exists:
 

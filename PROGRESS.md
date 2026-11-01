@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-01** (session 6, M3.1–M3.8).
+Last updated: **2026-11-01** (session 7, M4.1).
 
 ---
 
@@ -32,7 +32,7 @@ M3.1 acceptance so far:
 | Filled vector import | Verified | Penpot import `d047d42d-…-e1452fac5611`, icon rendered |
 | Stroke-only vector | Partial | expanded outline converted to filled path; report says approximated |
 | Vector network handles | Partial / reported | `F2P-VECTOR-NETWORK-LOST` |
-| Booleans | Planned | not implemented |
+| Booleans | Partial | rendered geometry imported; operands not reconstructed |
 | Golden test | Done | `filled_vector_converts_to_multiple_paths`; 20 paths; `openfigs.report.json` |
 
 M3.2–M3.5 acceptance:
@@ -42,7 +42,7 @@ M3.2–M3.5 acceptance:
 | Gradients (linear/radial) | Done | normalized start/end + stops; linear import verified |
 | Shadows (drop/inner) | Done | Penpot `shadow` array; drop import verified |
 | Layer and background blur | Done | Penpot `blur`/`backgroundBlur`; both import verified |
-| Masks/clipping | Planned | not implemented |
+| Masks/clipping | Partial | masked group imported; mode reported as approximated |
 | Images + hash dedup | Done | media/object archive; red 8×8 PNG rendered |
 | Text alignment | Done (unverified) | horizontal/vertical strings; unit test only |
 | Line height / letter spacing | Done (unverified) | percent/pixels/raw → ratio/px; unit test only |
@@ -63,6 +63,22 @@ M3.6–M3.8 acceptance:
 | Design tokens | Done | `tokens.json` imported; `brand.primary` applied to a fill |
 | Masks | Partial | masked group imported; mode reported approximated |
 | Booleans | Partial | rendered path imported; operands not reconstructed |
+
+M4.1 acceptance so far:
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| eframe app and app id | Done | `crates/desktop-app`, `app.figma2penpot.desktop` |
+| Eight screens | Done | Home, Queue, Analysis, Settings, Progress, Results, Report, Preferences |
+| Non-blocking conversion | Done | worker thread + `mpsc`; UI drains events only |
+| Native file/folder dialogs | Implemented (unverified) | `rfd`; dialog interaction not automated |
+| Drag and drop | Implemented (unverified) | egui dropped/hovered files; manual check pending |
+| Light/dark/system theme | Done | Settings + `egui::ThemePreference`; dark and light captured |
+| Settings persistence | Done (unit) | JSON round-trip and malformed-file fallback tests |
+| Headless UI tests | Done | all eight screens drawn through `egui::Context` |
+| End-to-end desktop worker test | Done | fixture converts, result lands in Results/Report screens |
+| Manual desktop QA | Partial | Home, Queue, and Light theme captured; Analysis/Progress/Results/Report manual clicks pending |
+| Installers | Planned | M8 |
 
 M2 acceptance remains as recorded below.
 
@@ -115,7 +131,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **64 tests pass** (unit/integration + 1 doctest) |
+| `cargo test --offline --workspace` | **80 tests pass** (64 core/CLI + 16 desktop; 1 doctest) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -141,6 +157,10 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Penpot import masks/boolean | `17b9706f-02f0-8188-8008-e16179c815cf`, `error?=false` |
 | UI inspection (M3.6–M3.8) | color/typography libraries and links; 3 components + 2 variants; instance override; Light/Dark tokens and applied `brand.primary`; masked lens + boolean donut |
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
+| Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
+| Desktop headless tests | 16 state/worker/UI tests, including a real fixture conversion |
+| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 80 tests pass |
+| CI for M4.1 | Pending push: Linux/macOS/Windows jobs include the desktop crate |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
@@ -294,6 +314,21 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 7 — 2026-11-01
+
+- Added `crates/desktop-app`: eframe/egui native shell with app ID
+  `app.figma2penpot.desktop`.
+- Implemented all eight screens with a headless `AppState`; conversion/analysis run on
+  worker threads and report stages over `mpsc`.
+- Added native file/folder dialogs (`rfd`), drag-and-drop staging, settings persistence,
+  middle-truncated paths with tooltips, and light/dark/system theme selection.
+- Added command-line `.fig` path staging for manual QA and future open-with support.
+- Added 16 desktop tests: queue/settings/state, real fixture conversion, all-screen headless
+  rendering, and end-to-end worker → Results/Report.
+- Updated CI with Linux GTK3/X11/Wayland build dependencies.
+- Captured Home, Queue, and Light theme screenshots; native dialog, drag-drop, and
+  remaining screen interactions still need manual QA.
 
 ### Session 6 — 2026-11-01
 

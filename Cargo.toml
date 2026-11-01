@@ -5,6 +5,7 @@ members = [
     "crates/penpot-writer",
     "crates/conversion-core",
     "crates/f2p-cli",
+    "crates/desktop-app",
 ]
 resolver = "2"
 
@@ -22,6 +23,7 @@ flate2 = { version = "1.1", default-features = false, features = ["rust_backend"
 ruzstd = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+tempfile = "3.27"
 thiserror = "2.0"
 tracing = "0.1"
 uuid = { version = "1.29", features = ["v5", "serde"] }

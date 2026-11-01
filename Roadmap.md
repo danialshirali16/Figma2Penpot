@@ -33,7 +33,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 | M1 | Workspace and `.fig` reading | `f2p-cli inspect` prints verified metadata for ≥3 fixtures; malformed inputs error without panicking | **Done** — see `PROGRESS.md` |
 | M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Done** — verified in Penpot |
 | M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Done with Partial items** — all eight waves implemented; see `PROGRESS.md` |
-| M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **Planned** |
+| M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **In progress** — M4.1 shell and worker |
 | M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **Planned** |
 | M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **Planned** |
 | M7 | Reliability and performance | Fuzz campaign, large-file corpus, recorded time and peak-memory benchmarks | **Planned** |
@@ -183,6 +183,11 @@ treated as complete.
 ---
 
 ## M4 — Desktop application
+
+**Status: In progress (M4.1, 2026-11-01).** The native shell, eight screens, headless state
+tests, native dialogs, settings persistence, and background conversion worker exist.
+Drag/drop and dialogs still need manual QA; packaging and the full acceptance checklist are
+pending.
 
 **Goal.** A finished-feeling native utility, not a web dashboard in a window.
 

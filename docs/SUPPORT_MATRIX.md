@@ -1,6 +1,6 @@
 # Support Matrix
 
-Last updated: **2026-11-01** (M3.8). M2 features, vectors, masks, boolean fallbacks,
+Last updated: **2026-11-01** (M4.1). M2 features, vectors, masks, boolean fallbacks,
 gradients, shadows, blur, images, text metrics, flex containers, styles, components,
 variants, and tokens imported successfully into a local Penpot 2.18.5 stack
 (`2.18.5-RC1`) and were inspected in the UI. Stroke-only vectors, Auto Layout child sizing,
@@ -112,7 +112,9 @@ Status vocabulary (no other labels are used):
 | JSON report | **Verified** | M2; event-based counts, schema version 1; tested |
 | HTML/CSV report export | Planned | M6 |
 | Headless CLI | **Verified** | `inspect` + `convert` used for the import |
-| Native desktop UI | Planned | M4 |
+| Native desktop UI | **Partial** | M4.1; eight-screen eframe shell, native dialogs, background conversion, settings persistence; packaging/manual checklist pending |
+| Desktop drag-and-drop / file picker | **Implemented (unverified)** | M4.1; code path exists; OS interaction not automated |
+| Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 16 desktop tests |
 | Batch queue, cancel, retry | Planned | M5 |
 | Real Penpot import verification | **Verified (M2–M3.8 subset)** | Penpot 2.18.5-RC1; see `MANUAL_QA.md` |
 
