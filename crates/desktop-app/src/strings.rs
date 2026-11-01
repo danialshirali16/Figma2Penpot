@@ -23,6 +23,30 @@ pub const QUEUE_HEADING: &str = "File queue";
 pub const QUEUE_BODY: &str =
     "Files are staged here. Analysis and conversion run on a worker thread.";
 pub const ADD_FILES: &str = "Add files";
+pub const ADD_FOLDER: &str = "Add folder";
+pub const FOLDER_EMPTY: &str = "No .fig files found in that folder.";
+pub const FOLDER_TRUNCATED: &str = "Folder scan stopped after 512 files.";
+pub const FOLDER_SCAN_FAILED: &str = "Could not scan folder";
+pub const ANALYZE_AGAIN: &str = "Analyze again";
+pub const SELECTED_OUTPUT: &str = "Selected output";
+pub const PREVIEW_SELECTED: &str = "Preview for selected file";
+pub const LOCAL_FIRST: &str = "Local-first";
+pub const NO_TELEMETRY: &str = "No telemetry · No network needed";
+pub const PURE_RUST: &str = "Pure Rust";
+pub const OFFLINE_CONVERSION: &str = "Offline conversion";
+pub const EVENT_REPORTS: &str = "Event-based reports";
+pub const NO_CANCEL_YET: &str = "Cancellation arrives with the M5 batch queue.";
+pub const APP_ID_LABEL: &str = "App ID";
+pub const VALIDATION_CHECKS: &str = "checks";
+pub const DURATION_MS: &str = "ms";
+pub const SHORTCUTS: &str = "Keyboard shortcuts";
+pub const SHORTCUT_MOD: &str = "Cmd/Ctrl";
+pub const SHORTCUT_OPEN: &str = "Open .fig files";
+pub const SHORTCUT_FOLDER: &str = "Add a folder";
+pub const SHORTCUT_ANALYZE: &str = "Analyze selected file";
+pub const SHORTCUT_CONVERT: &str = "Convert selected file";
+pub const SHORTCUT_PREFS: &str = "Preferences";
+pub const SHORTCUT_SCREENS: &str = "Jump to screens 1–8";
 pub const CLEAR_QUEUE: &str = "Clear queue";
 pub const REMOVE_FILE: &str = "Remove";
 pub const ANALYZE_FILE: &str = "Analyze";
@@ -113,6 +137,18 @@ pub const DROP_ADDED: &str = "Added to the queue.";
 
 pub fn added_message(count: usize) -> String {
     format!("Added {count} file(s) to the queue.")
+}
+
+pub fn files_staged(count: usize) -> String {
+    format!("{count} file(s) staged")
+}
+
+pub fn validation_checks(count: usize) -> String {
+    format!("{} {VALIDATION_CHECKS}", count)
+}
+
+pub fn duration_ms(milliseconds: u64) -> String {
+    format!("{milliseconds} {DURATION_MS}")
 }
 pub const REJECTED_PREFIX: &str = "Rejected";
 pub const OPEN_FOLDER_FAILED: &str = "Could not open the output folder";

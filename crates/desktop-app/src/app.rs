@@ -10,13 +10,14 @@ use eframe::egui::{self, Align, Color32, Layout, RichText};
 use eframe::{CreationContext, Frame};
 
 use crate::conversion::{spawn_analysis, spawn_conversion, ConversionRequest, WorkerEvent};
-use crate::model::{ActiveJob, AppState, NoticeKind, QueueState, Screen, Stage};
+use crate::model::{scan_folder, ActiveJob, AppState, NoticeKind, QueueState, Screen, Stage};
 use crate::settings::{Settings, ThemeChoice};
 use crate::strings::*;
 
 #[derive(Default)]
 struct UiActions {
     add_files: bool,
+    add_folder: bool,
     choose_output: bool,
     clear_output: bool,
     analyze_selected: bool,
@@ -204,6 +205,34 @@ impl F2pApp {
         );
     }
 
+    fn choose_folder(&mut self) {
+        let mut dialog = rfd::FileDialog::new().set_title(ADD_FOLDER);
+        if let Some(parent) = self
+            .state
+            .selected_item()
+            .and_then(|item| item.path.parent())
+        {
+            dialog = dialog.set_directory(parent);
+        }
+        if let Some(dir) = dialog.pick_folder() {
+            match scan_folder(&dir, 6) {
+                Ok(scan) if scan.files.is_empty() => {
+                    self.state.notify(NoticeKind::Warning, FOLDER_EMPTY);
+                }
+                Ok(scan) => {
+                    let truncated = scan.truncated;
+                    self.add_paths(scan.files);
+                    if truncated {
+                        self.state.notify(NoticeKind::Warning, FOLDER_TRUNCATED);
+                    }
+                }
+                Err(error) => self
+                    .state
+                    .notify(NoticeKind::Error, format!("Could not scan folder: {error}")),
+            }
+        }
+    }
+
     fn choose_files(&mut self) {
         let mut dialog = rfd::FileDialog::new()
             .add_filter("Figma", &["fig"])
@@ -287,6 +316,47 @@ impl F2pApp {
         }
     }
 
+    fn handle_shortcuts(&mut self, ctx: &egui::Context, actions: &mut UiActions) {
+        let mut screen = None;
+        ctx.input(|input| {
+            if !input.modifiers.command {
+                return;
+            }
+            if input.modifiers.shift && input.key_pressed(egui::Key::O) {
+                actions.add_folder = true;
+            } else if input.key_pressed(egui::Key::O) {
+                actions.add_files = true;
+            }
+            if input.modifiers.shift && input.key_pressed(egui::Key::A) {
+                actions.analyze_selected = true;
+            }
+            if input.key_pressed(egui::Key::Enter) {
+                actions.convert_selected = true;
+            }
+            if input.key_pressed(egui::Key::Comma) {
+                screen = Some(Screen::Preferences);
+            }
+            let digits = [
+                egui::Key::Num1,
+                egui::Key::Num2,
+                egui::Key::Num3,
+                egui::Key::Num4,
+                egui::Key::Num5,
+                egui::Key::Num6,
+                egui::Key::Num7,
+                egui::Key::Num8,
+            ];
+            for (index, key) in digits.into_iter().enumerate() {
+                if input.key_pressed(key) {
+                    screen = Some(Screen::ALL[index]);
+                }
+            }
+        });
+        if let Some(screen) = screen {
+            self.state.set_screen(screen);
+        }
+    }
+
     fn handle_drops(&mut self, ctx: &egui::Context) {
         let dropped: Vec<PathBuf> = ctx.input(|input| {
             input
@@ -308,6 +378,9 @@ impl F2pApp {
     fn handle_actions(&mut self, actions: UiActions) {
         if actions.add_files {
             self.choose_files();
+        }
+        if actions.add_folder {
+            self.choose_folder();
         }
         if actions.choose_output {
             self.choose_output_dir();
@@ -406,7 +479,7 @@ impl F2pApp {
     fn draw_footer(&mut self, root: &mut egui::Ui) {
         egui::Panel::bottom("app_status").show(root, |ui| {
             ui.horizontal(|ui| {
-                ui.label(format!("{} file(s) staged", self.state.files.len()));
+                ui.label(files_staged(self.state.files.len()));
                 if self.state.active.is_some() {
                     ui.label(RichText::new("conversion running").color(ui.visuals().warn_fg_color));
                 }
@@ -455,6 +528,7 @@ impl F2pApp {
         self.handle_drops(&ctx);
         self.apply_theme(&ctx);
         let mut actions = UiActions::default();
+        self.handle_shortcuts(&ctx, &mut actions);
         self.draw_header(ui, &mut actions);
         self.draw_nav(ui);
         self.draw_footer(ui);
@@ -528,11 +602,11 @@ fn draw_home(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) {
     ui.add_space(18.0);
     ui.separator();
     ui.horizontal(|ui| {
-        ui.label(RichText::new("Pure Rust").strong());
+        ui.label(RichText::new(PURE_RUST).strong());
         ui.label("·");
-        ui.label("Offline conversion");
+        ui.label(OFFLINE_CONVERSION);
         ui.label("·");
-        ui.label("Event-based reports");
+        ui.label(EVENT_REPORTS);
     });
 }
 
@@ -547,6 +621,12 @@ fn draw_queue(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) 
             .clicked()
         {
             actions.add_files = true;
+        }
+        if ui
+            .add_enabled(!busy, egui::Button::new(ADD_FOLDER))
+            .clicked()
+        {
+            actions.add_folder = true;
         }
         if ui
             .add_enabled(!state.files.is_empty(), egui::Button::new(CLEAR_QUEUE))
@@ -632,7 +712,7 @@ fn draw_queue(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) 
     if let Some(item) = state.selected_item() {
         ui.add_space(10.0);
         let output = state.output_path_for(&item.path);
-        ui.label(RichText::new("Selected output").strong());
+        ui.label(RichText::new(SELECTED_OUTPUT).strong());
         ui.label(middle_truncate(&output.display().to_string(), 100))
             .on_hover_text(output.display().to_string());
     }
@@ -655,7 +735,7 @@ fn draw_analysis(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiAction
     ui.add_space(8.0);
     ui.horizontal(|ui| {
         if item.analysis.is_some() {
-            if ui.button("Analyze again").clicked() {
+            if ui.button(ANALYZE_AGAIN).clicked() {
                 actions.analyze_selected = true;
             }
         } else if item.state == QueueState::Analyzing {
@@ -760,7 +840,7 @@ fn draw_settings(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiAction
     if let Some(item) = state.selected_item() {
         ui.add_space(14.0);
         ui.separator();
-        ui.label(RichText::new("Preview for selected file").strong());
+        ui.label(RichText::new(PREVIEW_SELECTED).strong());
         let output = state.output_path_for(&item.path);
         let report = state.report_path_for(&item.path);
         ui.label(middle_truncate(&output.display().to_string(), 100))
@@ -836,13 +916,13 @@ fn draw_results(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions
             ui.end_row();
             ui.label(RichText::new(VALIDATION_LABEL).strong());
             ui.label(format!(
-                "{} ({} checks)",
+                "{} ({})",
                 validation_label(result.report.validation),
-                result.validation_checks
+                validation_checks(result.validation_checks)
             ));
             ui.end_row();
             ui.label(RichText::new(DURATION_LABEL).strong());
-            ui.label(format!("{} ms", result.report.duration_ms));
+            ui.label(duration_ms(result.report.duration_ms));
             ui.end_row();
         });
     ui.add_space(12.0);
@@ -1029,7 +1109,16 @@ fn draw_preferences(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiAct
     ui.label(RichText::new(ABOUT_LABEL).strong());
     ui.label(ABOUT_BODY);
     ui.label(format!("{}: {}", VERSION_LABEL, env!("CARGO_PKG_VERSION")));
-    ui.label(format!("App ID: {APP_ID}"));
+    ui.label(format!("{APP_ID_LABEL}: {APP_ID}"));
+    ui.add_space(10.0);
+    ui.collapsing(SHORTCUTS, |ui| {
+        ui.label(format!("{SHORTCUT_MOD}+O — {SHORTCUT_OPEN}"));
+        ui.label(format!("{SHORTCUT_MOD}+Shift+O — {SHORTCUT_FOLDER}"));
+        ui.label(format!("{SHORTCUT_MOD}+Shift+A — {SHORTCUT_ANALYZE}"));
+        ui.label(format!("{SHORTCUT_MOD}+Enter — {SHORTCUT_CONVERT}"));
+        ui.label(format!("{SHORTCUT_MOD}+, — {SHORTCUT_PREFS}"));
+        ui.label(format!("{SHORTCUT_MOD}+1…8 — {SHORTCUT_SCREENS}"));
+    });
 }
 
 fn status_line(ui: &mut egui::Ui, status: FileStatus) {
@@ -1273,6 +1362,37 @@ mod tests {
             let mut output = ctx.run_ui(input, |ui| app.draw_root(ui));
             output.textures_delta.clear();
         }
+    }
+
+    #[test]
+    fn command_number_jumps_to_a_screen_headlessly() {
+        use eframe::egui::{Event, Key, Modifiers, Rect, Vec2};
+        let dir = tempfile::tempdir().unwrap();
+        let state = AppState::new(Settings::default(), dir.path().join("settings.json"));
+        let mut app = F2pApp::with_state(state);
+        let ctx = egui::Context::default();
+        let mut input = egui::RawInput {
+            screen_rect: Some(Rect::from_min_size(
+                egui::Pos2::ZERO,
+                Vec2::new(1180.0, 760.0),
+            )),
+            ..Default::default()
+        };
+        let modifiers = Modifiers {
+            command: true,
+            ..Modifiers::default()
+        };
+        input.events.push(Event::ModifiersChanged(modifiers));
+        input.events.push(Event::Key {
+            key: Key::Num2,
+            physical_key: None,
+            pressed: true,
+            repeat: false,
+            modifiers,
+        });
+        let mut output = ctx.run_ui(input, |ui| app.draw_root(ui));
+        output.textures_delta.clear();
+        assert_eq!(app.state.screen, Screen::Queue);
     }
 
     #[test]

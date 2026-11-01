@@ -148,6 +148,10 @@ cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
 cargo run -p f2p-cli -- convert tests/fixtures/circle.fig --out /tmp/f2p-out
 ```
 
+Desktop shortcuts use **Cmd** on macOS and **Ctrl** elsewhere: `+O` open files,
+`+Shift+O` add a folder, `+Shift+A` analyze, `+Enter` convert, `+,` preferences, and
+`+1`…`+8` jump between screens.
+
 On Linux, install the desktop build dependencies first:
 
 ```bash

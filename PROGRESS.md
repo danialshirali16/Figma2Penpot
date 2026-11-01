@@ -73,6 +73,8 @@ M4.1 acceptance so far:
 | Non-blocking conversion | Done | worker thread + `mpsc`; UI drains events only |
 | Native file/folder dialogs | Implemented (unverified) | `rfd`; dialog interaction not automated |
 | Drag and drop | Implemented (unverified) | egui dropped/hovered files; manual check pending |
+| Folder scan | Done (unit) | recursive `.fig` scan, hidden folders skipped, 512-file cap |
+| Keyboard shortcuts | Done (headless) | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; shortcut key event tested |
 | Light/dark/system theme | Done | Settings + `egui::ThemePreference`; dark and light captured |
 | Settings persistence | Done (unit) | JSON round-trip and malformed-file fallback tests |
 | Headless UI tests | Done | all eight screens drawn through `egui::Context` |
@@ -113,7 +115,7 @@ Figma 2 Penpot/
 ├── tests/fixtures/          5 fixtures (4 upstream MIT + 1 synthetic) + provenance
 ├── docs/qa/                 real-import screenshots (Penpot 2.18.5-RC1)
 ├── .github/workflows/       CI (Linux/macOS/Windows)
-└── docs/                    M0/M1/M2/M3.1 docs + ADRs 0001–0008
+└── docs/                    M0–M4.1 docs + ADRs 0001–0009
 ```
 
 ## 3. Environment
@@ -131,7 +133,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **80 tests pass** (64 core/CLI + 16 desktop; 1 doctest) |
+| `cargo test --offline --workspace` | **82 tests pass** (64 core/CLI + 18 desktop; 1 doctest) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -158,8 +160,8 @@ See `docs/DEV_ENVIRONMENT.md`.
 | UI inspection (M3.6–M3.8) | color/typography libraries and links; 3 components + 2 variants; instance override; Light/Dark tokens and applied `brand.primary`; masked lens + boolean donut |
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
-| Desktop headless tests | 16 state/worker/UI tests, including a real fixture conversion |
-| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 80 tests pass |
+| Desktop headless tests | 18 state/worker/UI tests, including a real fixture conversion |
+| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 82 tests pass |
 | CI for M4.1 | run 41343195721: Ubuntu/macOS/Windows success, including desktop crate |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
 
@@ -208,8 +210,8 @@ backend string, not just the tag, in future checks.
 - Rotation/flip is approximated/reported; not preserved.
 - Locked/blocked, page background.
 - HTML/CSV report export.
-- GUI, batch queue, cancellation.
-- Reopen/move/edit persistence verification.
+- Batch queue, cancellation, desktop packaging/installers.
+- Reopen/move/edit persistence verification for documents.
 
 ## 7. Decisions
 
@@ -223,6 +225,7 @@ backend string, not just the tag, in future checks.
 | 0006 | Bounded in-house Kiwi decoder |
 | 0007 | Deterministic UUIDs from Figma GUIDs |
 | 0008 | Explicit Skipped/Unsupported report outcomes |
+| 0009 | egui/eframe desktop shell, std-thread worker, native dialogs (GTK3 on Linux) |
 
 ## 8. Verified vs. unverified
 
@@ -240,7 +243,9 @@ backend string, not just the tag, in future checks.
   per-paint blend modes, instance swaps/properties, variable layout bindings, mixed text
   runs, rotation.
 - **Not supported / reported:** grid layout, grid styles, procedural effects, lists.
-- **Planned:** reports UI/exports, GUI, batch.
+- **Partial:** desktop shell (M4.1): all screens and worker exist; native dialog/drag-drop
+  and remaining manual interactions need QA; packaging is pending.
+- **Planned:** report exports/UI polish beyond M4.1, batch queue, packaging.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -251,11 +256,11 @@ backend string, not just the tag, in future checks.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** M2/M3.1 built with `--offline` after dependencies were
    cached; CI still needs network for new crates.
-5. **CI is green at `01a4f52` for M3.1** (run 41329353648) on Linux, macOS, and Windows.
-   The Node 20 action annotation remains cosmetic; harden action pinning in M8.
-6. **Docker stack was stopped** after M3.1 import. Re-run via compose for future imports;
+5. **CI is green at `09810a1`** (run 41343195721) on Linux, macOS, and Windows. The Node 20
+   action annotation remains cosmetic; harden action pinning in M8.
+6. **Docker stack was stopped** after M3.8 imports. Re-run via compose for future imports;
    telemetry off.
-7. **No real component/media/token data**, so those remain unverified.
+7. **No third-party component/token corpus yet**; fixtures are synthetic and project-owned.
 8. **`openfig-core` synthetic fixture generated with Node** (research-only); the product
    remains pure Rust and the fixture is project-owned.
 9. **Vector handle metadata is not read.** Paths are command-array geometry; current reports
@@ -324,7 +329,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Added native file/folder dialogs (`rfd`), drag-and-drop staging, settings persistence,
   middle-truncated paths with tooltips, and light/dark/system theme selection.
 - Added command-line `.fig` path staging for manual QA and future open-with support.
-- Added 16 desktop tests: queue/settings/state, real fixture conversion, all-screen headless
+- Added 18 desktop tests: queue/settings/state, real fixture conversion, all-screen headless
   rendering, and end-to-end worker → Results/Report.
 - Updated CI with Linux GTK3/X11/Wayland build dependencies.
 - Captured Home, Queue, and Light theme screenshots; native dialog, drag-drop, and

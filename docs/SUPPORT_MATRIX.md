@@ -114,7 +114,9 @@ Status vocabulary (no other labels are used):
 | Headless CLI | **Verified** | `inspect` + `convert` used for the import |
 | Native desktop UI | **Partial** | M4.1; eight-screen eframe shell, native dialogs, background conversion, settings persistence; packaging/manual checklist pending |
 | Desktop drag-and-drop / file picker | **Implemented (unverified)** | M4.1; code path exists; OS interaction not automated |
-| Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 16 desktop tests |
+| Desktop folder scan | **Verified** | Recursive `.fig` scan, hidden folders skipped, bounded to 512 files; unit-tested |
+| Desktop keyboard shortcuts | **Implemented (unverified)** | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; headless key-event test only |
+| Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 18 desktop tests |
 | Batch queue, cancel, retry | Planned | M5 |
 | Real Penpot import verification | **Verified (M2–M3.8 subset)** | Penpot 2.18.5-RC1; see `MANUAL_QA.md` |
 

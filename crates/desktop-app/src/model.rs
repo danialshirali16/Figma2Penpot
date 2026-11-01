@@ -215,6 +215,56 @@ impl ReportFilter {
 }
 
 #[derive(Debug, Default)]
+pub struct FolderScan {
+    pub files: Vec<PathBuf>,
+    pub truncated: bool,
+}
+
+/// Scan a folder for `.fig` files without following symlinks or descending into
+/// hidden folders. The result is bounded so a mistaken folder choice cannot
+/// stall the UI.
+pub fn scan_folder(root: &Path, max_depth: usize) -> std::io::Result<FolderScan> {
+    const MAX_FILES: usize = 512;
+    let mut scan = FolderScan::default();
+    let mut stack = vec![(root.to_path_buf(), 0usize)];
+    while let Some((dir, depth)) = stack.pop() {
+        if depth > max_depth || scan.files.len() >= MAX_FILES {
+            scan.truncated = true;
+            continue;
+        }
+        for entry in fs::read_dir(&dir)? {
+            let entry = entry?;
+            let file_type = entry.file_type()?;
+            if file_type.is_symlink() {
+                continue;
+            }
+            let path = entry.path();
+            if file_type.is_dir() {
+                let hidden = path
+                    .file_name()
+                    .map(|name| name.to_string_lossy().starts_with('.'))
+                    .unwrap_or(false);
+                if !hidden {
+                    stack.push((path, depth + 1));
+                }
+            } else if file_type.is_file()
+                && path
+                    .extension()
+                    .is_some_and(|extension| extension.eq_ignore_ascii_case("fig"))
+            {
+                if scan.files.len() >= MAX_FILES {
+                    scan.truncated = true;
+                    return Ok(scan);
+                }
+                scan.files.push(path);
+            }
+        }
+    }
+    scan.files.sort();
+    Ok(scan)
+}
+
+#[derive(Debug, Default)]
 pub struct AddOutcome {
     pub added: usize,
     pub rejected: Vec<(PathBuf, String)>,
@@ -521,6 +571,24 @@ mod tests {
         assert_eq!(outcome.rejected.len(), 1);
         assert_eq!(state.files.len(), 1);
         assert_eq!(state.selected, Some(0));
+    }
+
+    #[test]
+    fn folder_scan_finds_fig_files_and_skips_hidden_dirs() {
+        let dir = tempfile::tempdir().unwrap();
+        let nested = dir.path().join("nested");
+        let hidden = dir.path().join(".hidden");
+        fs::create_dir_all(&nested).unwrap();
+        fs::create_dir_all(&hidden).unwrap();
+        temp_fig(dir.path(), "top.fig");
+        temp_fig(&nested, "deep.fig");
+        temp_fig(&hidden, "skip.fig");
+        temp_fig(&nested, "notes.txt");
+        let scan = scan_folder(dir.path(), 4).unwrap();
+        assert_eq!(scan.files.len(), 2);
+        assert!(scan.files.iter().any(|path| path.ends_with("top.fig")));
+        assert!(scan.files.iter().any(|path| path.ends_with("deep.fig")));
+        assert!(!scan.truncated);
     }
 
     #[test]

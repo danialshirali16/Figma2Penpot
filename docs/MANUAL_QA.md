@@ -255,8 +255,10 @@ and drag-drop interaction were not automated. Screenshots:
 | 7 | Settings persistence | JSON round-trip and malformed fallback | **Pass (unit)** |
 | 8 | Native file dialog | Choose `.fig` | **Untested** — requires OS interaction |
 | 9 | Drag and drop | Dropped file enters queue | **Untested** — requires OS interaction |
-| 10 | Light theme | Readable light appearance | **Pass** — settings file selected Light; captured |
-| 11 | Preferences reload | Saved settings load on launch | **Pass** — Light theme loaded from disk |
+| 10 | Folder scan | Finds `.fig`, skips hidden folders, caps at 512 | **Pass (unit)** |
+| 11 | Keyboard shortcuts | Cmd/Ctrl+2 jumps to Queue | **Pass (headless)**; remaining shortcuts untested manually |
+| 12 | Light theme | Readable light appearance | **Pass** — settings file selected Light; captured |
+| 13 | Preferences reload | Saved settings load on launch | **Pass** — Light theme loaded from disk |
 
 Observed harness limitation: this terminal lacks Screen Recording permission, so the window
 was captured with `screencapture -x -l <window-id>` after locating the window via
