@@ -1,8 +1,8 @@
 # Support Matrix
 
-Last updated: **2026-11-01** (M2). The M2 slice imported successfully into a local Penpot
-2.18.5 stack (`2.18.5-RC1`) and was inspected in the UI. M2 features are **Verified** for
-that version; everything outside M2 remains **Planned** or **Partial**.
+Last updated: **2026-11-01** (M3.1). M2 features and filled vector paths imported
+successfully into a local Penpot 2.18.5 stack (`2.18.5-RC1`) and were inspected in the UI.
+Stroke-only vector outlines are Partial; booleans and editable networks remain Planned.
 
 Status vocabulary (no other labels are used):
 
@@ -27,7 +27,7 @@ Status vocabulary (no other labels are used):
 | Unknown fields/node types | **Partial** | Unknown enum types reported (`BRUSH` fixture); unknown message fields error |
 | Safe archive/parser limits | **Implemented (unverified)** | M1; entry, size, ratio, node, depth, string caps |
 | `f2p-cli inspect` | **Implemented (unverified)** | M1; integration-tested on real fixtures |
-| Raw node metadata (type/name/GUID/transform) | **Partial** | Core geometry, solid paints, and basic text; vector blobs not mapped |
+| Raw node metadata (type/name/GUID/transform) | **Partial** | Core geometry, solid paints, basic text, and vector blob indexes; components/variables not mapped |
 | `f2p-cli convert` | **Verified** | M2; circle + synthetic text/group imported into Penpot 2.18.5-RC1 |
 | M2 import verification | **Verified** | Both fixtures; backend `error?=false`; see `MANUAL_QA.md` |
 
@@ -51,9 +51,10 @@ Status vocabulary (no other labels are used):
 |---|---|---|
 | Rectangles and corner radii | **Verified** | M2; radius 4 inspected |
 | Ellipses / circles | **Verified** | M2; red ellipse rendered at 300×300 |
-| Polygons and stars | Planned | M3 |
-| Vector paths (`commandsBlob`) | Planned | M3.1 |
-| Editable vector networks | Planned | M3.1; handle metadata may be Partial |
+| Polygons and stars | **Partial** | Mapped through vector geometry when `commandsBlob` exists; no dedicated fixture |
+| Vector paths (filled `commandsBlob`) | **Verified** | M3.1; OpenFigs 20-path icon imported and rendered |
+| Stroke-only vector outlines | **Partial** | M3.1; outline converted to filled path, reported `F2P-VECTOR-STROKE-OUTLINE` |
+| Editable vector networks | Planned | M3.1 follow-up; handle metadata not yet used |
 | Boolean operations | Planned | M3.1; preservation vs fallback documented |
 | Masks and clipping | Planned | M3.2 |
 | Rotation and flip | **Partial** | M2 reports rotation/skew as approximated and keeps translation/scale bounds |

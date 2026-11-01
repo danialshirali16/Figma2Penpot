@@ -9,14 +9,14 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M2 conversion slice verified in Penpot
+> ## Status: pre-alpha — M3.1 vector paths verified in Penpot
 >
-> The Rust workspace can read real `.fig` files, convert a minimal slice to `.penpot`, and
-> write an event-based JSON report. The M2 output was imported into a local **Penpot
-> 2.18.5** stack and inspected: frames, groups, rectangles, ellipses, solid fills/strokes,
-> corner radii, absolute positions, and basic text rendered correctly. **No GUI or batch
-> queue yet**; reopen/edit persistence was not tested. See [`PROGRESS.md`](PROGRESS.md) and
-> [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
+> The Rust workspace reads real `.fig` files, converts the M2 slice plus filled vector paths
+> to `.penpot`, validates the archive, and writes an event-based JSON report. The M2 output
+> and a 20-path icon imported into a local **Penpot 2.18.5** stack and were inspected.
+> **No GUI or batch queue yet**; booleans, editable vector networks, gradients, components,
+> and tokens remain planned. Stroke-only vectors are a reported approximation. See
+> [`PROGRESS.md`](PROGRESS.md) and [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
 
 ---
 
@@ -91,8 +91,8 @@ status words.
 | **Not supported** | Out of reach or out of scope, and reported as such at runtime. |
 
 The authoritative per-feature list is [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md).
-Reader and M2 conversion features are **Implemented (unverified)** or **Partial**; the rest
-remain **Planned** until they exist.
+Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Implemented
+(unverified)**, or **Partial**; the rest remain **Planned** until they exist.
 
 ## Project status at a glance
 
@@ -101,7 +101,7 @@ remain **Planned** until they exist.
 | M0 | Research, format findings, license assessment, architecture | **Done** — evidence in `PROGRESS.md` |
 | M1 | Cargo workspace, `.fig` container/decode, `f2p-cli inspect` | **Done** — evidence in `PROGRESS.md` |
 | M2 | Minimal end-to-end conversion + validator + JSON report | **Done** — imported and inspected in Penpot 2.18.5-RC1 |
-| M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **Planned** |
+| M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **In progress** — M3.1 vector paths verified |
 | M4 | Native desktop application (eight screens) | **Planned** |
 | M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **Planned** |
 | M6 | Report UI and JSON/HTML/CSV exports | **Planned** |

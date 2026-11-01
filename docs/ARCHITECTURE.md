@@ -1,8 +1,8 @@
 # Architecture
 
-Status: M0 design baseline; updated at M2. The reader, M2 converter, `.penpot` writer,
-structural validator, JSON report, and CLI are implemented. The GUI, batch queue, HTML/CSV
-export, and fidelity beyond the M2 slice are not.
+Status: M0 design baseline; updated at M3.1. The reader, M2 converter, vector-path
+expansion, `.penpot` writer, structural validator, JSON report, and CLI are implemented.
+The GUI, batch queue, HTML/CSV export, and fidelity beyond M3.1 are not.
 
 This document describes the intended Rust system, what was learned from the upstream
 projects, and why the implementation is a reimplementation rather than a port.
@@ -441,7 +441,8 @@ Golden policy:
 2. **M2 vertical slice (done locally)**: pages/frames/groups/rectangles/ellipses, solid
    paints, opacity, basic text → writer → validator → JSON report. Real import pending.
 3. **M3 depth**: vectors, effects, images, text, layout, styles, components, tokens, in that
-   order. Each feature gets its own fixture, golden report, and support-matrix row.
+   order. M3.1 filled vector paths are done and import-verified; each remaining feature gets
+   its own fixture, golden report, and support-matrix row.
 4. **M4-M6**: UI and batch around the already-tested core; never the other way round.
 5. **M7-M8**: fuzz long runs, large-file corpus, benchmarks, installers.
 

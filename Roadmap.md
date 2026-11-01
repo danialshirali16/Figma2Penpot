@@ -32,7 +32,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 | M0 | Research and legal baseline | Format, architecture, and license documents exist with citations and explicit unknowns | **Done** — see `PROGRESS.md` |
 | M1 | Workspace and `.fig` reading | `f2p-cli inspect` prints verified metadata for ≥3 fixtures; malformed inputs error without panicking | **Done** — see `PROGRESS.md` |
 | M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Done** — verified in Penpot |
-| M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Planned** |
+| M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **In progress** — 3.1 vector paths verified |
 | M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **Planned** |
 | M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **Planned** |
 | M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **Planned** |
@@ -148,6 +148,11 @@ and move/edit persistence were not tested and are marked untested in `docs/MANUA
 ---
 
 ## M3 — Fidelity expansion
+
+**Status: In progress (2026-11-01).** M3.1 filled vector paths are implemented and verified
+in Penpot; stroke-only outlines are a reported approximation. Boolean operations, editable
+vector networks, gradients/effects/masks, images, text fidelity, layout, styles, components,
+and tokens remain.
 
 Ordered by user-visible value, not by implementation convenience. Each feature is its own
 slice: unit tests → golden test → expected diagnostics for unsupported variants → golden

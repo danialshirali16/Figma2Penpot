@@ -314,6 +314,12 @@ only for diagnostics. Editability in Penpot is preserved because Penpot stores p
 as editable path data; the original network's handle metadata is lost, which must be
 reported if it mattered.
 
+**M3.1 implementation:** `commandsBlob` is decoded and transformed into Penpot command
+arrays. Filled vectors are imported and rendered (OpenFigs icon, 20 paths). Stroke-only
+vectors use the expanded stroke outline as a filled path and are reported as approximated.
+`vectorData` networks are not read; current builds emit `F2P-VECTOR-NETWORK-LOST` when the
+field is present. Booleans and editable handle-level networks remain Planned.
+
 ## 8. Paints, effects, text
 
 ### 8.1 Paints

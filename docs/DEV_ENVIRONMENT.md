@@ -114,7 +114,7 @@ Figma 2 Penpot/
 
 A local Penpot stack was started via Docker Desktop (daemon 29.9.2) using the official
 `docker/images/docker-compose.yaml` from Penpot tag 2.18.5, with image tag `2.18.5`,
-telemetry disabled, and a local account. Both M2 archives imported with
+telemetry disabled, and a local account. M2 archives and M3.1 vector archives imported with
 `app.binfile.v3 ... error?=false` and were inspected in the UI.
 
 Backend reports `2.18.5-RC1`. Evidence, screenshots, and the exact checks are in

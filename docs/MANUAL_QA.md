@@ -72,7 +72,29 @@ If a future import fails:
 
 ---
 
-## 2. Future platform checklist (M4/M8)
+## 2. M3.1 — Vector paths
+
+Verified on the same Penpot 2.18.5 stack, 2026-11-01.
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Filled vector import | No error | **Pass** — `OpenFigs.penpot`, `error?=false`, import id `d047d42d-cd5b-80cd-8008-e1452fac5611` |
+| 2 | Multi-path expansion | One path per fill geometry | **Pass** — 20 path layers under the frame |
+| 3 | Visual result | White OpenFig icon rendered | **Pass** — see `qa/vector-paths-expanded.png` |
+| 4 | Stroke-only vector import | No error; reported approximation | **Pass** — `straight-2-point-line.penpot`, import id `d047d42d-cd5b-80cd-8008-e145acec5587` |
+| 5 | Stroke-only appearance | Line rendered | **Pass** — green line; converted as a filled outline, report says approximated |
+| 6 | Editable vector network | Handles/vertices editable | **Untested** — M3.1 uses `commandsBlob`, not the network |
+| 7 | Boolean operations | Preserved/tree | **Untested** — not implemented |
+| 8 | Rotated/scaled vector | Transform preserved | **Untested** — matrix is applied to commands, no fixture yet |
+| 9 | Vector network handles | Editable handles preserved | **Partial** — `commandsBlob` path is editable; `vectorData` network is not read. Current builds report `F2P-VECTOR-NETWORK-LOST`; the imported archive was generated before that diagnostic was added, with identical geometry |
+
+The stroke-only case is intentionally **Partial**: Figma stores an expanded outline, so the
+line is a filled path rather than an editable stroke. The report labels it
+`F2P-VECTOR-STROKE-OUTLINE` and the file is marked completed with warnings.
+
+---
+
+## 3. Future platform checklist (M4/M8)
 
 Not started. To be filled when the desktop app exists:
 

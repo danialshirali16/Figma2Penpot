@@ -14,6 +14,7 @@ Only project-owned or MIT-licensed fixtures were imported. No private designs ar
 | `red-rect-inspect.png` | `Red Rect` inspector: W 100, H 50, X 10, Y 20 relative to Card, fill `FF0000`, stroke `000000` 2 px, radius 4 |
 | `text-inspect.png` | `Title` inspector: Inter 16, weight 400, X 10, Y 100 relative to Card, text visible |
 | `group-inspect.png` | `Badge Group` inspector: W 80, H 30, X 5, Y 205 relative to Card, child `Group Rect` present |
-
+| `vector-paths-expanded.png` | 20 path layers under the OpenFigs frame; white vector icon rendered |
+| `stroke-vector-import.png` | Stroke-only line imported and rendered green (reported as an outlined approximation) |
 Import log evidence is recorded in `docs/MANUAL_QA.md`. Reopen and move/edit persistence
 were not tested.

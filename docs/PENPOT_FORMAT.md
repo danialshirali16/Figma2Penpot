@@ -296,6 +296,44 @@ Notes:
   `0015-fix-text-attrs-blank-strings`). Do not emit empty style strings; omit the key or
   use a space for genuinely empty content.
 
+### 6.5 Paths
+
+A Penpot path stores geometry as a **command array**, not an SVG string:
+
+```json
+{
+  "type": "path",
+  "x": -229, "y": 5.9557, "width": 190.5, "height": 51.0443,
+  "content": [
+    { "command": "move-to",  "params": { "x": -229, "y": 57 } },
+    { "command": "line-to",  "params": { "x": -227.7059, "y": 61.8296 } },
+    { "command": "curve-to", "params": {
+        "x": 50, "y": 60, "c1x": 20, "c1y": 30, "c2x": 30, "c2y": 40 } },
+    { "command": "close-path", "params": {} }
+  ],
+  "svgAttrs": { "fillRule": "nonzero" }
+}
+```
+
+Observed commands: `move-to`, `line-to`, `curve-to`, `close-path`. Curve params use
+`c1x/c1y/c2x/c2y/x/y`. Coordinates are **absolute page coordinates**, consistent with the
+other shapes.
+
+M3.1 implementation:
+
+- Figma `fillGeometry[].commandsBlob` is decoded from the blob (opcodes `0x01` moveTo,
+  `0x02` lineTo, `0x04` cubicTo, `0x00` closePath).
+- Each geometry becomes one Penpot path; one Figma vector can produce several shapes.
+- All produced paths are linked as children of the same parent (`parentId`/`frameId` and the
+  parent's `shapes` array).
+- `windingRule` maps to `svgAttrs.fillRule` (`NONZERO → nonzero`, `ODD → evenodd`).
+- Filled vectors use `fillGeometry`; stroke-only vectors use the expanded `strokeGeometry`
+  as a filled path, because Figma stores no editable stroke for that case. This is reported
+  as `F2P-VECTOR-STROKE-OUTLINE` and marked Partial.
+
+Verified by importing a 20-path OpenFigs icon and a stroke-only line into Penpot
+2.18.5-RC1; see `docs/MANUAL_QA.md`.
+
 ## 7. Components and library assets
 
 Penpot's component model (from the official format document and exporter types):
