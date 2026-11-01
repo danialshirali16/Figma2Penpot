@@ -160,7 +160,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
 | Desktop headless tests | 16 state/worker/UI tests, including a real fixture conversion |
 | Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 80 tests pass |
-| CI for M4.1 | Pending push: Linux/macOS/Windows jobs include the desktop crate |
+| CI for M4.1 | run 41343195721: Ubuntu/macOS/Windows success, including desktop crate |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
@@ -329,6 +329,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Updated CI with Linux GTK3/X11/Wayland build dependencies.
 - Captured Home, Queue, and Light theme screenshots; native dialog, drag-drop, and
   remaining screen interactions still need manual QA.
+- Pushed as `09810a1`; CI run 41343195721 passed on Ubuntu, macOS, and Windows.
 
 ### Session 6 — 2026-11-01
 

@@ -139,8 +139,9 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 
-# Native desktop app
+# Native desktop app (optionally stage a file)
 cargo run -p desktop-app
+cargo run -p desktop-app -- tests/fixtures/circle.fig
 
 # Inspect and convert a real file (headless)
 cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
