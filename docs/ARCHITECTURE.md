@@ -98,7 +98,7 @@ figma-2-penpot/
 │   ├── conversion-core/       IR, passes, mapping rules, diagnostics
 │   ├── penpot-writer/         Penpot document model + archive writer + validator
 │   ├── conversion-report/     event model, counts, JSON/HTML/CSV
-│   ├── conversion-queue/      planned (M5): jobs, scheduler, cancellation
+│   ├── conversion-queue/      bounded jobs, stages, pause/cancel, isolation
 │   ├── f2p-cli/               headless inspect/convert
 │   └── desktop-app/           egui/eframe UI + std-thread worker (M4.1)
 ├── tests/
@@ -112,12 +112,16 @@ figma-2-penpot/
 Dependency direction:
 
 ```text
-desktop-app -> fig-reader, conversion-core, penpot-writer, conversion-report
-f2p-cli     -> fig-reader, conversion-core, penpot-writer, conversion-report
-conversion-core -> fig-reader, penpot-writer, conversion-report
+desktop-app      -> conversion-queue, fig-reader, conversion-core,
+                    penpot-writer, conversion-report
+f2p-cli          -> conversion-queue, fig-reader, conversion-core,
+                    penpot-writer, conversion-report
+conversion-queue -> fig-reader, conversion-core, penpot-writer, conversion-report
+conversion-core  -> fig-reader, penpot-writer, conversion-report
 ```
 
-`conversion-queue` will sit between the two front-ends and `conversion-core` in M5.
+`conversion-queue` is UI-free; both front-ends use it for batch jobs. Single-file conversion
+still shares the same lower-level conversion API.
 
 `conversion-core` must not depend on `egui`, `rfd`, or any UI crate. The report crate is a
 sink, not a global logger; core receives a `&mut dyn DiagnosticSink`.

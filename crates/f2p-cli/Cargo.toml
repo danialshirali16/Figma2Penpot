@@ -15,6 +15,7 @@ path = "src/main.rs"
 anyhow.workspace = true
 clap.workspace = true
 conversion-core = { path = "../conversion-core" }
+conversion-queue = { path = "../conversion-queue" }
 conversion-report = { path = "../conversion-report" }
 fig-reader = { path = "../fig-reader" }
 penpot-writer = { path = "../penpot-writer" }

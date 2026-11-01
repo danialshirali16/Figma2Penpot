@@ -28,6 +28,22 @@ enum Command {
         file: PathBuf,
     },
 
+    /// Convert several .fig files with the bounded batch queue.
+    Batch {
+        /// One or more .fig files.
+        #[arg(required = true)]
+        files: Vec<PathBuf>,
+        /// Output directory. File names are derived from the inputs.
+        #[arg(short, long)]
+        out: PathBuf,
+        /// Overwrite existing .penpot and report files.
+        #[arg(long)]
+        force: bool,
+        /// Maximum concurrent conversions.
+        #[arg(long, default_value_t = conversion_queue::DEFAULT_MAX_WORKERS)]
+        jobs: usize,
+    },
+
     /// Convert a .fig file to a .penpot file and a JSON report.
     Convert {
         /// Path to a .fig file.
@@ -64,7 +80,58 @@ fn run(cli: Cli) -> Result<()> {
             force,
             report,
         } => convert(&file, &out, force, report.as_deref()),
+        Command::Batch {
+            files,
+            out,
+            force,
+            jobs,
+        } => batch(files, &out, force, jobs),
     }
+}
+
+fn batch(files: Vec<PathBuf>, out_dir: &Path, force: bool, jobs: usize) -> Result<()> {
+    use conversion_queue::{BatchRunner, JobState, QueueConfig, QueueEvent};
+
+    let mut runner = BatchRunner::new(QueueConfig::bounded(jobs));
+    for file in files {
+        runner.add_job(file, out_dir.to_path_buf(), force);
+    }
+    let (receiver, handle) = runner.spawn();
+    for event in receiver {
+        match event {
+            QueueEvent::JobStarted { id } => println!("[{id}] started"),
+            QueueEvent::Stage { id, stage } => println!("[{id}] {stage:?}"),
+            QueueEvent::JobFinished { result } => {
+                let state = match result.state {
+                    JobState::Completed => "completed",
+                    JobState::Failed => "failed",
+                    JobState::Cancelled => "cancelled",
+                };
+                println!("[{}] {state}: {}", result.id, result.input.display());
+                if let Some(message) = &result.message {
+                    println!("[{}] {message}", result.id);
+                }
+            }
+            QueueEvent::BatchFinished => break,
+        }
+    }
+    let results = handle
+        .join()
+        .map_err(|_| anyhow::anyhow!("batch worker panicked"))?;
+    let failed = results
+        .iter()
+        .filter(|result| result.state == JobState::Failed)
+        .count();
+    let cancelled = results
+        .iter()
+        .filter(|result| result.state == JobState::Cancelled)
+        .count();
+    let completed = results.len().saturating_sub(failed + cancelled);
+    println!("Batch: {completed} completed, {failed} failed, {cancelled} cancelled");
+    if failed > 0 {
+        anyhow::bail!("{failed} batch job(s) failed");
+    }
+    Ok(())
 }
 
 fn convert(path: &Path, out_dir: &Path, force: bool, report_override: Option<&Path>) -> Result<()> {

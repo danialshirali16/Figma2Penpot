@@ -4,6 +4,7 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use conversion_queue::{JobResult, Stage as QueueStage};
 use conversion_report::{FileReport, FileStatus, Outcome, Severity};
 use fig_reader::FigDocument;
 
@@ -109,8 +110,11 @@ pub enum QueueState {
     Ready,
     Analyzing,
     Analyzed,
+    Queued,
+    Converting,
     Converted,
     Failed(String),
+    Cancelled,
 }
 
 #[derive(Debug, Clone)]
@@ -120,6 +124,10 @@ pub struct QueueItem {
     pub state: QueueState,
     pub analysis: Option<AnalysisSummary>,
     pub analysis_error: Option<String>,
+    pub job_id: Option<u64>,
+    pub batch_stage: Option<QueueStage>,
+    pub output: Option<PathBuf>,
+    pub report_path: Option<PathBuf>,
 }
 
 impl QueueItem {
@@ -130,6 +138,10 @@ impl QueueItem {
             state: QueueState::Ready,
             analysis: None,
             analysis_error: None,
+            job_id: None,
+            batch_stage: None,
+            output: None,
+            report_path: None,
         }
     }
 
@@ -160,6 +172,33 @@ pub struct ActiveJob {
     pub input: PathBuf,
     pub output: PathBuf,
     pub stage: Stage,
+}
+
+#[derive(Debug, Clone)]
+pub struct BatchRun {
+    pub total: usize,
+    pub finished: usize,
+    pub completed: usize,
+    pub failed: usize,
+    pub cancelled: usize,
+    pub results: Vec<JobResult>,
+    pub done: bool,
+    pub paused: bool,
+}
+
+impl BatchRun {
+    fn new(total: usize) -> Self {
+        Self {
+            total,
+            finished: 0,
+            completed: 0,
+            failed: 0,
+            cancelled: 0,
+            results: Vec::new(),
+            done: false,
+            paused: false,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -276,6 +315,7 @@ pub struct AppState {
     pub selected: Option<usize>,
     pub settings: Settings,
     pub active: Option<ActiveJob>,
+    pub batch: Option<BatchRun>,
     pub result: Option<ConversionOutcome>,
     pub notice: Option<Notice>,
     pub filter: ReportFilter,
@@ -290,6 +330,7 @@ impl AppState {
             selected: None,
             settings,
             active: None,
+            batch: None,
             result: None,
             notice: None,
             filter: ReportFilter::default(),
@@ -492,6 +533,95 @@ impl AppState {
             self.screen = Screen::Results;
         }
         self.notify(NoticeKind::Error, failure.message);
+    }
+
+    pub fn is_busy(&self) -> bool {
+        self.active.is_some() || self.batch.as_ref().is_some_and(|batch| !batch.done)
+    }
+
+    pub fn start_batch(&mut self, total: usize) {
+        self.batch = Some(BatchRun::new(total));
+        self.active = None;
+        self.result = None;
+        self.filter = ReportFilter::default();
+        self.screen = Screen::Progress;
+        self.notice = None;
+    }
+
+    pub fn batch_job_started(&mut self, id: u64) {
+        if let Some(item) = self.files.iter_mut().find(|item| item.job_id == Some(id)) {
+            item.state = QueueState::Converting;
+            item.batch_stage = Some(QueueStage::Reading);
+        }
+    }
+
+    pub fn batch_stage(&mut self, id: u64, stage: QueueStage) {
+        if let Some(item) = self.files.iter_mut().find(|item| item.job_id == Some(id)) {
+            item.state = QueueState::Converting;
+            item.batch_stage = Some(stage);
+        }
+    }
+
+    pub fn batch_result(&mut self, result: JobResult) {
+        let report = result.report.clone();
+        if let Some(item) = self
+            .files
+            .iter_mut()
+            .find(|item| item.job_id == Some(result.id))
+        {
+            item.state = match result.state {
+                conversion_queue::JobState::Completed => QueueState::Converted,
+                conversion_queue::JobState::Failed => QueueState::Failed(
+                    result
+                        .message
+                        .clone()
+                        .unwrap_or_else(|| "failed".to_owned()),
+                ),
+                conversion_queue::JobState::Cancelled => QueueState::Cancelled,
+            };
+            item.batch_stage = None;
+            item.output = Some(result.output.clone());
+            item.report_path = Some(result.report_path.clone());
+        }
+        if let Some(batch) = self.batch.as_mut() {
+            batch.finished += 1;
+            match result.state {
+                conversion_queue::JobState::Completed => batch.completed += 1,
+                conversion_queue::JobState::Failed => batch.failed += 1,
+                conversion_queue::JobState::Cancelled => batch.cancelled += 1,
+            }
+            batch.results.push(result.clone());
+        }
+        if let Some(report) = report {
+            self.result = Some(ConversionOutcome {
+                input: result.input,
+                output: result.output,
+                report_path: result.report_path,
+                report,
+                validation_checks: 0,
+            });
+            self.filter = ReportFilter::default();
+        }
+    }
+
+    pub fn finish_batch(&mut self) {
+        if let Some(batch) = self.batch.as_mut() {
+            batch.done = true;
+            let summary = format!(
+                "Batch finished: {} completed, {} failed, {} cancelled.",
+                batch.completed, batch.failed, batch.cancelled
+            );
+            let kind = if batch.failed > 0 {
+                NoticeKind::Warning
+            } else {
+                NoticeKind::Success
+            };
+            self.notice = Some(Notice {
+                kind,
+                text: summary,
+            });
+        }
+        self.screen = Screen::Results;
     }
 
     pub fn output_path_for(&self, input: &Path) -> PathBuf {

@@ -117,7 +117,10 @@ Status vocabulary (no other labels are used):
 | Desktop folder scan | **Verified** | Recursive `.fig` scan, hidden folders skipped, bounded to 512 files; unit-tested |
 | Desktop keyboard shortcuts | **Implemented (unverified)** | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; headless key-event test only |
 | Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 18 desktop tests |
-| Batch queue, cancel, retry | Planned | M5 |
+| Batch queue | **Partial** | M5 core + CLI `batch` + desktop “Convert all”; bounded workers, stage events, pause/cancel, per-job failure isolation |
+| CLI batch command | **Verified** | Ran 2 valid + 1 corrupt fixture: 2 completed, 1 failed, outputs/reports written |
+| Batch retry/remove controls | Planned | M5 follow-up |
+| Batch memory/cancel-mid-write QA | Planned | M5 acceptance still open |
 | Real Penpot import verification | **Verified (M2–M3.8 subset)** | Penpot 2.18.5-RC1; see `MANUAL_QA.md` |
 
 ## 8. Non-goals

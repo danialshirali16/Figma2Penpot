@@ -34,7 +34,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 | M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Done** — verified in Penpot |
 | M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Done with Partial items** — all eight waves implemented; see `PROGRESS.md` |
 | M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **In progress** — M4.1 shell and worker |
-| M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **Planned** |
+| M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **In progress** — queue core, CLI batch, desktop Convert all |
 | M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **Planned** |
 | M7 | Reliability and performance | Fuzz campaign, large-file corpus, recorded time and peak-memory benchmarks | **Planned** |
 | M8 | Release engineering | Windows and macOS artifacts built in CI, docs and notices complete | **Planned** |
@@ -214,6 +214,10 @@ pending.
 ---
 
 ## M5 — Batch conversion
+
+**Status: In progress (2026-11-01).** The headless queue, CLI `batch`, and desktop
+“Convert all” path exist with bounded workers, stage events, pause/cancel, and per-job
+isolation. Retry/remove controls, cancellation mid-write, and memory benchmarks are pending.
 
 **Goal.** Many files, one bad apple.
 

@@ -18,6 +18,7 @@ path = "src/main.rs"
 [dependencies]
 anyhow.workspace = true
 conversion-core = { path = "../conversion-core" }
+conversion-queue = { path = "../conversion-queue" }
 conversion-report = { path = "../conversion-report" }
 dirs = "7.0.0"
 eframe = { version = "0.36.2", default-features = false, features = [

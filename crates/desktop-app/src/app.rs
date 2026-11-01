@@ -13,6 +13,9 @@ use crate::conversion::{spawn_analysis, spawn_conversion, ConversionRequest, Wor
 use crate::model::{scan_folder, ActiveJob, AppState, NoticeKind, QueueState, Screen, Stage};
 use crate::settings::{Settings, ThemeChoice};
 use crate::strings::*;
+use conversion_queue::{
+    BatchRunner, JobResult, JobState, QueueConfig, QueueControl, QueueEvent, Stage as QueueStage,
+};
 
 #[derive(Default)]
 struct UiActions {
@@ -25,6 +28,9 @@ struct UiActions {
     save_settings: bool,
     reset_settings: bool,
     settings_changed: bool,
+    convert_all: bool,
+    cancel_batch: bool,
+    toggle_pause: bool,
     open_folder: Option<PathBuf>,
 }
 
@@ -33,6 +39,9 @@ pub struct F2pApp {
     sender: Sender<WorkerEvent>,
     receiver: Receiver<WorkerEvent>,
     analysis_in_flight: Option<PathBuf>,
+    batch_receiver: Option<Receiver<QueueEvent>>,
+    batch_control: Option<QueueControl>,
+    batch_handle: Option<std::thread::JoinHandle<Vec<JobResult>>>,
 }
 
 impl F2pApp {
@@ -53,6 +62,9 @@ impl F2pApp {
             sender,
             receiver,
             analysis_in_flight: None,
+            batch_receiver: None,
+            batch_control: None,
+            batch_handle: None,
         };
         if !paths.is_empty() {
             app.add_paths(paths);
@@ -68,6 +80,9 @@ impl F2pApp {
             sender,
             receiver,
             analysis_in_flight: None,
+            batch_receiver: None,
+            batch_control: None,
+            batch_handle: None,
         }
     }
 
@@ -161,7 +176,7 @@ impl F2pApp {
     }
 
     fn start_selected_conversion(&mut self) {
-        if self.state.active.is_some() {
+        if self.state.is_busy() {
             self.state.notify(NoticeKind::Warning, BUSY);
             return;
         }
@@ -203,6 +218,86 @@ impl F2pApp {
             },
             self.sender.clone(),
         );
+    }
+
+    fn start_batch(&mut self) {
+        if self.state.is_busy() {
+            self.state.notify(NoticeKind::Warning, BUSY);
+            return;
+        }
+        if self.state.files.is_empty() {
+            self.state.notify(NoticeKind::Warning, NO_FILE_SELECTED);
+            return;
+        }
+        let specs: Vec<(PathBuf, PathBuf)> = self
+            .state
+            .files
+            .iter()
+            .map(|item| {
+                (
+                    item.path.clone(),
+                    self.state.settings.resolved_output_dir(&item.path),
+                )
+            })
+            .collect();
+        let mut runner = BatchRunner::new(QueueConfig::bounded(2));
+        for (item, (path, output_dir)) in self.state.files.iter_mut().zip(specs) {
+            let id = runner.add_job(path, output_dir, self.state.settings.overwrite);
+            item.job_id = Some(id);
+            item.state = QueueState::Queued;
+            item.batch_stage = None;
+            item.output = None;
+            item.report_path = None;
+        }
+        let control = runner.control();
+        let (receiver, handle) = runner.spawn();
+        let total = self.state.files.len();
+        self.state.start_batch(total);
+        self.batch_receiver = Some(receiver);
+        self.batch_control = Some(control);
+        self.batch_handle = Some(handle);
+    }
+
+    fn poll_batch(&mut self) {
+        let Some(receiver) = self.batch_receiver.take() else {
+            return;
+        };
+        let mut finished = false;
+        while let Ok(event) = receiver.try_recv() {
+            match event {
+                QueueEvent::JobStarted { id } => self.state.batch_job_started(id),
+                QueueEvent::Stage { id, stage } => self.state.batch_stage(id, stage),
+                QueueEvent::JobFinished { result } => self.state.batch_result(*result),
+                QueueEvent::BatchFinished => finished = true,
+            }
+        }
+        if finished {
+            self.state.finish_batch();
+            self.batch_control = None;
+            if let Some(handle) = self.batch_handle.take() {
+                let _ = handle.join();
+            }
+        } else {
+            self.batch_receiver = Some(receiver);
+        }
+    }
+
+    fn cancel_batch(&mut self) {
+        if let Some(control) = &self.batch_control {
+            control.cancel();
+            self.state
+                .notify(NoticeKind::Warning, "Cancelling the batch…");
+        }
+    }
+
+    fn toggle_pause_batch(&mut self) {
+        if let Some(control) = &self.batch_control {
+            let paused = !control.is_paused();
+            control.pause(paused);
+            if let Some(batch) = self.state.batch.as_mut() {
+                batch.paused = paused;
+            }
+        }
     }
 
     fn choose_folder(&mut self) {
@@ -395,6 +490,15 @@ impl F2pApp {
         if actions.convert_selected {
             self.start_selected_conversion();
         }
+        if actions.convert_all {
+            self.start_batch();
+        }
+        if actions.cancel_batch {
+            self.cancel_batch();
+        }
+        if actions.toggle_pause {
+            self.toggle_pause_batch();
+        }
         if actions.settings_changed {
             self.save_settings(false);
         }
@@ -512,7 +616,7 @@ impl F2pApp {
                         Screen::Queue => draw_queue(ui, &mut self.state, actions),
                         Screen::Analysis => draw_analysis(ui, &mut self.state, actions),
                         Screen::Settings => draw_settings(ui, &mut self.state, actions),
-                        Screen::Progress => draw_progress(ui, &self.state),
+                        Screen::Progress => draw_progress(ui, &mut self.state, actions),
                         Screen::Results => draw_results(ui, &mut self.state, actions),
                         Screen::Report => draw_report(ui, &mut self.state),
                         Screen::Preferences => draw_preferences(ui, &mut self.state, actions),
@@ -540,6 +644,7 @@ impl F2pApp {
 impl eframe::App for F2pApp {
     fn logic(&mut self, ctx: &egui::Context, _frame: &mut Frame) {
         self.poll_worker(ctx);
+        self.poll_batch();
         self.maybe_start_analysis();
         if self.state.active.is_some() || self.analysis_in_flight.is_some() {
             ctx.request_repaint_after(Duration::from_millis(100));
@@ -614,7 +719,7 @@ fn draw_queue(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) 
     ui.heading(QUEUE_HEADING);
     ui.label(QUEUE_BODY);
     ui.add_space(8.0);
-    let busy = state.active.is_some();
+    let busy = state.is_busy();
     ui.horizontal_wrapped(|ui| {
         if ui
             .add_enabled(!busy, egui::Button::new(ADD_FILES))
@@ -651,6 +756,15 @@ fn draw_queue(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) 
             .clicked()
         {
             actions.convert_selected = true;
+        }
+        if ui
+            .add_enabled(
+                !busy && !state.files.is_empty(),
+                egui::Button::new(CONVERT_ALL),
+            )
+            .clicked()
+        {
+            actions.convert_all = true;
         }
     });
     ui.add_space(8.0);
@@ -849,15 +963,61 @@ fn draw_settings(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiAction
     }
 }
 
-fn draw_progress(ui: &mut egui::Ui, state: &AppState) {
+fn draw_progress(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) {
     ui.heading(PROGRESS_HEADING);
     ui.label(PROGRESS_BODY);
     ui.add_space(12.0);
+    if let Some(batch) = state.batch.clone() {
+        ui.label(RichText::new(format!(
+            "{} / {} jobs finished · {} completed · {} failed · {} cancelled",
+            batch.finished, batch.total, batch.completed, batch.failed, batch.cancelled
+        )));
+        if batch.paused {
+            ui.label(RichText::new("Scheduling is paused. Running jobs continue.").small());
+        }
+        ui.horizontal(|ui| {
+            if !batch.done {
+                let label = if batch.paused {
+                    RESUME_BATCH
+                } else {
+                    PAUSE_BATCH
+                };
+                if ui.button(label).clicked() {
+                    actions.toggle_pause = true;
+                }
+                if ui.button(CANCEL_BATCH).clicked() {
+                    actions.cancel_batch = true;
+                }
+            }
+        });
+        ui.add_space(8.0);
+        for item in state.files.iter().filter(|item| item.job_id.is_some()) {
+            ui.horizontal(|ui| {
+                ui.label(middle_truncate(&item.display_name(), 48))
+                    .on_hover_text(item.path.display().to_string());
+                ui.label(RichText::new(queue_state_label(&item.state)).small());
+                if let Some(stage) = item.batch_stage {
+                    ui.label(RichText::new(queue_stage_label(stage)).small().weak());
+                }
+            });
+        }
+        return;
+    }
     let Some(active) = state.active.as_ref() else {
         ui.label(RichText::new(NO_ACTIVE_JOB).weak());
         return;
     };
     progress_job(ui, active);
+}
+
+fn queue_stage_label(stage: QueueStage) -> &'static str {
+    match stage {
+        QueueStage::Reading => STAGE_READING,
+        QueueStage::Converting => STAGE_CONVERTING,
+        QueueStage::Writing => STAGE_WRITING,
+        QueueStage::Validating => STAGE_VALIDATING,
+        QueueStage::Saving => STAGE_SAVING,
+    }
 }
 
 fn progress_job(ui: &mut egui::Ui, active: &ActiveJob) {
@@ -886,7 +1046,40 @@ fn progress_job(ui: &mut egui::Ui, active: &ActiveJob) {
 
 fn draw_results(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) {
     ui.heading(RESULTS_HEADING);
+    if let Some(batch) = state.batch.clone() {
+        ui.add_space(6.0);
+        ui.label(
+            RichText::new(format!(
+                "{} / {} jobs finished · {} completed · {} failed · {} cancelled",
+                batch.finished, batch.total, batch.completed, batch.failed, batch.cancelled
+            ))
+            .strong(),
+        );
+        egui::ScrollArea::vertical()
+            .max_height(220.0)
+            .show(ui, |ui| {
+                for result in &batch.results {
+                    let state = match result.state {
+                        JobState::Completed => "✓ Completed",
+                        JobState::Failed => "✕ Failed",
+                        JobState::Cancelled => "◼ Cancelled",
+                    };
+                    ui.horizontal(|ui| {
+                        ui.label(state);
+                        ui.label(middle_truncate(&result.input.display().to_string(), 78))
+                            .on_hover_text(result.input.display().to_string());
+                    });
+                    if let Some(message) = &result.message {
+                        ui.label(RichText::new(message).small().weak());
+                    }
+                }
+            });
+        ui.separator();
+    }
     let Some(result) = state.result.clone() else {
+        if state.batch.is_some() {
+            return;
+        }
         ui.label(RichText::new(RESULTS_EMPTY).weak());
         return;
     };
@@ -1169,8 +1362,11 @@ fn queue_state_label(state: &QueueState) -> String {
         QueueState::Ready => "— Ready".to_owned(),
         QueueState::Analyzing => "… Analyzing".to_owned(),
         QueueState::Analyzed => "✓ Analyzed".to_owned(),
+        QueueState::Queued => "… Queued".to_owned(),
+        QueueState::Converting => "… Converting".to_owned(),
         QueueState::Converted => "✓ Converted".to_owned(),
         QueueState::Failed(message) => format!("✕ {message}"),
+        QueueState::Cancelled => "◼ Cancelled".to_owned(),
     }
 }
 
@@ -1362,6 +1558,46 @@ mod tests {
             let mut output = ctx.run_ui(input, |ui| app.draw_root(ui));
             output.textures_delta.clear();
         }
+    }
+
+    #[test]
+    fn batch_queue_updates_files_and_results() {
+        let dir = tempfile::tempdir().unwrap();
+        let fixture_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures");
+        let mut state = AppState::new(
+            Settings {
+                output_dir: Some(dir.path().to_path_buf()),
+                open_folder_after_conversion: false,
+                ..Settings::default()
+            },
+            dir.path().join("settings.json"),
+        );
+        state.add_paths(vec![
+            fixture_dir.join("circle.fig"),
+            fixture_dir.join("text-group.fig"),
+        ]);
+        let mut app = F2pApp::with_state(state);
+        app.start_batch();
+        for _ in 0..300 {
+            app.poll_batch();
+            if app.state.batch.as_ref().is_some_and(|batch| batch.done) {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        let batch = app.state.batch.as_ref().expect("batch");
+        assert!(batch.done);
+        assert_eq!(batch.total, 2);
+        assert_eq!(batch.completed, 2);
+        assert_eq!(batch.failed, 0);
+        assert_eq!(app.state.screen, Screen::Results);
+        assert!(dir.path().join("circle.penpot").exists());
+        assert!(dir.path().join("text-group.penpot").exists());
+        assert!(app
+            .state
+            .files
+            .iter()
+            .all(|item| item.state == QueueState::Converted));
     }
 
     #[test]

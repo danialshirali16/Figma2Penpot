@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-01** (session 7, M4.1).
+Last updated: **2026-11-01** (session 8, M5 core).
 
 ---
 
@@ -82,6 +82,20 @@ M4.1 acceptance so far:
 | Manual desktop QA | Partial | Home, Queue, and Light theme captured; Analysis/Progress/Results/Report manual clicks pending |
 | Installers | Planned | M8 |
 
+M5.1 acceptance so far:
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Bounded worker pool | Done | `QueueConfig::bounded`, default 2 workers |
+| Per-job isolation | Done | corrupt fixture fails without affecting valid jobs |
+| Panic containment | Done (unit) | `protect` catches a deliberate panic |
+| Real stage events | Done | `JobStarted`, `Stage`, `JobFinished`, `BatchFinished` |
+| Cancellation checkpoints | Partial | pause/cancel before and between stages; mid-write cancellation pending |
+| CLI batch | Done | 2 valid + 1 corrupt: 2 completed, 1 failed; outputs/reports written |
+| Desktop Convert all | Done (headless) | 2-file batch test reaches Results with both converted |
+| Retry/remove controls | Planned | M5 follow-up |
+| Memory benchmarks | Planned | M5 acceptance still open |
+
 M2 acceptance remains as recorded below.
 
 ### 1.1 M2 acceptance (retained)
@@ -133,7 +147,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **82 tests pass** (64 core/CLI + 18 desktop; 1 doctest) |
+| `cargo test --offline --workspace` | **87 tests pass** (64 core/CLI + 4 queue + 19 desktop) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -160,9 +174,10 @@ See `docs/DEV_ENVIRONMENT.md`.
 | UI inspection (M3.6–M3.8) | color/typography libraries and links; 3 components + 2 variants; instance override; Light/Dark tokens and applied `brand.primary`; masked lens + boolean donut |
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
-| Desktop headless tests | 18 state/worker/UI tests, including a real fixture conversion |
-| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 82 tests pass |
+| Desktop headless tests | 19 state/worker/UI tests, including a real fixture conversion |
+| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 87 tests pass |
 | CI for M4.1 | run 41344261599: Ubuntu/macOS/Windows success, including desktop crate |
+| CLI batch smoke test | 2 valid + 1 corrupt fixture: 2 completed, 1 failed; outputs/reports written |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
@@ -200,6 +215,8 @@ backend string, not just the tag, in future checks.
 - Validator: manifest/file/page/shape structure, IDs, refs, finite geometry, fills,
   strokes, text/path content; rejects missing refs.
 - Report: event-based counts, worst-outcome per element (ADR-0008), schema-versioned JSON.
+- Queue: bounded workers, stage events, pause/cancel, per-job failure isolation, CLI batch,
+  and desktop “Convert all”.
 
 ## 6. Explicitly not implemented
 
@@ -210,7 +227,8 @@ backend string, not just the tag, in future checks.
 - Rotation/flip is approximated/reported; not preserved.
 - Locked/blocked, page background.
 - HTML/CSV report export.
-- Batch queue, cancellation, desktop packaging/installers.
+- Batch retry/remove controls, mid-write cancellation, memory benchmarks, desktop
+  packaging/installers.
 - Reopen/move/edit persistence verification for documents.
 
 ## 7. Decisions
@@ -245,7 +263,9 @@ backend string, not just the tag, in future checks.
 - **Not supported / reported:** grid layout, grid styles, procedural effects, lists.
 - **Partial:** desktop shell (M4.1): all screens and worker exist; native dialog/drag-drop
   and remaining manual interactions need QA; packaging is pending.
-- **Planned:** report exports/UI polish beyond M4.1, batch queue, packaging.
+- **Partial:** M5 batch core and desktop “Convert all”; retry/remove, mid-write cancel, and
+  memory benchmarks pending.
+- **Planned:** report exports/UI polish beyond M4.1, packaging.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -319,6 +339,17 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 8 — 2026-11-01
+
+- Added `conversion-queue` with bounded workers, per-job isolation, stage events,
+  pause/cancel checkpoints, panic containment, and a mixed-batch test.
+- Added `f2p-cli batch`; smoke-tested with two valid fixtures and one corrupt file
+  (2 completed, 1 failed, no cross-contamination).
+- Added desktop “Convert all” with per-file batch states, pause/cancel controls, batch
+  summary, and a 2-file headless integration test.
+- Workspace now has 87 tests; 4 queue tests and 19 desktop tests.
+- M5 still pending: retry/remove controls, cancellation during writes, memory benchmarks.
 
 ### Session 7 — 2026-11-01
 

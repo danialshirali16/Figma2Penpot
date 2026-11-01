@@ -459,6 +459,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "conversion-queue"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "conversion-core",
+ "conversion-report",
+ "fig-reader",
+ "penpot-writer",
+ "tempfile",
+]
+
+[[package]]
 name = "conversion-report"
 version = "0.1.0"
 dependencies = [
@@ -539,6 +551,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "conversion-core",
+ "conversion-queue",
  "conversion-report",
  "dirs",
  "eframe",
@@ -822,6 +835,7 @@ dependencies = [
  "anyhow",
  "clap",
  "conversion-core",
+ "conversion-queue",
  "conversion-report",
  "fig-reader",
  "penpot-writer",

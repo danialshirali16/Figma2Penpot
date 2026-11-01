@@ -41,7 +41,7 @@ Only project-owned or MIT-licensed fixtures were imported. No private designs ar
 | `masks-boolean2-import.png` | Masked red lens plus the green boolean donut |
 | `text-metrics-inspect.png` | Styled text selected, showing the `Heading` typography link |
 | `desktop-home.png` | Native desktop Home/Import screen with drop zone and navigation |
-| `desktop-queue.png` | File Queue with `circle.fig` staged, size, Ready state, and Remove |
+| `desktop-queue.png` | File Queue with two files staged, Ready states, and Convert all |
 | `desktop-light.png` | Light theme loaded from saved settings |
 Import log evidence is recorded in `docs/MANUAL_QA.md`. Reopen and move/edit persistence
 were not tested. Text line-height/letter-spacing fields were not independently read back;

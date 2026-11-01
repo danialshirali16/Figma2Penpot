@@ -4,6 +4,7 @@ members = [
     "crates/conversion-report",
     "crates/penpot-writer",
     "crates/conversion-core",
+    "crates/conversion-queue",
     "crates/f2p-cli",
     "crates/desktop-app",
 ]

@@ -51,6 +51,11 @@ pub const CLEAR_QUEUE: &str = "Clear queue";
 pub const REMOVE_FILE: &str = "Remove";
 pub const ANALYZE_FILE: &str = "Analyze";
 pub const CONVERT_FILE: &str = "Convert";
+pub const CONVERT_ALL: &str = "Convert all";
+pub const PAUSE_BATCH: &str = "Pause";
+pub const RESUME_BATCH: &str = "Resume";
+pub const CANCEL_BATCH: &str = "Cancel batch";
+pub const BATCH_FINISHED: &str = "Batch finished";
 pub const QUEUE_EMPTY: &str = "No files staged yet.";
 pub const QUEUE_ONLY_FIG: &str = "Only .fig files are supported.";
 

@@ -1,0 +1,18 @@
+[package]
+name = "conversion-queue"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Bounded batch conversion jobs with progress, cancellation, and isolation"
+
+[dependencies]
+anyhow.workspace = true
+conversion-core = { path = "../conversion-core" }
+conversion-report = { path = "../conversion-report" }
+fig-reader = { path = "../fig-reader" }
+penpot-writer = { path = "../penpot-writer" }
+
+[dev-dependencies]
+tempfile.workspace = true

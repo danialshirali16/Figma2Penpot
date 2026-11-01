@@ -9,15 +9,16 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M4 desktop shell in progress
+> ## Status: pre-alpha — M4 desktop shell and M5 batch core in progress
 >
 > The Rust workspace reads real `.fig` files and converts the M2 slice plus vectors, masks,
 > boolean fallbacks, gradients, shadows, blur, image fills, text metrics, flex containers,
 > styles, components/variants, and design tokens to `.penpot`. It validates the archive and
 > writes an event-based JSON report. M2–M3.8 outputs imported into a local **Penpot 2.18.5**
 > stack and were inspected. The native desktop shell now exists with eight screens, native
-> file dialogs, background conversion, and headless UI tests; batch conversion is not built
-> yet. Stroke-only vectors, editable network handles, fixed constraints, Auto Layout child
+> file dialogs, background conversion, headless UI tests, and a batch queue core exposed
+> through CLI `batch` and the desktop “Convert all” button. Batch retry/remove controls,
+> memory benchmarks, and release packaging are not built yet. Stroke-only vectors, editable network handles, fixed constraints, Auto Layout child
 > sizing, effect style linkage, instance swaps, mixed text runs, and non-paint variable
 > bindings are documented Partial items with runtime diagnostics. See
 > [`PROGRESS.md`](PROGRESS.md) and [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
@@ -107,7 +108,7 @@ Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Impleme
 | M2 | Minimal end-to-end conversion + validator + JSON report | **Done** — imported and inspected in Penpot 2.18.5-RC1 |
 | M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **Done with Partial items** — import-verified in Penpot 2.18.5-RC1 |
 | M4 | Native desktop application (eight screens) | **In progress** — M4.1 shell and worker |
-| M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **Planned** |
+| M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **In progress** — queue core, CLI batch, desktop Convert all |
 | M6 | Report UI and JSON/HTML/CSV exports | **Planned** |
 | M7 | Reliability, fuzzing, performance benchmarks | **Planned** |
 | M8 | Release engineering and installers | **Planned** |
@@ -121,7 +122,7 @@ Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Impleme
   → penpot-writer       Penpot document model → .penpot archive   [implemented]
   → validation          structural checks against derived Penpot rules   [implemented]
   → atomic write        temp file in destination volume → validate → rename   [implemented]
-  → report              per-file and batch reports (JSON / HTML / CSV)   [JSON implemented]
+  → report              per-file and batch reports (JSON / HTML / CSV)   [per-file JSON implemented]
 ```
 
 A thin headless CLI (`f2p-cli`) wraps the same API as the desktop app so conversion stays
@@ -146,6 +147,10 @@ cargo run -p desktop-app -- tests/fixtures/circle.fig
 # Inspect and convert a real file (headless)
 cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
 cargo run -p f2p-cli -- convert tests/fixtures/circle.fig --out /tmp/f2p-out
+
+# Batch convert
+cargo run -p f2p-cli -- batch tests/fixtures/circle.fig tests/fixtures/text-group.fig \
+  --out /tmp/f2p-out --jobs 2
 ```
 
 Desktop shortcuts use **Cmd** on macOS and **Ctrl** elsewhere: `+O` open files,

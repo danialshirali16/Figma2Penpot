@@ -39,6 +39,7 @@ be bounded and memory-aware, and why streaming is preferred over holding decoded
 | `cargo-audit` | absent | M8 / compliance gate |
 | `insta` CLI | absent (crate can still be used) | Not needed yet |
 | Desktop stack | `eframe`/`egui` 0.36.2, `rfd` 0.16.1, `dirs` 7.0.0 | M4.1; rfd uses GTK3 on Linux |
+| Batch queue | `conversion-queue`, default 2 workers | M5 core; memory benchmark pending |
 | Screen capture | `screencapture -l <id>` works; full-screen capture blocked | Terminal lacks Screen Recording permission; window capture succeeds |
 
 Because `rustup` is absent, the workspace must be buildable with the Homebrew toolchain
