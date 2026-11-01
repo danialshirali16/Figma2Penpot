@@ -1,6 +1,8 @@
 # Figma `.fig` Format — What We Know
 
-Status: M0 research baseline. **Nothing here is implemented yet.**
+Status: M0 research baseline; updated at M1. Container detection and bounded Kiwi
+decoding are implemented in `crates/fig-reader`. Conversion, paints, text, vectors, and
+components are not implemented yet.
 
 Confidence labels:
 

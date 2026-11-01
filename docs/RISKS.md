@@ -1,7 +1,7 @@
 # Technical Risk Assessment
 
-Status: M0 baseline. Reviewed at the end of every milestone; new risks are added when they
-are discovered, not when they bite.
+Status: M0 baseline; reviewed at M1. This register is reviewed at the end of every
+milestone; new risks are added when they are discovered, not when they bite.
 
 Scoring: **Likelihood** and **Impact** are High / Medium / Low. A risk with High/High needs
 a mitigation before the milestone that depends on it starts.
@@ -113,11 +113,13 @@ a mitigation before the milestone that depends on it starts.
 ### R9 — Parser panic or resource exhaustion
 
 - **Likelihood:** Medium without hardening. **Impact:** High (crash, hang, disk fill).
-- **Why:** Untrusted counts, lengths, nesting, and compressed data. `kiwi-schema` has no
-  limits. ZIP and zstd add their own attack surface.
+- **Why:** Untrusted counts, lengths, nesting, and compressed data. An off-the-shelf Kiwi
+  parser allocated from untrusted array counts, so M1 replaced it with a bounded in-house
+  decoder. ZIP and zstd add their own attack surface.
 - **Mitigation:** checked arithmetic, absolute caps, depth limits, no indexing without
   bounds checks, fuzzing from day one, `catch_unwind` at the job boundary, process
   isolation as a fallback.
+- **M1 evidence:** 829,577 fuzz executions, no crashes; hostile-archive tests pass.
 - **Early warning:** fuzz crashes, timeouts, or allocations that scale with declared rather
   than actual input size.
 - **Owner milestone:** M1, M7.

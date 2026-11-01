@@ -1,6 +1,7 @@
 # Architecture
 
-Status: M0 design baseline. No code exists yet.
+Status: M0 design baseline; updated at M1. The `fig-reader` and `f2p-cli inspect` are
+implemented. `conversion-core`, `penpot-writer`, reports, queue, and UI are not.
 
 This document describes the intended Rust system, what was learned from the upstream
 projects, and why the implementation is a reimplementation rather than a port.
@@ -381,7 +382,7 @@ All licenses below were checked against crates.io metadata on 2026-11-01. See
 | Dialogs | `rfd` | 0.17 | MIT | Native dialogs |
 | Async orchestration | `tokio` | 1.54 | MIT | Limited to queue/IO |
 | Parallelism | `rayon` | 1.12 | MIT OR Apache-2.0 | CPU-bound work |
-| Channels | `crossbeam-channel` or `flume` | 0.5 / 0.12 | MIT OR Apache-2.0 / Apache-2.0 OR MIT | Pick one in M1 |
+| Channels | `crossbeam-channel` or `flume` | 0.5 / 0.12 | MIT OR Apache-2.0 / Apache-2.0 OR MIT | Pick one when the queue lands (M5) |
 | Serialization | `serde`, `serde_json` | 1.0 | MIT OR Apache-2.0 | — |
 | ZIP | `zip` | 9.2 | MIT | Disable unused features |
 | Deflate | `flate2` + `miniz_oxide` | 1.1 / 0.9 | MIT OR Apache-2.0 | Pure Rust backend |
@@ -434,8 +435,8 @@ Golden policy:
 
 ## 12. Implementation strategy
 
-1. **M1 read path**: `fig-reader` with container, schema decode, typed extraction, limits,
-   fuzz target, `inspect` CLI. No conversion yet.
+1. **M1 read path (done)**: `fig-reader` with container, schema decode, typed extraction,
+   limits, fuzz target, `inspect` CLI. No conversion yet.
 2. **M2 vertical slice**: rectangles/ellipses/frames/groups/solid paints/basic text →
    writer → validator → JSON report. Build the report sink *before* the mapping passes, so
    no branch can be added without a place to report.

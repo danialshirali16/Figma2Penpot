@@ -1,6 +1,7 @@
 # Penpot `.penpot` Format — Target Model
 
-Status: M0 research baseline. **Nothing here is implemented yet.**
+Status: M0 research baseline; updated at M1. **No `.penpot` writer exists yet.** The target
+model below is research, not generated output.
 
 Confidence labels are the same as in `docs/FIG_FORMAT.md`: **Confirmed**, **Reported**,
 **Hypothesis**, **Unknown**.
