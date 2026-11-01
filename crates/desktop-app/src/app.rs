@@ -31,6 +31,9 @@ struct UiActions {
     convert_all: bool,
     cancel_batch: bool,
     toggle_pause: bool,
+    retry_failed: bool,
+    retry_selected: bool,
+    remove_completed: bool,
     open_folder: Option<PathBuf>,
 }
 
@@ -221,37 +224,69 @@ impl F2pApp {
     }
 
     fn start_batch(&mut self) {
+        let paths = self
+            .state
+            .files
+            .iter()
+            .map(|item| item.path.clone())
+            .collect();
+        self.start_batch_for(paths);
+    }
+
+    fn start_retry_failed(&mut self) {
+        let paths = self.state.failed_paths();
+        if paths.is_empty() {
+            self.state.notify(NoticeKind::Warning, NO_FAILED_FILES);
+            return;
+        }
+        self.start_batch_for(paths);
+    }
+
+    fn start_retry_selected(&mut self) {
+        let Some(item) = self.state.selected_item() else {
+            self.state.notify(NoticeKind::Warning, NO_FILE_SELECTED);
+            return;
+        };
+        if !matches!(item.state, QueueState::Failed(_)) {
+            self.state
+                .notify(NoticeKind::Info, "The selected file has not failed.");
+            return;
+        }
+        let path = item.path.clone();
+        self.start_batch_for(vec![path]);
+    }
+
+    fn start_batch_for(&mut self, paths: Vec<PathBuf>) {
         if self.state.is_busy() {
             self.state.notify(NoticeKind::Warning, BUSY);
             return;
         }
-        if self.state.files.is_empty() {
+        if paths.is_empty() {
             self.state.notify(NoticeKind::Warning, NO_FILE_SELECTED);
             return;
         }
-        let specs: Vec<(PathBuf, PathBuf)> = self
-            .state
-            .files
+        for item in &mut self.state.files {
+            item.job_id = None;
+            item.batch_stage = None;
+        }
+        let specs: Vec<(PathBuf, PathBuf)> = paths
             .iter()
-            .map(|item| {
-                (
-                    item.path.clone(),
-                    self.state.settings.resolved_output_dir(&item.path),
-                )
-            })
+            .map(|path| (path.clone(), self.state.settings.resolved_output_dir(path)))
             .collect();
         let mut runner = BatchRunner::new(QueueConfig::bounded(2));
-        for (item, (path, output_dir)) in self.state.files.iter_mut().zip(specs) {
-            let id = runner.add_job(path, output_dir, self.state.settings.overwrite);
-            item.job_id = Some(id);
-            item.state = QueueState::Queued;
-            item.batch_stage = None;
-            item.output = None;
-            item.report_path = None;
+        for (path, output_dir) in specs {
+            let id = runner.add_job(path.clone(), output_dir, self.state.settings.overwrite);
+            if let Some(item) = self.state.files.iter_mut().find(|item| item.path == path) {
+                item.job_id = Some(id);
+                item.state = QueueState::Queued;
+                item.batch_stage = None;
+                item.output = None;
+                item.report_path = None;
+            }
         }
         let control = runner.control();
         let (receiver, handle) = runner.spawn();
-        let total = self.state.files.len();
+        let total = paths.len();
         self.state.start_batch(total);
         self.batch_receiver = Some(receiver);
         self.batch_control = Some(control);
@@ -498,6 +533,24 @@ impl F2pApp {
         }
         if actions.toggle_pause {
             self.toggle_pause_batch();
+        }
+        if actions.retry_failed {
+            self.start_retry_failed();
+        }
+        if actions.retry_selected {
+            self.start_retry_selected();
+        }
+        if actions.remove_completed {
+            if self
+                .state
+                .files
+                .iter()
+                .any(|item| item.state == QueueState::Converted)
+            {
+                self.state.remove_completed();
+            } else {
+                self.state.notify(NoticeKind::Info, NO_COMPLETED_FILES);
+            }
         }
         if actions.settings_changed {
             self.save_settings(false);
@@ -765,6 +818,24 @@ fn draw_queue(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) 
             .clicked()
         {
             actions.convert_all = true;
+        }
+        if ui
+            .add_enabled(
+                !busy
+                    && state
+                        .selected_item()
+                        .is_some_and(|item| matches!(item.state, QueueState::Failed(_))),
+                egui::Button::new(RETRY_SELECTED),
+            )
+            .clicked()
+        {
+            actions.retry_selected = true;
+        }
+        if ui
+            .add_enabled(!busy, egui::Button::new(REMOVE_COMPLETED))
+            .clicked()
+        {
+            actions.remove_completed = true;
         }
     });
     ui.add_space(8.0);

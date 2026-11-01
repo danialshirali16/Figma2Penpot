@@ -116,11 +116,12 @@ Status vocabulary (no other labels are used):
 | Desktop drag-and-drop / file picker | **Implemented (unverified)** | M4.1; code path exists; OS interaction not automated |
 | Desktop folder scan | **Verified** | Recursive `.fig` scan, hidden folders skipped, bounded to 512 files; unit-tested |
 | Desktop keyboard shortcuts | **Implemented (unverified)** | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; headless key-event test only |
-| Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 18 desktop tests |
+| Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 20 desktop tests |
 | Batch queue | **Partial** | M5 core + CLI `batch` + desktop “Convert all”; bounded workers, stage events, pause/cancel, per-job failure isolation |
 | CLI batch command | **Verified** | Ran 2 valid + 1 corrupt fixture: 2 completed, 1 failed, outputs/reports written |
-| Batch retry/remove controls | Planned | M5 follow-up |
-| Batch memory/cancel-mid-write QA | Planned | M5 acceptance still open |
+| Batch retry/remove controls | **Implemented (unverified)** | Retry failed, retry selected, remove completed; UI manual check pending |
+| Batch memory | **Verified** | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |
+| Batch cancel mid-write | Planned | Atomic writer is used; the race is not exercised yet |
 | Real Penpot import verification | **Verified (M2–M3.8 subset)** | Penpot 2.18.5-RC1; see `MANUAL_QA.md` |
 
 ## 8. Non-goals

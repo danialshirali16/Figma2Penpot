@@ -434,6 +434,24 @@ impl AppState {
         self.selected = None;
     }
 
+    pub fn remove_completed(&mut self) {
+        self.files
+            .retain(|item| item.state != QueueState::Converted);
+        self.selected = if self.files.is_empty() {
+            None
+        } else {
+            Some(self.selected.unwrap_or(0).min(self.files.len() - 1))
+        };
+    }
+
+    pub fn failed_paths(&self) -> Vec<PathBuf> {
+        self.files
+            .iter()
+            .filter(|item| matches!(item.state, QueueState::Failed(_)))
+            .map(|item| item.path.clone())
+            .collect()
+    }
+
     pub fn analysis_needed(&self) -> Option<PathBuf> {
         let item = self.selected_item()?;
         if item.analysis.is_some()
@@ -732,6 +750,21 @@ mod tests {
         state.remove_selected();
         assert_eq!(state.files.len(), 1);
         assert_eq!(state.selected, Some(0));
+    }
+
+    #[test]
+    fn completed_items_can_be_removed_without_touching_failed_ones() {
+        let dir = tempfile::tempdir().unwrap();
+        let a = temp_fig(dir.path(), "a.fig");
+        let b = temp_fig(dir.path(), "b.fig");
+        let mut state = state();
+        state.add_paths(vec![a, b]);
+        state.files[0].state = QueueState::Converted;
+        state.files[1].state = QueueState::Failed("bad".to_owned());
+        state.remove_completed();
+        assert_eq!(state.files.len(), 1);
+        assert!(matches!(state.files[0].state, QueueState::Failed(_)));
+        assert_eq!(state.failed_paths().len(), 1);
     }
 
     #[test]

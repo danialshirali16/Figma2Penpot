@@ -93,8 +93,9 @@ M5.1 acceptance so far:
 | Cancellation checkpoints | Partial | pause/cancel before and between stages; mid-write cancellation pending |
 | CLI batch | Done | 2 valid + 1 corrupt: 2 completed, 1 failed; outputs/reports written |
 | Desktop Convert all | Done (headless) | 2-file batch test reaches Results with both converted |
-| Retry/remove controls | Planned | M5 follow-up |
-| Memory benchmarks | Planned | M5 acceptance still open |
+| Retry failed / retry selected | Done (state) | Desktop actions; no automated retry test yet |
+| Remove completed | Done (unit) | completed items removed; failed items retained |
+| Memory benchmarks | Done | 1/4/16 files, 2 workers: 5.2/6.8/7.0 MB peak RSS |
 
 M2 acceptance remains as recorded below.
 
@@ -147,7 +148,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **87 tests pass** (64 core/CLI + 4 queue + 19 desktop) |
+| `cargo test --offline --workspace` | **88 tests pass** (64 core/CLI + 4 queue + 20 desktop) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -174,10 +175,11 @@ See `docs/DEV_ENVIRONMENT.md`.
 | UI inspection (M3.6–M3.8) | color/typography libraries and links; 3 components + 2 variants; instance override; Light/Dark tokens and applied `brand.primary`; masked lens + boolean donut |
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
-| Desktop headless tests | 19 state/worker/UI tests, including a real fixture conversion |
-| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 87 tests pass |
+| Desktop headless tests | 20 state/worker/UI tests, including a real fixture conversion |
+| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 88 tests pass |
 | CI for M4.1 | run 41344261599: Ubuntu/macOS/Windows success, including desktop crate |
 | CLI batch smoke test | 2 valid + 1 corrupt fixture: 2 completed, 1 failed; outputs/reports written |
+| Batch memory | 1 file 5.2 MB, 4 files 6.8 MB, 16 files 7.0 MB peak RSS (`--jobs 2`, release) |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
@@ -348,8 +350,10 @@ follow its checklist. Do not trust a status claim without recorded evidence.
   (2 completed, 1 failed, no cross-contamination).
 - Added desktop “Convert all” with per-file batch states, pause/cancel controls, batch
   summary, and a 2-file headless integration test.
-- Workspace now has 87 tests; 4 queue tests and 19 desktop tests.
-- M5 still pending: retry/remove controls, cancellation during writes, memory benchmarks.
+- Workspace now has 88 tests; 4 queue tests and 20 desktop tests.
+- Added retry-failed/retry-selected/remove-completed controls.
+- Measured release batch peak RSS: 5.2 MB (1 file), 6.8 MB (4), 7.0 MB (16) at 2 workers.
+- M5 still pending: cancellation during a write and a batch aggregate report.
 
 ### Session 7 — 2026-11-01
 
@@ -360,7 +364,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Added native file/folder dialogs (`rfd`), drag-and-drop staging, settings persistence,
   middle-truncated paths with tooltips, and light/dark/system theme selection.
 - Added command-line `.fig` path staging for manual QA and future open-with support.
-- Added 18 desktop tests: queue/settings/state, real fixture conversion, all-screen headless
+- Added 20 desktop tests: queue/settings/state, real fixture conversion, all-screen headless
   rendering, and end-to-end worker → Results/Report.
 - Updated CI with Linux GTK3/X11/Wayland build dependencies.
 - Captured Home, Queue, and Light theme screenshots; native dialog, drag-drop, and
