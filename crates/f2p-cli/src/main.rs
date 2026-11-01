@@ -48,6 +48,9 @@ enum Command {
         /// Write a CSV batch report here.
         #[arg(long)]
         csv: Option<PathBuf>,
+        /// Write a batch JSON aggregate here.
+        #[arg(long)]
+        json: Option<PathBuf>,
     },
 
     /// Export an existing JSON report to HTML and/or CSV.
@@ -105,7 +108,16 @@ fn run(cli: Cli) -> Result<()> {
             jobs,
             html,
             csv,
-        } => batch(files, &out, force, jobs, html.as_deref(), csv.as_deref()),
+            json,
+        } => batch(
+            files,
+            &out,
+            force,
+            jobs,
+            html.as_deref(),
+            csv.as_deref(),
+            json.as_deref(),
+        ),
         Command::Report { report, html, csv } => {
             export_report(&report, html.as_deref(), csv.as_deref())
         }
@@ -119,6 +131,7 @@ fn batch(
     jobs: usize,
     html: Option<&Path>,
     csv: Option<&Path>,
+    json: Option<&Path>,
 ) -> Result<()> {
     use conversion_queue::{BatchRunner, JobState, QueueConfig, QueueEvent};
 
@@ -173,6 +186,13 @@ fn batch(
         penpot_writer::write_atomic(path, document.as_bytes())
             .with_context(|| format!("writing CSV report {}", path.display()))?;
         println!("CSV report: {}", path.display());
+    }
+    if let Some(path) = json {
+        let document =
+            conversion_report::batch_json(&reports).context("serializing batch JSON report")?;
+        penpot_writer::write_atomic(path, document.as_bytes())
+            .with_context(|| format!("writing JSON batch report {}", path.display()))?;
+        println!("JSON batch report: {}", path.display());
     }
     if failed > 0 {
         anyhow::bail!("{failed} batch job(s) failed");

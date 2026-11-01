@@ -134,6 +134,13 @@ pub const REPORT_ACTION: &str = "Action taken";
 pub const REPORT_REASON: &str = "Reason";
 pub const REPORT_SUGGESTED: &str = "Suggested action";
 pub const REPORT_TRACEABLE: &str = "Element-level traceability is preserved for grouped issues.";
+pub const GROUP_BY: &str = "Group by";
+pub const GROUP_NONE: &str = "None";
+pub const GROUP_CODE: &str = "Issue code";
+pub const GROUP_PAGE: &str = "Page";
+pub const COPY_ISSUE: &str = "Copy issue";
+pub const COPY_NODE: &str = "Copy node ID";
+pub const COPIED: &str = "Copied.";
 
 pub const PREFERENCES_HEADING: &str = "Preferences";
 pub const PREFERENCES_BODY: &str = "Appearance and storage. Conversion never needs the network.";

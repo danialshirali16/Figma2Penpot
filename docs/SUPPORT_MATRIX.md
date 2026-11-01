@@ -112,8 +112,8 @@ Status vocabulary (no other labels are used):
 | JSON report | **Verified** | M2; event-based counts, schema version 1; tested |
 | HTML report export | **Verified** | Self-contained offline HTML rendered in a browser; no external assets |
 | CSV report export | **Verified** | RFC 4180 escaping tested; per-file and batch aggregate output |
-| CLI `report` export | **Verified** | JSON report → HTML/CSV smoke-tested |
-| Report screen filters | **Partial** | Search + severity/outcome filters; grouping/jump-to-element pending |
+| CLI `report`/batch export | **Verified** | JSON report → HTML/CSV; batch HTML/CSV/JSON smoke-tested |
+| Report screen filters | **Partial** | Search, severity/outcome, grouping by issue/page, copy issue/node; canvas jump-to-element pending |
 | Headless CLI | **Verified** | `inspect` + `convert` used for the import |
 | Native desktop UI | **Partial** | M4.1; eight-screen eframe shell, native dialogs, background conversion, settings persistence; packaging/manual checklist pending |
 | Desktop drag-and-drop / file picker | **Implemented (unverified)** | M4.1; code path exists; OS interaction not automated |

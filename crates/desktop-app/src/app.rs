@@ -1,6 +1,7 @@
 //! eframe shell and screens. All conversion work is delegated to
 //! [`crate::conversion`]; this module never parses or writes design files.
 
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, Sender};
 use std::time::Duration;
@@ -10,7 +11,9 @@ use eframe::egui::{self, Align, Color32, Layout, RichText};
 use eframe::{CreationContext, Frame};
 
 use crate::conversion::{spawn_analysis, spawn_conversion, ConversionRequest, WorkerEvent};
-use crate::model::{scan_folder, ActiveJob, AppState, NoticeKind, QueueState, Screen, Stage};
+use crate::model::{
+    scan_folder, ActiveJob, AppState, NoticeKind, QueueState, ReportGrouping, Screen, Stage,
+};
 use crate::settings::{Settings, ThemeChoice};
 use crate::strings::*;
 use conversion_queue::{
@@ -1314,6 +1317,19 @@ fn draw_report(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions)
                 );
             });
         ui.separator();
+        ui.label(GROUP_BY);
+        egui::ComboBox::from_id_salt("group_filter")
+            .selected_text(match state.filter.grouping {
+                ReportGrouping::None => GROUP_NONE,
+                ReportGrouping::Code => GROUP_CODE,
+                ReportGrouping::Page => GROUP_PAGE,
+            })
+            .show_ui(ui, |ui| {
+                ui.selectable_value(&mut state.filter.grouping, ReportGrouping::None, GROUP_NONE);
+                ui.selectable_value(&mut state.filter.grouping, ReportGrouping::Code, GROUP_CODE);
+                ui.selectable_value(&mut state.filter.grouping, ReportGrouping::Page, GROUP_PAGE);
+            });
+        ui.separator();
         ui.label(REPORT_OUTCOME);
         egui::ComboBox::from_id_salt("outcome_filter")
             .selected_text(
@@ -1357,44 +1373,100 @@ fn draw_report(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions)
     ui.label(RichText::new(REPORT_TRACEABLE).small().weak());
     egui::ScrollArea::vertical()
         .max_height(430.0)
-        .show(ui, |ui| {
-            for (index, event) in events.iter().enumerate() {
-                ui.push_id(index, |ui| {
-                    let color = severity_color(ui, event.severity);
-                    let title = format!(
-                        "{} · {} · {}",
-                        severity_label(event.severity),
-                        event.code,
-                        event.element.name
-                    );
-                    egui::CollapsingHeader::new(RichText::new(title).color(color))
-                        .default_open(event.severity == Severity::Error)
+        .show(ui, |ui| match state.filter.grouping {
+            ReportGrouping::None => {
+                for (index, event) in events.iter().enumerate() {
+                    draw_report_event(ui, index, event);
+                }
+            }
+            ReportGrouping::Code => {
+                let mut groups: BTreeMap<String, Vec<&conversion_report::ReportEvent>> =
+                    BTreeMap::new();
+                for event in &events {
+                    groups.entry(event.code.clone()).or_default().push(event);
+                }
+                for (group_index, (code, group)) in groups.into_iter().enumerate() {
+                    egui::CollapsingHeader::new(format!("{code} ({} event(s))", group.len()))
+                        .id_salt(("report_group", group_index))
+                        .default_open(true)
                         .show(ui, |ui| {
-                            ui.label(&event.description);
-                            ui.label(format!(
-                                "{}: {}",
-                                REPORT_ELEMENT,
-                                event.element.path.join(" / ")
-                            ));
-                            if let Some(page) = &event.element.page {
-                                ui.label(format!("{REPORT_PAGE}: {page}"));
-                            }
-                            ui.label(format!(
-                                "{}: {}",
-                                REPORT_OUTCOME,
-                                outcome_label(event.outcome)
-                            ));
-                            if let Some(reason) = &event.reason {
-                                ui.label(format!("{REPORT_REASON}: {reason}"));
-                            }
-                            ui.label(format!("{REPORT_ACTION}: {}", event.action_taken));
-                            if let Some(suggested) = &event.suggested_action {
-                                ui.label(format!("{REPORT_SUGGESTED}: {suggested}"));
+                            for (index, event) in group.iter().enumerate() {
+                                draw_report_event(ui, group_index * 10_000 + index, event);
                             }
                         });
-                });
+                }
+            }
+            ReportGrouping::Page => {
+                let mut groups: BTreeMap<String, Vec<&conversion_report::ReportEvent>> =
+                    BTreeMap::new();
+                for event in &events {
+                    let page = event
+                        .element
+                        .page
+                        .clone()
+                        .unwrap_or_else(|| "Unknown page".to_owned());
+                    groups.entry(page).or_default().push(event);
+                }
+                for (group_index, (page, group)) in groups.into_iter().enumerate() {
+                    egui::CollapsingHeader::new(format!("{page} ({} event(s))", group.len()))
+                        .id_salt(("report_page", group_index))
+                        .default_open(true)
+                        .show(ui, |ui| {
+                            for (index, event) in group.iter().enumerate() {
+                                draw_report_event(ui, group_index * 10_000 + index, event);
+                            }
+                        });
+                }
             }
         });
+}
+
+fn draw_report_event(ui: &mut egui::Ui, index: usize, event: &conversion_report::ReportEvent) {
+    ui.push_id(index, |ui| {
+        let color = severity_color(ui, event.severity);
+        let title = format!(
+            "{} · {} · {}",
+            severity_label(event.severity),
+            event.code,
+            event.element.name
+        );
+        egui::CollapsingHeader::new(RichText::new(title).color(color))
+            .default_open(event.severity == Severity::Error)
+            .show(ui, |ui| {
+                ui.label(&event.description);
+                ui.label(format!(
+                    "{}: {}",
+                    REPORT_ELEMENT,
+                    event.element.path.join(" / ")
+                ));
+                if let Some(page) = &event.element.page {
+                    ui.label(format!("{REPORT_PAGE}: {page}"));
+                }
+                ui.label(format!(
+                    "{}: {}",
+                    REPORT_OUTCOME,
+                    outcome_label(event.outcome)
+                ));
+                if let Some(reason) = &event.reason {
+                    ui.label(format!("{REPORT_REASON}: {reason}"));
+                }
+                ui.label(format!("{REPORT_ACTION}: {}", event.action_taken));
+                if let Some(suggested) = &event.suggested_action {
+                    ui.label(format!("{REPORT_SUGGESTED}: {suggested}"));
+                }
+                ui.horizontal(|ui| {
+                    if ui.small_button(COPY_ISSUE).clicked() {
+                        ui.ctx().copy_text(format!(
+                            "{} · {} · {}",
+                            event.code, event.element.name, event.description
+                        ));
+                    }
+                    if ui.small_button(COPY_NODE).clicked() {
+                        ui.ctx().copy_text(event.element.figma_node_id.clone());
+                    }
+                });
+            });
+    });
 }
 
 fn draw_preferences(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) {

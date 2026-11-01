@@ -219,11 +219,20 @@ pub struct ConversionFailure {
     pub message: String,
 }
 
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ReportGrouping {
+    #[default]
+    None,
+    Code,
+    Page,
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct ReportFilter {
     pub severity: Option<Severity>,
     pub outcome: Option<Outcome>,
     pub search: String,
+    pub grouping: ReportGrouping,
 }
 
 impl ReportFilter {

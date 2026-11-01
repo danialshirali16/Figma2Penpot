@@ -284,6 +284,31 @@ pub fn batch_csv(reports: &[FileReport]) -> String {
     out
 }
 
+/// Versioned JSON aggregate for a batch. Full per-file reports are retained.
+pub fn batch_json(reports: &[FileReport]) -> Result<String, serde_json::Error> {
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct BatchJson<'a> {
+        schema_version: u32,
+        files: &'a [FileReport],
+        totals: Counts,
+    }
+    let mut totals = Counts::default();
+    for report in reports {
+        totals.detected += report.counts.detected;
+        totals.converted += report.counts.converted;
+        totals.approximated += report.counts.approximated;
+        totals.skipped += report.counts.skipped;
+        totals.unsupported += report.counts.unsupported;
+        totals.failed += report.counts.failed;
+    }
+    serde_json::to_string_pretty(&BatchJson {
+        schema_version: REPORT_SCHEMA_VERSION,
+        files: reports,
+        totals,
+    })
+}
+
 fn csv_escape(value: &str) -> String {
     if value.contains([',', '"', '\n', '\r']) {
         format!("\"{}\"", value.replace('"', "\"\""))
@@ -653,6 +678,23 @@ mod tests {
         assert!(html.contains("two.fig"));
         let csv = batch_csv(&[one, two]);
         assert!(csv.lines().count() == 1);
+    }
+
+    #[test]
+    fn batch_json_keeps_files_and_totals() {
+        let collector = ReportCollector::new();
+        let report = collector.finish(
+            "one.fig",
+            None,
+            Duration::ZERO,
+            ValidationState::Passed,
+            "0.1.0",
+            "2.18.5",
+        );
+        let json = batch_json(&[report]).unwrap();
+        assert!(json.contains("\"schemaVersion\": 1"));
+        assert!(json.contains("\"files\":"));
+        assert!(json.contains("\"totals\":"));
     }
 
     #[test]

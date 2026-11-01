@@ -103,11 +103,11 @@ M6.1 acceptance so far:
 |---|---|---|
 | Self-contained HTML exporter | Done | Inline CSS, no external assets; rendered in a browser |
 | CSV exporter | Done | RFC 4180 escaping unit-tested |
-| Batch aggregate HTML/CSV | Done | `batch --html/--csv`; summary + per-file detail |
+| Batch aggregate HTML/CSV/JSON | Done | `batch --html/--csv/--json`; totals + per-file detail |
 | CLI `report` | Done | JSON report → HTML/CSV smoke-tested |
 | Desktop export buttons | Done (unverified UI) | Results/Report actions; native save dialog not automated |
-| Report screen filters | Partial | Search + severity/outcome; grouping/jump-to-element pending |
-| Exporter snapshot tests | Done | 3 exporter tests with escaping and batch coverage |
+| Report screen grouping/copy | Done (headless) | Search + severity/outcome + code/page grouping; copy issue/node ID |
+| Exporter snapshot tests | Done | 4 exporter tests with escaping, batch HTML/CSV, and batch JSON |
 
 M2 acceptance remains as recorded below.
 
@@ -160,7 +160,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **91 tests pass** (67 core/CLI + 4 queue + 20 desktop) |
+| `cargo test --offline --workspace` | **92 tests pass** (68 core/CLI + 4 queue + 20 desktop) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -188,7 +188,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
 | Desktop headless tests | 20 state/worker/UI tests, including a real fixture conversion |
-| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 91 tests pass |
+| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 92 tests pass |
 | CI for M4.1–M5 | run 41347094495: Ubuntu/macOS/Windows success, including queue and desktop |
 | CI for M6.1 | run 41347957397: Ubuntu/macOS/Windows success |
 | CLI batch smoke test | 2 valid + 1 corrupt fixture: 2 completed, 1 failed; outputs/reports written |
@@ -230,7 +230,8 @@ backend string, not just the tag, in future checks.
 - Validator: manifest/file/page/shape structure, IDs, refs, finite geometry, fills,
   strokes, text/path content; rejects missing refs.
 - Report: event-based counts, worst-outcome per element (ADR-0008), schema-versioned JSON,
-  self-contained HTML, RFC 4180 CSV, and batch aggregate exports.
+  self-contained HTML, RFC 4180 CSV, batch aggregate HTML/CSV/JSON, grouping, and copy
+  actions.
 - Queue: bounded workers, stage events, pause/cancel, per-job failure isolation, CLI batch,
   and desktop “Convert all”.
 
@@ -281,7 +282,7 @@ backend string, not just the tag, in future checks.
   and remaining manual interactions need QA; packaging is pending.
 - **Partial:** M5 batch core and desktop “Convert all”; retry/remove, mid-write cancel, and
   memory benchmarks pending.
-- **Planned:** report grouping/jump-to-element, packaging.
+- **Planned:** jump-to-element (canvas navigation), packaging.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -362,9 +363,10 @@ follow its checklist. Do not trust a status claim without recorded evidence.
   batch aggregate coverage (3 tests).
 - Added `f2p-cli report` and `batch --html/--csv`.
 - Added desktop HTML/CSV export actions using native save dialogs.
+- Added batch JSON aggregate, report grouping by issue/page, and copy-issue/node actions.
 - Rendered the generated HTML report in a browser and captured
   `docs/qa/report-html.png`.
-- Workspace now has 91 tests.
+- Workspace now has 92 tests.
 
 ### Session 8 — 2026-11-02
 
