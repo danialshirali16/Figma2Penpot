@@ -90,7 +90,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Penpot import OpenFigs | `d047d42d-cd5b-80cd-8008-e1452fac5611`, `error?=false`, 0.158 s |
 | Penpot import straight line | `d047d42d-cd5b-80cd-8008-e145acec5587`, `error?=false`, 0.052 s |
 | UI inspection | 20 path layers under the OpenFigs frame; icon rendered; green stroke-only line rendered |
-| CI (M2) | run 41327038266: Ubuntu/macOS/Windows success; M3 CI runs after push |
+| CI (M2/M3.1) | run 41329353648: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
 
@@ -164,8 +164,8 @@ backend string, not just the tag, in future checks.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** M2/M3.1 built with `--offline` after dependencies were
    cached; CI still needs network for new crates.
-5. **CI is green at `819a398` for M2** (run 41327038266); M3.1 needs a push and green
-   run. The Node 20 action annotation remains cosmetic; harden action pinning in M8.
+5. **CI is green at `01a4f52` for M3.1** (run 41329353648) on Linux, macOS, and Windows.
+   The Node 20 action annotation remains cosmetic; harden action pinning in M8.
 6. **Docker stack was stopped** after M3.1 import. Re-run via compose for future imports;
    telemetry off.
 7. **No real component/media/token data**, so those remain unverified.
@@ -230,4 +230,4 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Imported the OpenFigs icon (20 paths) and stroke-only line into Penpot 2.18.5; both
   `error?=false`; rendered correctly.
 - Added `F2P-VECTOR-*` diagnostics and updated support matrix, manual QA, and docs.
-- 56 tests, clippy, fmt pass locally; M3.1 pending push/CI.
+- 56 tests, clippy, fmt pass locally; pushed M3.1, CI run 41329353648 green on all three OS.
