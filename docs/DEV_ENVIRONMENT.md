@@ -90,8 +90,9 @@ Figma 2 Penpot/
 
 - Git repository: initialized on `main`; public remote
   `https://github.com/danialshirali16/Figma2Penpot`.
-- Cargo workspace: **does not exist** (M1).
-- CI: **does not exist** (M1).
+- Cargo workspace: exists; `fig-reader` and `f2p-cli`; 4 fixtures under `tests/fixtures`.
+- CI: GitHub Actions added (`.github/workflows/ci.yml`); run **41322990919** passed
+  `fmt`, `clippy`, and `test` on Ubuntu, macOS, and Windows.
 - Research checkouts live **outside** the repo at `~/Downloads/f2p-research-upstream/`
   so unlicensed upstream code cannot accidentally be committed.
 
@@ -103,8 +104,8 @@ Figma 2 Penpot/
 | `.fig` parsing and `.penpot` generation | Yes | M1/M2/local golden tests |
 | Structural validation of `.penpot` | Yes | Build in Rust (M2) |
 | Real Penpot import | **No** (no instance, Docker daemon down) | Mark **pending**; provide exact manual steps |
-| Windows build and installer | **No** | CI only; label **unverified on this platform** |
-| macOS Intel build | **No** (Apple Silicon host) | CI cross-build or omit, label honestly |
+| Windows build and installer | **Build/test: yes via CI; GUI/installer: no** | CI is green; label GUI/installer **unverified on this platform** |
+| macOS Intel build | **No** (Apple Silicon host) | Not built; label honestly |
 | macOS GUI behavior | Yes, but only on this machine | Manual QA checklist; still not a second machine |
 | GPU/rendering differences | Partially | Screenshot tests + manual QA |
 | Large-file performance | Yes, once fixtures exist | Record machine specs with every benchmark |
@@ -154,7 +155,8 @@ cargo fuzz run read_fig --sanitizer none -- -max_total_time=60
 
 ## 8. Setup still needed (M2+)
 
-- Verify CI on GitHub Actions for Linux, macOS, and Windows (workflow added in M1).
+- Keep the CI matrix green; harden action pinning and address the Node 20 deprecation
+  annotation in M8.
 - Add `cargo-deny` and `cargo-audit` gates; the tools are not installed yet.
 - Decide whether to run Penpot via Docker for import checks; if yes, document the image
   tag and startup command, and keep it optional so ordinary builds stay offline.

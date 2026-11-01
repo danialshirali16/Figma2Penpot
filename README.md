@@ -2,6 +2,8 @@
 
 **Move your designs from Figma to Penpot. Simply.**
 
+[![CI](https://github.com/danialshirali16/Figma2Penpot/actions/workflows/ci.yml/badge.svg)](https://github.com/danialshirali16/Figma2Penpot/actions/workflows/ci.yml)
+
 A native, offline, open-source desktop application for Windows and macOS that converts Figma
 `.fig` files into Penpot `.penpot` files, in batches, with a conversion report you can trust.
 

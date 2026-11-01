@@ -19,7 +19,7 @@ M1 acceptance:
 | Requirement | Status | Evidence |
 |---|---|---|
 | Cargo workspace compiles on stable | Done | `cargo build --workspace`, `cargo test --workspace` |
-| CI runs fmt, clippy, test | Workflow added | `.github/workflows/ci.yml`; first GitHub run result recorded below when available |
+| CI runs fmt, clippy, test | Done | Run 41322990919: ubuntu-latest, macos-latest, windows-latest all success |
 | Container detection + safe extraction | Done | ZIP and raw tests; zip-slip, entry-count, ratio, truncation tests |
 | Schema + data decoding | Done | In-house bounded Kiwi decoder; 550 and 627 definition schemas |
 | Raw node tree | Done (core fields) | GUID, parent, position, type, name, phase, visible, size, transform |
@@ -61,7 +61,8 @@ Full record: `docs/DEV_ENVIRONMENT.md`.
 - Rust 1.99.1 (Homebrew), no rustup, Xcode CLT.
 - `cargo-fuzz 0.13.2` installed via Homebrew.
 - Docker daemon not running; no Penpot instance.
-- Windows and Intel macOS remain **unverified on this platform** pending CI.
+- Windows and Intel macOS builds/tests are green in CI; **GUI and installer behavior remain
+  unverified** on those platforms.
 - Network to crates.io became intermittent during M1; dependencies were already cached and
   the build/fuzz completed. Do not assume network at build time.
 
@@ -79,6 +80,7 @@ Full record: `docs/DEV_ENVIRONMENT.md`.
 | `cargo run ... corner-radius-middle-dot-20.fig` | Version 101, 627 schema defs, 4 nodes |
 | Research file `coloradjusted.fig` | 29 nodes, 51 blobs, 2 images; reports `BRUSH` as unknown type |
 | `cargo fuzz run read_fig --sanitizer none -- -max_total_time=60` | 829,577 runs, 61 s, no crashes, 61 MB peak RSS |
+| GitHub Actions run 41322990919 | Ubuntu, macOS, Windows: all success (fmt, clippy, test) |
 
 The `coloradjusted.fig` research file is **not committed** (2.1 MB); it was inspected from the
 upstream checkout outside the repo. Its `BRUSH` nodes prove unknown node types are reported
@@ -136,8 +138,8 @@ rather than rejected.
 ## 9. Known gaps and open questions
 
 1. **No conversion.** M2 must build the minimal writer, validator, and report.
-2. **CI not yet observed on GitHub.** Push and check the workflow; Windows behavior is the
-   main unknown.
+2. **CI is green at `eef72fc`** on Linux, macOS, and Windows. Actions are pinned by tag, not
+   SHA, and the Node 20 deprecation annotation is cosmetic for now; harden in M8.
 3. **No real Penpot instance.** Import verification stays pending.
 4. **`BRUSH` is an unknown Figma node type** in the research corpus. Decide in M3 whether it
    is in scope; until then it is reported.
@@ -191,4 +193,5 @@ here or in a later entry.
 - Added 4 MIT fixtures with provenance and attribution.
 - Added 29 unit/integration tests + 1 doctest, hostile-input tests, and a fuzz harness.
 - Ran 829,577 fuzz executions in 61 s with no crashes.
+- Pushed M1; GitHub Actions matrix (Ubuntu, macOS, Windows) passed.
 - Recorded ADR-0006 (in-house decoder) and updated the format/architecture/license docs.

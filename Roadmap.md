@@ -80,7 +80,8 @@ whole project under an incompatible license.
 **Status: Done (2026-11-01).** The workspace builds; the reader parses four fixtures
 (550/627-definition schemas, ZIP and raw forms); 29 unit/integration tests and a doctest
 pass; hostile inputs return typed errors; the fuzz target ran 829,577 executions without a
-crash. Evidence is in `PROGRESS.md`. Conversion remains unimplemented.
+crash; CI is green on Linux, macOS, and Windows. Evidence is in `PROGRESS.md`. Conversion
+remains unimplemented.
 
 **Goal.** Open real files safely and print only what is actually known.
 
