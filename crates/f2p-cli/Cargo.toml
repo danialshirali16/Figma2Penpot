@@ -1,0 +1,17 @@
+[package]
+name = "f2p-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Headless CLI for Figma 2 Penpot"
+
+[[bin]]
+name = "f2p-cli"
+path = "src/main.rs"
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+fig-reader = { path = "../fig-reader" }

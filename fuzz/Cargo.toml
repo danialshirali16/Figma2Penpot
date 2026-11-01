@@ -1,0 +1,20 @@
+[package]
+name = "figma2penpot-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+fig-reader = { path = "../crates/fig-reader" }
+
+[[bin]]
+name = "read_fig"
+path = "fuzz_targets/read_fig.rs"
+test = false
+doc = false
+
+[workspace]

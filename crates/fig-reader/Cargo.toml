@@ -1,0 +1,15 @@
+[package]
+name = "fig-reader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+description = "Safe reader for Figma .fig containers and Kiwi payloads"
+
+[dependencies]
+flate2.workspace = true
+ruzstd.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+zip.workspace = true
