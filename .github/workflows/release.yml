@@ -32,6 +32,7 @@ jobs:
           VERSION="${REF_NAME#v}"
           if [ "$REF_TYPE" != "tag" ]; then VERSION="0.0.0-dev"; fi
           bash scripts/package-macos.sh "$VERSION"
+          bash scripts/package-macos-dmg.sh "$VERSION"
           cd dist
           CLI_ZIP="figma2penpot-$VERSION-cli-macos-$(uname -m).zip"
           zip "$CLI_ZIP" ../target/release/f2p-cli
@@ -40,7 +41,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos
-          path: dist/*.zip*
+          path: |
+            dist/*.zip*
+            dist/*.dmg*
           if-no-files-found: error
 
   windows:

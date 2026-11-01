@@ -11,6 +11,7 @@ Release: <https://github.com/danialshirali16/Figma2Penpot/releases/tag/v0.1.0>
 | Platform | Artifact | Contents |
 |---|---|---|
 | macOS | `figma2penpot-<version>-macos-<arch>.zip` | `Figma 2 Penpot.app` bundle |
+| macOS DMG | `figma2penpot-<version>-macos-<arch>.dmg` | Compressed disk image with the `.app` |
 | macOS CLI | `figma2penpot-<version>-cli-macos-<arch>.zip` | `f2p-cli` binary |
 | Windows | `figma2penpot-<version>-windows-x86_64.zip` | `figma2penpot.exe`, `f2p-cli.exe`, README |
 | Linux | `figma2penpot-<version>-linux-<arch>.tar.gz` | `figma2penpot`, `f2p-cli`, README |
@@ -24,6 +25,7 @@ cargo build --release -p desktop-app -p f2p-cli
 
 # macOS
 bash scripts/package-macos.sh 0.1.0 target/release/figma2penpot dist
+bash scripts/package-macos-dmg.sh 0.1.0
 
 # Windows (PowerShell)
 ./scripts/package-windows.ps1 -Version 0.1.0
@@ -58,6 +60,7 @@ bash scripts/package-linux.sh 0.1.0
 |---|---|
 | macOS `.app` builds | **Pass** — local build, `open` launched the app, window captured |
 | macOS zip/checksum | **Pass** — 3.8 MB zip, SHA-256 generated |
+| macOS DMG | **Pass locally** — 4.3 MB compressed DMG + SHA-256 |
 | macOS signing/notarization | **Not done** — ad-hoc signature only |
 | Windows zip build | **Pass in CI** — 5.0 MB artifact; local install **untested** |
 | Linux tarball build | **Pass in CI** — 6.8 MB artifact; local install **untested** |

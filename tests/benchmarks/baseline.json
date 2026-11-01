@@ -124,6 +124,18 @@
       "status": "completed_with_warnings",
       "wallMs": 10,
       "peakRssMb": 5.3
+    },
+    {
+      "fixture": "large-synthetic.fig",
+      "detected": 3300,
+      "converted": 3300,
+      "approximated": 0,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed",
+      "wallMs": 230,
+      "peakRssMb": 66.7
     }
   ]
 }

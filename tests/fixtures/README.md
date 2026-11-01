@@ -31,6 +31,7 @@ here.
 | `components.fig` | `61e72e4c520b4e0b00aa523eca16c6b84ee3308aeae7cbe5ebd8f7385043e678` | **Synthetic**, project-owned: main symbol, instance with text override, two-variant set |
 | `tokens.fig` | `5ac1bee67a5b785e4ff3c2860b49dc0398e28a83fc6d9a47f821f0a5ea38e1c2` | **Synthetic**, project-owned: color and number variables in Light/Dark modes, variable-bound fill |
 | `masks-boolean.fig` | `24ce23ede95696a3bde1c9dfca4315dd8746b38dc33aa9d7dfc905e48533794b` | **Synthetic**, project-owned: alpha mask group and flattened subtract boolean path |
+| `large-synthetic.fig` | `b97a13cf4b6ea1ba415c4725254e15d6d0ba8a95d361900490147c70b5082d24` | **Synthetic**, project-owned: 300 frames × 10 rounded rects, 3,303 nodes, for scale/benchmark tests |
 
 The synthetic fixtures were generated with the MIT `openfig-core` encoder from our own node
 definitions. They are not upstream sample data and are licensed under this project's

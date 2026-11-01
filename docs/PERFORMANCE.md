@@ -32,6 +32,7 @@ size. These are not statistically rigorous. The checked-in correctness baseline 
 | `components.fig` | 9 | 0.01 s | 5.6 MB | Completed |
 | `tokens.fig` | 2 | 0.01 s | 5.3 MB | Completed |
 | `masks-boolean.fig` | 5 | 0.01 s | 5.3 MB | Completed with warnings |
+| `large-synthetic.fig` | 3,300 | 0.23 s | 66.7 MB | Completed; 2.4 MB archive, 3,312 validation checks |
 | Local 4,629-node file | 4,445 | 1.09 s | 226.1 MB | Failed status: 1 failed node + 33 unsupported, all reported; validator passed 6,698 checks |
 
 ## Batch memory
@@ -68,13 +69,15 @@ No crash artifacts were produced (`fuzz/artifacts/read_fig` was empty). This is 
 
 ## Regression checks
 
-`crates/f2p-cli/tests/baseline.rs` checks every committed fixture against
-`tests/benchmarks/baseline.json`: counts, status, and structural validation. Timing values
+`crates/f2p-cli/tests/baseline.rs` checks every committed fixture (including the 3,303-node
+synthetic file) against `tests/benchmarks/baseline.json`: counts, status, and structural
+validation. Timing values
 are documented with a 30% wall-time tolerance but are not asserted in CI.
 
 ## Known gaps
 
-- Only one large real-world file has been exercised locally; no large corpus.
+- Scale coverage is two files: a committed 3,303-node synthetic fixture and one local
+  4,629-node real-world file; no broad large-file corpus.
 - Low-disk and cancellation-during-write paths are not exercised. A forced write failure
   (destination is a directory) is now covered and leaves no temporary files.
 - Benchmarks use one run each; noise is unquantified.

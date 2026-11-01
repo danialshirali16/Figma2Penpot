@@ -119,7 +119,7 @@ Status vocabulary (no other labels are used):
 | Desktop drag-and-drop / file picker | **Implemented (unverified)** | M4.1; code path exists; OS interaction not automated |
 | Desktop folder scan | **Verified** | Recursive `.fig` scan, hidden folders skipped, bounded to 512 files; unit-tested |
 | Desktop keyboard shortcuts | **Implemented (unverified)** | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; headless key-event test only |
-| Release artifacts | **Verified (v0.1.0)** | GitHub prerelease `v0.1.0`: macOS app/CLI, Windows zip, Linux tarball, all with SHA-256 |
+| Release artifacts | **Verified (v0.1.0)** | macOS app/CLI + DMG packaging, Windows zip, Linux tarball, all with SHA-256 |
 | Installers / signing | Planned | MSI/DMG and notarization pending; builds are unsigned |
 | Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 20 desktop tests |
 | Batch queue | **Partial** | Bounded queue, CLI batch, desktop Convert all, retry/remove; mid-write cancellation pending |
@@ -136,8 +136,8 @@ Status vocabulary (no other labels are used):
 | Fuzz target | **Verified (one campaign)** | 818,204 runs / 61 s, 49 MB peak RSS, no artifacts; not a proof of absence |
 | Conversion benchmarks | **Partial** | Release wall time and peak RSS recorded for 10 fixtures + one 4.6k-node file; single machine/run |
 | Batch memory | **Verified** | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |
-| Large-file corpus | **Partial** | One local 4.6k-node file; no committed corpus |
-| Regression baseline | **Verified (counts/status)** | `tests/benchmarks/baseline.json` + CLI integration test; timing is reference with 30% manual tolerance |
+| Large-file corpus | **Partial** | Committed 3,303-node synthetic fixture + one local 4,629-node file; broader corpus pending |
+| Regression baseline | **Verified (counts/status)** | 11 fixtures in `tests/benchmarks/baseline.json` + CLI integration test; timing reference with 30% manual tolerance |
 | Error recovery drills | **Partial** | Atomic write failure + temp cleanup, batch isolation, overwrite refusal tested; low-disk/cancel-mid-write pending |
 
 ## 9. Non-goals

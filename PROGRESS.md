@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-02** (session 12, M8 packaging).
+Last updated: **2026-11-02** (session 13, scale + DMG).
 
 ---
 
@@ -115,9 +115,9 @@ M7.1 acceptance so far:
 |---|---|---|
 | Fuzz campaign | Done | 818,204 executions / 61 s; 49 MB peak RSS; no artifacts |
 | Fixture benchmarks | Done | 10 fixtures, 0.01–0.03 s, 5.3–6.2 MB peak RSS |
-| Large-file benchmark | Partial | 4,629-node file: 1.09 s, 226 MB peak RSS, validation passed |
+| Large-file benchmark | Done | 3,303-node synthetic: 0.23 s / 66.7 MB; local 4,629-node: 1.09 s / 226 MB |
 | Batch memory | Done | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |
-| Regression baseline | Done | `tests/benchmarks/baseline.json`; all fixtures checked for counts/status/validation |
+| Regression baseline | Done | 11 fixtures in `tests/benchmarks/baseline.json`; counts/status/validation checked |
 | Error recovery drills | Partial | atomic write failure + temp cleanup, overwrite refusal, batch isolation; low-disk/cancel-mid-write pending |
 
 M8.1 acceptance so far:
@@ -126,6 +126,7 @@ M8.1 acceptance so far:
 |---|---|---|
 | macOS `.app` bundle | Done | `scripts/package-macos.sh`; launched via `open`; window captured |
 | macOS zip + checksum | Done | 3.8 MB `figma2penpot-0.1.0-macos-arm64.zip` + SHA-256 |
+| macOS DMG | Done locally | 4.3 MB compressed DMG + SHA-256 |
 | Windows zip script | Built in CI | `figma2penpot-0.1.0-windows-x86_64.zip` (5.0 MB); local install untested |
 | Linux tarball script | Built in CI | `figma2penpot-0.1.0-linux-x86_64.tar.gz` (6.8 MB); local install untested |
 | Tag-driven release workflow | Done | tag `v0.1.0`; run 41351622397; GitHub prerelease with 8 assets |
@@ -384,6 +385,14 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 13 — 2026-11-02
+
+- Added committed `large-synthetic.fig`: 3,300 nodes, 2.4 MB archive, 0.23 s / 66.7 MB peak
+  RSS; added it to the regression baseline (11 fixtures).
+- Added a macOS DMG packager (4.3 MB compressed image + SHA-256) and wired it into the
+  release workflow.
+- 95 tests pass.
 
 ### Session 12 — 2026-11-02
 
