@@ -9,7 +9,7 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M4/M5 batch in progress; M6 report exports started
+> ## Status: pre-alpha — M4–M6 in progress; M7 reliability evidence started
 >
 > The Rust workspace reads real `.fig` files and converts the M2 slice plus vectors, masks,
 > boolean fallbacks, gradients, shadows, blur, image fills, text metrics, flex containers,
@@ -19,7 +19,8 @@ A native, offline, open-source desktop application for Windows and macOS that co
 > file dialogs, background conversion, headless UI tests, and a batch queue core exposed
 > through CLI `batch` and the desktop “Convert all” button. Batch retry/remove controls and
 > memory benchmarks are done; release packaging is not. Self-contained HTML/CSV report
-> exports and a CLI `report` command are implemented. Stroke-only vectors, editable network handles, fixed constraints, Auto Layout child
+> exports and a CLI `report` command are implemented. Fuzz and release benchmark evidence
+> is recorded in [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md). Stroke-only vectors, editable network handles, fixed constraints, Auto Layout child
 > sizing, effect style linkage, instance swaps, mixed text runs, and non-paint variable
 > bindings are documented Partial items with runtime diagnostics. See
 > [`PROGRESS.md`](PROGRESS.md) and [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
@@ -111,7 +112,7 @@ Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Impleme
 | M4 | Native desktop application (eight screens) | **In progress** — M4.1 shell and worker |
 | M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **In progress** — queue core, CLI batch, desktop Convert all |
 | M6 | Report UI and JSON/HTML/CSV exports | **Planned** |
-| M7 | Reliability, fuzzing, performance benchmarks | **Planned** |
+| M7 | Reliability, fuzzing, performance benchmarks | **In progress** — fuzz campaign and benchmarks recorded |
 | M8 | Release engineering and installers | **Planned** |
 
 ## Intended architecture

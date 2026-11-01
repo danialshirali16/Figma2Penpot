@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-02** (session 9, M6 exports).
+Last updated: **2026-11-02** (session 10, M7 reliability).
 
 ---
 
@@ -108,6 +108,17 @@ M6.1 acceptance so far:
 | Desktop export buttons | Done (unverified UI) | Results/Report actions; native save dialog not automated |
 | Report screen grouping/copy | Done (headless) | Search + severity/outcome + code/page grouping; copy issue/node ID |
 | Exporter snapshot tests | Done | 4 exporter tests with escaping, batch HTML/CSV, and batch JSON |
+
+M7.1 acceptance so far:
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Fuzz campaign | Done | 818,204 executions / 61 s; 49 MB peak RSS; no artifacts |
+| Fixture benchmarks | Done | 10 fixtures, 0.01–0.03 s, 5.3–6.2 MB peak RSS |
+| Large-file benchmark | Partial | 4,629-node file: 1.09 s, 226 MB peak RSS, validation passed |
+| Batch memory | Done | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |
+| Regression baseline | Planned | no checked-in timing/memory baseline |
+| Error recovery drills | Partial | atomic writes and batch isolation covered; low-disk/short-write/cancel-mid-write pending |
 
 M2 acceptance remains as recorded below.
 
@@ -282,7 +293,8 @@ backend string, not just the tag, in future checks.
   and remaining manual interactions need QA; packaging is pending.
 - **Partial:** M5 batch core and desktop “Convert all”; retry/remove, mid-write cancel, and
   memory benchmarks pending.
-- **Planned:** jump-to-element (canvas navigation), packaging.
+- **Planned:** jump-to-element (canvas navigation), checked-in performance baseline,
+  large-file corpus, packaging.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -356,6 +368,15 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 10 — 2026-11-02
+
+- Added a repeatable benchmark record in `docs/PERFORMANCE.md`.
+- Ran a 60-second fuzz campaign: 818,204 executions, 49 MB peak RSS, no artifacts.
+- Measured all synthetic fixtures and a local 4,629-node file in release mode.
+- Confirmed bounded batch memory at 1/4/16 files with 2 workers.
+- M7 still pending: large-file corpus, checked-in regression baseline, low-disk/short-write
+  and cancel-mid-write drills.
 
 ### Session 9 — 2026-11-02
 

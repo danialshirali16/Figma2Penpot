@@ -127,7 +127,18 @@ Status vocabulary (no other labels are used):
 | Batch cancel mid-write | Planned | Atomic writer is used; the race is not exercised yet |
 | Real Penpot import verification | **Verified (M2–M3.8 subset)** | Penpot 2.18.5-RC1; see `MANUAL_QA.md` |
 
-## 8. Non-goals
+## 8. Reliability and performance
+
+| Feature | Status | Notes |
+|---|---|---|
+| Fuzz target | **Verified (one campaign)** | 818,204 runs / 61 s, 49 MB peak RSS, no artifacts; not a proof of absence |
+| Conversion benchmarks | **Partial** | Release wall time and peak RSS recorded for 10 fixtures + one 4.6k-node file; single machine/run |
+| Batch memory | **Verified** | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |
+| Large-file corpus | **Partial** | One local 4.6k-node file; no committed corpus |
+| Regression baseline | Planned | No checked-in timing/memory baseline or tolerance |
+| Error recovery drills | **Partial** | Atomic writes and batch isolation tested; low-disk/short-write/cancel-mid-write pending |
+
+## 9. Non-goals
 
 Penpot → Figma, Figma cloud/REST fetching, plugins, real-time sync, accounts, editing
 designs, automatic repair beyond conversion. These are **Not supported** and must be
