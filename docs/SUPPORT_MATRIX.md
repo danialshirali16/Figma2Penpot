@@ -1,8 +1,8 @@
 # Support Matrix
 
-Last updated: **2026-11-01** (M1). The `.fig` reader and `inspect` CLI are implemented and
-tested; every conversion feature remains **Planned**. Nothing here is **Verified** by a real
-Penpot import.
+Last updated: **2026-11-01** (M2). The M2 slice imported successfully into a local Penpot
+2.18.5 stack (`2.18.5-RC1`) and was inspected in the UI. M2 features are **Verified** for
+that version; everything outside M2 remains **Planned** or **Partial**.
 
 Status vocabulary (no other labels are used):
 
@@ -27,60 +27,62 @@ Status vocabulary (no other labels are used):
 | Unknown fields/node types | **Partial** | Unknown enum types reported (`BRUSH` fixture); unknown message fields error |
 | Safe archive/parser limits | **Implemented (unverified)** | M1; entry, size, ratio, node, depth, string caps |
 | `f2p-cli inspect` | **Implemented (unverified)** | M1; integration-tested on real fixtures |
-| Raw node metadata (type/name/GUID/transform) | **Partial** | Core fields only; paints/text/vector blobs not mapped yet |
+| Raw node metadata (type/name/GUID/transform) | **Partial** | Core geometry, solid paints, and basic text; vector blobs not mapped |
+| `f2p-cli convert` | **Verified** | M2; circle + synthetic text/group imported into Penpot 2.18.5-RC1 |
+| M2 import verification | **Verified** | Both fixtures; backend `error?=false`; see `MANUAL_QA.md` |
 
 ## 2. Document structure
 
 | Feature | Status | Notes |
 |---|---|---|
-| Pages (canvases) | Planned | M2 |
-| Internal-only canvas exclusion | Planned | M2 |
-| Frames / boards | Planned | M2 |
-| Groups (including frame-encoded groups) | Planned | M2 |
+| Pages (canvases) | **Verified** | M2; only `Page 1` after import |
+| Internal-only canvas exclusion | **Verified** | M2; internal canvas absent |
+| Frames / boards | **Verified** | M2; Card 400×300 at (20,30) |
+| Groups (including frame-encoded groups) | **Verified** | M2; Badge Group with Group Rect child, 80×30 |
 | Sections | Planned | M3 |
-| Nested frames and absolute coordinates | Planned | M2; ADR-0005 |
-| Layer order (`parentIndex.position`) | Planned | M2 |
-| Hidden/locked layers | Planned | M2 |
-| Page background | Planned | M2 |
+| Nested frames and absolute coordinates | **Verified** | M2; ADR-0005; inspector showed relative display for absolute data |
+| Layer order (`parentIndex.position`) | **Partial** | Simple sibling order verified; complex fractional indices not fixture-tested |
+| Hidden/locked layers | **Partial** | Visibility maps to `hidden`; locked/blocked not yet |
+| Page background | Planned | M2 does not read Figma canvas background |
 
 ## 3. Shapes and geometry
 
 | Feature | Status | Notes |
 |---|---|---|
-| Rectangles and corner radii | Planned | M2 |
-| Ellipses / circles | Planned | M2 |
+| Rectangles and corner radii | **Verified** | M2; radius 4 inspected |
+| Ellipses / circles | **Verified** | M2; red ellipse rendered at 300×300 |
 | Polygons and stars | Planned | M3 |
 | Vector paths (`commandsBlob`) | Planned | M3.1 |
 | Editable vector networks | Planned | M3.1; handle metadata may be Partial |
 | Boolean operations | Planned | M3.1; preservation vs fallback documented |
 | Masks and clipping | Planned | M3.2 |
-| Rotation and flip | Planned | M2/M3; representation needs a fixture |
+| Rotation and flip | **Partial** | M2 reports rotation/skew as approximated and keeps translation/scale bounds |
 | Constraints and resizing | Planned | M3.5 |
 
 ## 4. Appearance
 
 | Feature | Status | Notes |
 |---|---|---|
-| Solid fills | Planned | M2 |
-| Solid strokes, width, alignment | Planned | M2 |
+| Solid fills | **Verified** | M2; red fill and green 50% fill inspected |
+| Solid strokes, width, alignment | **Verified** | M2; red rect black 2 px; circle stroke visible |
 | Gradient fills | Planned | M3.2; gradient transform is the hazard |
-| Opacity and blend modes | Planned | M2/M3.2 |
+| Opacity and blend modes | **Partial** | Fill opacity verified; node opacity and blend modes not fixture-tested |
 | Shadows (drop/inner) | Planned | M3.2 |
 | Blur (foreground/background) | Planned | M3.2 |
-| Procedural effects (grain, noise, glass, etc.) | Not supported | Report as not converted |
+| Procedural effects (grain, noise, glass, etc.) | Not supported | Reported as not converted |
 | Image fills | Planned | M3.3; dedup by hash |
 
 ## 5. Text
 
 | Feature | Status | Notes |
 |---|---|---|
-| Single-style text | Planned | M2 |
-| Paragraphs and basic alignment | Planned | M2 |
+| Single-style text | **Verified** | M2; Inter 16/400 text rendered and inspected |
+| Paragraphs and basic alignment | **Partial** | One paragraph/run; horizontal alignment not yet written |
 | Mixed/per-character styles | Planned | M3.4 |
 | Line height and letter spacing | Planned | M3.4 |
 | Text styles | Planned | M3.6 |
 | Lists (bulleted/numbered) | Not supported | Penpot has no list model; marker may be written into text and reported |
-| Missing fonts | Planned | Record and report; never silently substitute |
+| Missing fonts | **Partial** | Font name/style/size preserved; availability not checked; fallback is reported |
 
 ## 6. Layout and design system
 
@@ -99,13 +101,13 @@ Status vocabulary (no other labels are used):
 
 | Feature | Status | Notes |
 |---|---|---|
-| Structural validator | Planned | M2 |
-| JSON report | Planned | M2 |
+| Structural validator | **Verified** | M2; generated archives pass; real imports accepted |
+| JSON report | **Verified** | M2; event-based counts, schema version 1; tested |
 | HTML/CSV report export | Planned | M6 |
-| Headless CLI | Planned | M1/M2 |
+| Headless CLI | **Verified** | `inspect` + `convert` used for the import |
 | Native desktop UI | Planned | M4 |
 | Batch queue, cancel, retry | Planned | M5 |
-| Real Penpot import verification | Planned | Pending: no instance available |
+| Real Penpot import verification | **Verified (M2 subset)** | Penpot 2.18.5-RC1; see `MANUAL_QA.md` |
 
 ## 8. Non-goals
 

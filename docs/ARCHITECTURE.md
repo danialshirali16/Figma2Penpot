@@ -1,7 +1,8 @@
 # Architecture
 
-Status: M0 design baseline; updated at M1. The `fig-reader` and `f2p-cli inspect` are
-implemented. `conversion-core`, `penpot-writer`, reports, queue, and UI are not.
+Status: M0 design baseline; updated at M2. The reader, M2 converter, `.penpot` writer,
+structural validator, JSON report, and CLI are implemented. The GUI, batch queue, HTML/CSV
+export, and fidelity beyond the M2 slice are not.
 
 This document describes the intended Rust system, what was learned from the upstream
 projects, and why the implementation is a reimplementation rather than a port.
@@ -437,9 +438,8 @@ Golden policy:
 
 1. **M1 read path (done)**: `fig-reader` with container, schema decode, typed extraction,
    limits, fuzz target, `inspect` CLI. No conversion yet.
-2. **M2 vertical slice**: rectangles/ellipses/frames/groups/solid paints/basic text →
-   writer → validator → JSON report. Build the report sink *before* the mapping passes, so
-   no branch can be added without a place to report.
+2. **M2 vertical slice (done locally)**: pages/frames/groups/rectangles/ellipses, solid
+   paints, opacity, basic text → writer → validator → JSON report. Real import pending.
 3. **M3 depth**: vectors, effects, images, text, layout, styles, components, tokens, in that
    order. Each feature gets its own fixture, golden report, and support-matrix row.
 4. **M4-M6**: UI and batch around the already-tested core; never the other way round.

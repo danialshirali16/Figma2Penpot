@@ -69,6 +69,13 @@ MIT/Apache-2.0 license is compatible with each expression.
 | `wasm-bindgen-shared` | MIT OR Apache-2.0 |
 | `windows-link` | MIT OR Apache-2.0 |
 | `windows-sys` | MIT OR Apache-2.0 |
+| `futures-core` | MIT OR Apache-2.0 |
+| `futures-task` | MIT OR Apache-2.0 |
+| `futures-util` | MIT OR Apache-2.0 |
+| `pin-project-lite` | Apache-2.0 OR MIT |
+| `sha1_smol` | MIT |
+| `slab` | MIT |
+| `uuid` | Apache-2.0 OR MIT |
 | `zip` | MIT |
 | `zmij` | MIT |
 

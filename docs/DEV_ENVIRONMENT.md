@@ -52,7 +52,7 @@ decision driven by the slowest-moving dependency (`eframe 0.37` currently declar
 | GitHub API unauthenticated | Yes, rate-limited |
 | npm registry | Yes, used only to inspect upstream packages |
 | crates.io | Yes, used to check licenses and versions |
-| Penpot instance | **Not available** |
+| Penpot instance | **Available for M2**: local Docker stack, image `2.18.5` (backend `2.18.5-RC1`), telemetry disabled |
 | Figma account / plugin runtime | Not required; Figma.app is installed but was not used |
 
 **Conversion must not require any of this.** Network access is a development-time capability
@@ -103,29 +103,33 @@ Figma 2 Penpot/
 | Rust build, unit tests, clippy, fmt | Yes | Workspace exists; gates run locally |
 | `.fig` parsing and `.penpot` generation | Yes | M1/M2/local golden tests |
 | Structural validation of `.penpot` | Yes | Build in Rust (M2) |
-| Real Penpot import | **No** (no instance, Docker daemon down) | Mark **pending**; provide exact manual steps |
+| Real Penpot import | **Yes for M2** (2026-11-01) | See `MANUAL_QA.md`; reopen/edit persistence untested |
 | Windows build and installer | **Build/test: yes via CI; GUI/installer: no** | CI is green; label GUI/installer **unverified on this platform** |
 | macOS Intel build | **No** (Apple Silicon host) | Not built; label honestly |
 | macOS GUI behavior | Yes, but only on this machine | Manual QA checklist; still not a second machine |
 | GPU/rendering differences | Partially | Screenshot tests + manual QA |
 | Large-file performance | Yes, once fixtures exist | Record machine specs with every benchmark |
 
-## 6. Penpot import — current blocker and manual path
+## 6. Penpot import — verified for M2
 
-Docker is installed but its daemon is not running, and no Penpot instance is reachable.
-Until that changes, no output can be called **Verified** in the support vocabulary.
+A local Penpot stack was started via Docker Desktop (daemon 29.9.2) using the official
+`docker/images/docker-compose.yaml` from Penpot tag 2.18.5, with image tag `2.18.5`,
+telemetry disabled, and a local account. Both M2 archives imported with
+`app.binfile.v3 ... error?=false` and were inspected in the UI.
 
-When an instance becomes available, the manual check is:
+Backend reports `2.18.5-RC1`. Evidence, screenshots, and the exact checks are in
+`docs/MANUAL_QA.md`. The stack was stopped after verification; it is not left running.
 
-1. Start a supported Penpot version. Target: **2.18.5** (see
-   `docs/DECISIONS/0003-target-penpot-version.md`).
+For future manual checks, the steps are:
+
+1. Start a supported Penpot version. Target: **2.18.5**
+   (see `docs/DECISIONS/0003-target-penpot-version.md`).
 2. Sign in to a local account (no cloud account needed for self-hosted).
 3. Create a project, choose **Import file**, select the generated `.penpot`.
 4. Confirm the file opens without an import error.
-5. Inspect, in this order: page count and names, frame positions, child positions inside a
-   frame that is not at the origin, fills/strokes, text content, image fills, component
-   links, tokens.
-6. Record screenshots and the exact Penpot version in `PROGRESS.md`.
+5. Inspect page count/names, frame positions, child positions, fills/strokes, text, groups,
+   component links, and tokens as applicable.
+6. Record screenshots and the exact Penpot version in `PROGRESS.md` / `MANUAL_QA.md`.
 
 Do not mark a feature Verified from a structural validator alone.
 

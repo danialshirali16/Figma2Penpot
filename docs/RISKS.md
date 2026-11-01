@@ -34,6 +34,8 @@ a mitigation before the milestone that depends on it starts.
   **Verified** without an import; document the tested Penpot version in every report.
 - **Early warning:** a structurally valid archive fails to import, or a field appears in
   the format document but not in generated output.
+- **M2 evidence:** `circle.penpot` and `text-group.penpot` imported into 2.18.5-RC1 with
+  `error?=false`; screenshots and inspector values in `docs/MANUAL_QA.md`.
 - **Owner milestone:** M2, M3, M8.
 
 ### R3 — Coordinate and transform errors
@@ -47,6 +49,8 @@ a mitigation before the milestone that depends on it starts.
   real import. Never convert a path without the accumulated matrix.
 - **Early warning:** nested content appears offset by its parent's position; rotated shapes
   land in the wrong place; path geometry drifts from its frame.
+- **M2 evidence:** Card at absolute (20,30); inspector showed Red Rect relative (10,20),
+  which is absolute (30,50) in the file. Coordinates are working for translated geometry.
 - **Owner milestone:** M2 (basic), M3 (rotation/flip/paths).
 
 ### R4 — Component and override fidelity
@@ -162,10 +166,12 @@ a mitigation before the milestone that depends on it starts.
 - **Why:** It is easy to add a mapping branch that forgets to emit an event, or to compute
   counts from output instead of traversal.
 - **Mitigation:** pass a sink to every pass; test the count invariant
-  (`converted + approximated + skipped + failed == detected`); golden reports; code review
-  checklist; no branch without a decision record.
+  (`converted + approximated + skipped + unsupported + failed == detected`); golden reports;
+  code review checklist; no branch without a decision record.
 - **Early warning:** a fixture's report has no event where a known lossy mapping occurs;
   counts don't add up.
+- **M2 evidence:** counts are tested for circle (2/2), text-group (6/6), and an unsupported
+  vector (1 converted/1 unsupported); golden report checked in.
 - **Owner milestone:** M2 onward.
 
 ### R14 — Fixture scarcity and provenance

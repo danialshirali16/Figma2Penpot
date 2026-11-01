@@ -9,14 +9,14 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M1 `.fig` reader complete, no converter yet
+> ## Status: pre-alpha — M2 conversion slice verified in Penpot
 >
-> The repository now contains a Rust workspace, a bounded `.fig`/Kiwi reader, and the
-> `f2p-cli inspect` command. It can open real Figma files and print verified metadata.
-> **No `.penpot` writer or conversion exists yet**, and no output has been imported into
-> Penpot. Everything below describes the intended product unless it says otherwise. For the
-> factual, current state see [`PROGRESS.md`](PROGRESS.md); for sequencing see
-> [`Roadmap.md`](Roadmap.md).
+> The Rust workspace can read real `.fig` files, convert a minimal slice to `.penpot`, and
+> write an event-based JSON report. The M2 output was imported into a local **Penpot
+> 2.18.5** stack and inspected: frames, groups, rectangles, ellipses, solid fills/strokes,
+> corner radii, absolute positions, and basic text rendered correctly. **No GUI or batch
+> queue yet**; reopen/edit persistence was not tested. See [`PROGRESS.md`](PROGRESS.md) and
+> [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
 
 ---
 
@@ -91,8 +91,8 @@ status words.
 | **Not supported** | Out of reach or out of scope, and reported as such at runtime. |
 
 The authoritative per-feature list is [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md).
-Reader features are **Implemented (unverified)** or **Partial**; conversion features remain
-**Planned** until they exist.
+Reader and M2 conversion features are **Implemented (unverified)** or **Partial**; the rest
+remain **Planned** until they exist.
 
 ## Project status at a glance
 
@@ -100,7 +100,7 @@ Reader features are **Implemented (unverified)** or **Partial**; conversion feat
 |---|---|---|
 | M0 | Research, format findings, license assessment, architecture | **Done** — evidence in `PROGRESS.md` |
 | M1 | Cargo workspace, `.fig` container/decode, `f2p-cli inspect` | **Done** — evidence in `PROGRESS.md` |
-| M2 | Minimal end-to-end conversion + validator + JSON report | **Planned** |
+| M2 | Minimal end-to-end conversion + validator + JSON report | **Done** — imported and inspected in Penpot 2.18.5-RC1 |
 | M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **Planned** |
 | M4 | Native desktop application (eight screens) | **Planned** |
 | M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **Planned** |
@@ -113,11 +113,11 @@ Reader features are **Implemented (unverified)** or **Partial**; conversion feat
 ```text
 .fig
   → fig-reader          container detection, safe extraction, schema + data decode   [implemented]
-  → conversion-core     Figma IR, ordered mapping passes, diagnostics at every decision
-  → penpot-writer       Penpot document model → .penpot archive
-  → validation          structural checks against derived Penpot rules
-  → atomic write        temp file in destination volume → validate → rename
-  → report              per-file and batch reports (JSON / HTML / CSV)
+  → conversion-core     Figma IR, ordered mapping passes, diagnostics at every decision   [M2 slice]
+  → penpot-writer       Penpot document model → .penpot archive   [M2 slice]
+  → validation          structural checks against derived Penpot rules   [M2]
+  → atomic write        temp file in destination volume → validate → rename   [implemented]
+  → report              per-file and batch reports (JSON / HTML / CSV)   [JSON implemented]
 ```
 
 A thin headless CLI (`f2p-cli`) wraps the same API as the GUI so conversion is testable in
@@ -134,8 +134,9 @@ cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 
-# Inspect a real file
+# Inspect and convert a real file
 cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
+cargo run -p f2p-cli -- convert tests/fixtures/circle.fig --out /tmp/f2p-out
 ```
 
 Optional fuzzing (the harness is in `fuzz/`):
@@ -157,15 +158,16 @@ result.
 | [`Roadmap.md`](Roadmap.md) | Milestones, gates, and acceptance criteria | Exists |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design, crates, passes, reporting | Exists (M0) |
 | [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) | Working restatement of the requirements | Exists (M0) |
-| [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md) | Per-feature support status | Exists (reader + Planned conversion) |
-| [`docs/ISSUE_CODES.md`](docs/ISSUE_CODES.md) | Stable diagnostic codes | Exists (reader warnings) |
+| [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md) | Per-feature support status | Exists (M2 reader + conversion) |
+| [`docs/ISSUE_CODES.md`](docs/ISSUE_CODES.md) | Stable diagnostic codes | Exists (reader + M2 conversion) |
+| [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md) | Platform test checklist | Exists (import checklist pending) |
 | [`docs/FIG_FORMAT.md`](docs/FIG_FORMAT.md) | `.fig` container, Kiwi, nodes, vectors, unknowns | Exists (M0) |
 | [`docs/PENPOT_FORMAT.md`](docs/PENPOT_FORMAT.md) | `.penpot` v3 archive, schema, import limits | Exists (M0) |
 | [`docs/LICENSE_ASSESSMENT.md`](docs/LICENSE_ASSESSMENT.md) | Upstream licenses and reuse decisions | Exists (M0) |
 | [`docs/RISKS.md`](docs/RISKS.md) | Technical risk register | Exists (M0) |
 | [`docs/DEV_ENVIRONMENT.md`](docs/DEV_ENVIRONMENT.md) | Verified toolchain and platform facts | Exists (M0) |
 | [`docs/RESEARCH_SOURCES.md`](docs/RESEARCH_SOURCES.md) | Pinned upstream commits and provenance | Exists (M0) |
-| [`docs/DECISIONS/`](docs/DECISIONS/) | Architecture decision records | 6 accepted/superseding |
+| [`docs/DECISIONS/`](docs/DECISIONS/) | Architecture decision records | 8 accepted/superseding |
 | `docs/ISSUE_CODES.md` | Stable diagnostic codes | Exists (M1 reader warnings) |
 | `docs/MANUAL_QA.md` | Platform test checklist | Planned (M4) |
 

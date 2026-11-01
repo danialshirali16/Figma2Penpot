@@ -31,7 +31,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 |---|---|---|---|
 | M0 | Research and legal baseline | Format, architecture, and license documents exist with citations and explicit unknowns | **Done** — see `PROGRESS.md` |
 | M1 | Workspace and `.fig` reading | `f2p-cli inspect` prints verified metadata for ≥3 fixtures; malformed inputs error without panicking | **Done** — see `PROGRESS.md` |
-| M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Planned** |
+| M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Done** — verified in Penpot |
 | M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Planned** |
 | M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **Planned** |
 | M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **Planned** |
@@ -114,6 +114,13 @@ remains unimplemented.
 ---
 
 ## M2 — Minimal end-to-end conversion
+
+**Status: Done (2026-11-01); real import verified.**
+`circle.fig` and the synthetic `text-group.fig` convert through the CLI, pass the structural
+validator, and produce event-based JSON reports. Both archives imported into a local Penpot
+2.18.5 stack (`2.18.5-RC1`); frames, groups, rect/ellipse geometry, fills, strokes, corner
+radius, and text were inspected. A golden report and determinism test are checked in. Reopen
+and move/edit persistence were not tested and are marked untested in `docs/MANUAL_QA.md`.
 
 **Goal.** The first honest vertical slice.
 
