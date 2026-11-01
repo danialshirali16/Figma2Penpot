@@ -115,12 +115,14 @@ Status vocabulary (no other labels are used):
 | CLI `report`/batch export | **Verified** | JSON report → HTML/CSV; batch HTML/CSV/JSON smoke-tested |
 | Report screen filters | **Partial** | Search, severity/outcome, grouping by issue/page, copy issue/node; canvas jump-to-element pending |
 | Headless CLI | **Verified** | `inspect` + `convert` used for the import |
-| Native desktop UI | **Partial** | M4.1; eight-screen eframe shell, native dialogs, background conversion, settings persistence; packaging/manual checklist pending |
+| Native desktop UI | **Partial** | Eight-screen eframe shell, native dialogs, background conversion, settings persistence; A/V/QA and packaging polish pending |
 | Desktop drag-and-drop / file picker | **Implemented (unverified)** | M4.1; code path exists; OS interaction not automated |
 | Desktop folder scan | **Verified** | Recursive `.fig` scan, hidden folders skipped, bounded to 512 files; unit-tested |
 | Desktop keyboard shortcuts | **Implemented (unverified)** | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; headless key-event test only |
+| Release artifacts | **Partial** | macOS `.app` zip + checksum verified locally; Windows/Linux workflows not yet exercised; unsigned |
+| Installers / signing | Planned | MSI/DMG and notarization pending M8 |
 | Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 20 desktop tests |
-| Batch queue | **Partial** | M5 core + CLI `batch` + desktop “Convert all”; bounded workers, stage events, pause/cancel, per-job failure isolation |
+| Batch queue | **Partial** | Bounded queue, CLI batch, desktop Convert all, retry/remove; mid-write cancellation pending |
 | CLI batch command | **Verified** | Ran 2 valid + 1 corrupt fixture: 2 completed, 1 failed, outputs/reports written |
 | Batch retry/remove controls | **Implemented (unverified)** | Retry failed, retry selected, remove completed; UI manual check pending |
 | Batch memory | **Verified** | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |

@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-02** (session 11, M7 baseline).
+Last updated: **2026-11-02** (session 12, M8 packaging).
 
 ---
 
@@ -119,6 +119,19 @@ M7.1 acceptance so far:
 | Batch memory | Done | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |
 | Regression baseline | Done | `tests/benchmarks/baseline.json`; all fixtures checked for counts/status/validation |
 | Error recovery drills | Partial | atomic write failure + temp cleanup, overwrite refusal, batch isolation; low-disk/cancel-mid-write pending |
+
+M8.1 acceptance so far:
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| macOS `.app` bundle | Done | `scripts/package-macos.sh`; launched via `open`; window captured |
+| macOS zip + checksum | Done | 3.8 MB `figma2penpot-0.1.0-macos-arm64.zip` + SHA-256 |
+| Windows zip script | Implemented (unverified) | `scripts/package-windows.ps1`; no Windows run |
+| Linux tarball script | Implemented (unverified) | `scripts/package-linux.sh`; no Linux run |
+| Tag-driven release workflow | Implemented (unverified) | `.github/workflows/release.yml`; tagged run pending |
+| Signing/notarization | Planned | ad-hoc/linker-signed macOS build only |
+| MSI/DMG installers | Planned | zip/tarball artifacts only |
+| `cargo deny` / `cargo audit` | Pending | tools absent in development environment |
 
 M2 acceptance remains as recorded below.
 
@@ -295,8 +308,8 @@ backend string, not just the tag, in future checks.
   and remaining manual interactions need QA; packaging is pending.
 - **Partial:** M5 batch core and desktop “Convert all”; retry/remove, mid-write cancel, and
   memory benchmarks pending.
-- **Planned:** jump-to-element (canvas navigation), checked-in performance baseline,
-  large-file corpus, packaging.
+- **Planned:** jump-to-element (canvas navigation), large-file corpus, signing/notarization,
+  MSI/DMG installers.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -370,6 +383,14 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 12 — 2026-11-02
+
+- Added macOS `.app` packaging, Windows zip and Linux tarball scripts, and a tag-driven
+  GitHub Actions release workflow with checksums.
+- Built and launched the macOS bundle locally; captured `docs/qa/macos-app-bundle.png`.
+- Added release, privacy, and third-party notices documentation.
+- Windows/Linux packaging and signing/notarization remain unverified.
 
 ### Session 11 — 2026-11-02
 

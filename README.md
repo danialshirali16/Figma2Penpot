@@ -173,6 +173,10 @@ sudo apt-get install -y libgtk-3-dev libxkbcommon-dev libxkbcommon-x11-dev \
   libwayland-dev
 ```
 
+Release artifacts are packaged by `scripts/package-*.sh` and the tag-driven
+`release.yml` workflow. Builds are currently unsigned; see
+[`docs/RELEASE.md`](docs/RELEASE.md) and [`PRIVACY.md`](PRIVACY.md).
+
 Optional fuzzing (the harness is in `fuzz/`):
 
 ```bash

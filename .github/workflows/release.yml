@@ -1,0 +1,120 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    name: macOS package
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Build release binaries
+        run: cargo build --release -p desktop-app -p f2p-cli
+      - name: Package .app and CLI
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          VERSION="${REF_NAME#v}"
+          if [ "$REF_TYPE" != "tag" ]; then VERSION="0.0.0-dev"; fi
+          bash scripts/package-macos.sh "$VERSION"
+          cd dist
+          CLI_ZIP="figma2penpot-$VERSION-cli-macos-$(uname -m).zip"
+          zip "$CLI_ZIP" ../target/release/f2p-cli
+          shasum -a 256 "$CLI_ZIP" > "$CLI_ZIP.sha256"
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: dist/*.zip*
+          if-no-files-found: error
+
+  windows:
+    name: Windows package
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Build release binaries
+        run: cargo build --release -p desktop-app -p f2p-cli
+      - name: Package zip
+        shell: pwsh
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          $Version = $env:REF_NAME -replace '^v', ''
+          if ($env:REF_TYPE -ne 'tag') { $Version = '0.0.0-dev' }
+          ./scripts/package-windows.ps1 -Version $Version
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*.zip*
+          if-no-files-found: error
+
+  linux:
+    name: Linux package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install desktop build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libxkbcommon-dev libxkbcommon-x11-dev \
+            libx11-dev libxcursor-dev libxrandr-dev libxi-dev libgl1-mesa-dev \
+            libegl1-mesa-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev \
+            libwayland-dev
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Build release binaries
+        run: cargo build --release -p desktop-app -p f2p-cli
+      - name: Package tar.gz
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          REF_TYPE: ${{ github.ref_type }}
+        run: |
+          VERSION="${REF_NAME#v}"
+          if [ "$REF_TYPE" != "tag" ]; then VERSION="0.0.0-dev"; fi
+          bash scripts/package-linux.sh "$VERSION"
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*.tar.gz*
+          if-no-files-found: error
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [macos, windows, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes -R "$GITHUB_REPOSITORY"
