@@ -295,7 +295,10 @@ fn validate_shape(
     }
     require_str(shape.get("name"), "shape.name")?;
     let kind = require_str(shape.get("type"), "shape.type")?;
-    if !matches!(kind, "frame" | "group" | "rect" | "circle" | "text") {
+    if !matches!(
+        kind,
+        "frame" | "group" | "rect" | "circle" | "text" | "path"
+    ) {
         return Err(ValidationError::Invalid(format!(
             "shape {expected_id}: unsupported type {kind:?}"
         )));
@@ -363,6 +366,38 @@ fn validate_shape(
             ));
         }
         require_array(content.get("children"), "text.content.children")?;
+    }
+    if kind == "path" {
+        let content = require_array(shape.get("content"), "path.content")?;
+        if content.is_empty() {
+            return Err(ValidationError::Invalid(
+                "path content must not be empty".into(),
+            ));
+        }
+        for command in content {
+            let command = require_object(Some(command), "path command")?;
+            let name = require_str(command.get("command"), "path command name")?;
+            if !matches!(name, "move-to" | "line-to" | "curve-to" | "close-path") {
+                return Err(ValidationError::Invalid(format!(
+                    "unknown path command {name:?}"
+                )));
+            }
+            let params = require_object(command.get("params"), "path command params")?;
+            for field in ["x", "y", "c1x", "c1y", "c2x", "c2y"] {
+                if let Some(value) = params.get(field) {
+                    require_finite(Some(value), &format!("path {name}.{field}"))?;
+                }
+            }
+        }
+        if let Some(attrs) = shape.get("svgAttrs") {
+            let attrs = require_object(Some(attrs), "svgAttrs")?;
+            let rule = require_str(attrs.get("fillRule"), "svgAttrs.fillRule")?;
+            if !matches!(rule, "nonzero" | "evenodd") {
+                return Err(ValidationError::Invalid(format!(
+                    "unknown fillRule {rule:?}"
+                )));
+            }
+        }
     }
     Ok(())
 }

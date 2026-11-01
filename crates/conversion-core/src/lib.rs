@@ -11,7 +11,8 @@ use std::collections::HashMap;
 use conversion_report::{DiagnosticSink, ElementRef, Outcome, ReportEvent, Severity};
 use fig_reader::{Color, FigDocument, FigNode, Guid, Paint};
 use penpot_writer::{
-    Fill, PenpotDocument, PenpotPage, Shape, ShapeType, Stroke, TextContent, TextRun,
+    Content, Fill, PathCommand, PathParams, PenpotDocument, PenpotPage, Shape, ShapeType, Stroke,
+    SvgAttrs, TextContent, TextRun,
 };
 use uuid::Uuid;
 
@@ -70,6 +71,7 @@ pub fn convert(
         let children = tree.children_of(page.guid);
         for child in children {
             if let Some(mut child_shapes) = convert_node(
+                document,
                 &tree,
                 child,
                 root_id,
@@ -140,6 +142,7 @@ impl<'a> Tree<'a> {
 
 #[allow(clippy::too_many_arguments)]
 fn convert_node(
+    document: &FigDocument,
     tree: &Tree<'_>,
     index: usize,
     parent_id: Uuid,
@@ -169,6 +172,7 @@ fn convert_node(
         "RECTANGLE" | "ROUNDED_RECTANGLE" => NodeClass::Rect,
         "ELLIPSE" => NodeClass::Circle,
         "TEXT" => NodeClass::Text,
+        "VECTOR" | "STAR" | "LINE" | "REGULAR_POLYGON" => NodeClass::Vector,
         _ => {
             emit(
                 sink,
@@ -219,6 +223,12 @@ fn convert_node(
         return None;
     }
 
+    if kind == NodeClass::Vector {
+        return convert_vector_node(
+            document, node, &element, absolute, width, height, parent_id, frame_id, page_id, sink,
+        );
+    }
+
     let mut descendants = Vec::new();
     let shape = match kind {
         NodeClass::Frame | NodeClass::Group => {
@@ -230,6 +240,7 @@ fn convert_node(
             };
             for child in tree.children_of(node.guid) {
                 if let Some(child_shapes) = convert_node(
+                    document,
                     tree,
                     child,
                     id,
@@ -240,10 +251,12 @@ fn convert_node(
                     &element_path,
                     sink,
                 ) {
-                    let mut iter = child_shapes.into_iter();
-                    if let Some(first) = iter.next() {
-                        immediate.push(first);
-                        descendants.extend(iter);
+                    for shape in child_shapes {
+                        if shape.parent_id == id {
+                            immediate.push(shape);
+                        } else {
+                            descendants.push(shape);
+                        }
                     }
                 }
             }
@@ -314,6 +327,7 @@ fn convert_node(
             shape.proportion_lock = Some(false);
             shape
         }
+        NodeClass::Vector => unreachable!("vector nodes are handled before shape construction"),
     };
     let mut shape = shape;
 
@@ -356,7 +370,7 @@ fn convert_node(
     if kind == NodeClass::Text {
         match map_text(node, &shape.fills) {
             Ok((content, grow_type, text_modified, text_reason)) => {
-                shape.content = Some(content);
+                shape.content = Some(Content::Text(content));
                 shape.grow_type = Some(grow_type);
                 if text_modified {
                     modified = true;
@@ -414,6 +428,310 @@ fn convert_node(
     Some(result)
 }
 
+#[allow(clippy::too_many_arguments)]
+fn convert_vector_node(
+    document: &FigDocument,
+    node: &FigNode,
+    element: &ElementRef,
+    absolute: Affine,
+    width: f64,
+    height: f64,
+    parent_id: Uuid,
+    frame_id: Uuid,
+    page_id: Uuid,
+    sink: &mut dyn DiagnosticSink,
+) -> Option<Vec<Shape>> {
+    let using_fill = !node.fill_geometry.is_empty();
+    let geometries = if using_fill {
+        &node.fill_geometry
+    } else {
+        &node.stroke_geometry
+    };
+    if geometries.is_empty() {
+        emit(
+            sink,
+            element,
+            "F2P-VECTOR-EMPTY",
+            Severity::Warning,
+            Outcome::Unsupported,
+            "vector node has no geometry blobs".to_owned(),
+            Some("fillGeometry and strokeGeometry are both empty".to_owned()),
+            "skipped the vector".to_owned(),
+            Some("Recreate the vector manually in Penpot.".to_owned()),
+        );
+        return None;
+    }
+
+    let (mut fills, fills_modified) = map_fills(sink, element, &node.fills);
+    let (mut strokes, strokes_modified) = map_strokes(sink, element, node);
+    let using_stroke_outline = !using_fill;
+    if using_stroke_outline {
+        fills = fills_from_strokes(node);
+        strokes.clear();
+        emit(
+            sink,
+            element,
+            "F2P-VECTOR-STROKE-OUTLINE",
+            Severity::Warning,
+            Outcome::ConvertedWithModification,
+            "vector has only stroke geometry".to_owned(),
+            Some(
+                "Figma stores an expanded stroke outline, not editable stroke geometry".to_owned(),
+            ),
+            "converted the outline as a filled path".to_owned(),
+            Some("Convert to an editable stroke manually in Penpot.".to_owned()),
+        );
+    }
+    if node.has_vector_network {
+        emit(
+            sink,
+            element,
+            "F2P-VECTOR-NETWORK-LOST",
+            Severity::Warning,
+            Outcome::ConvertedWithModification,
+            "vector network handle metadata was not preserved".to_owned(),
+            Some(
+                "M3.1 converts commandsBlob geometry into path commands, not the editable network"
+                    .to_owned(),
+            ),
+            "kept the path geometry; dropped network handles".to_owned(),
+            Some(
+                "Re-edit the path handles in Penpot if exact curvature control matters.".to_owned(),
+            ),
+        );
+    }
+
+    let base_id = id_for_guid("shape", node.guid);
+    let mut shapes = Vec::with_capacity(geometries.len());
+    for (order, geometry) in geometries.iter().enumerate() {
+        let Some(blob) = document.blob(geometry.commands_blob as usize) else {
+            emit(
+                sink,
+                element,
+                "F2P-VECTOR-FAILED",
+                Severity::Error,
+                Outcome::Failed,
+                "vector geometry blob is missing".to_owned(),
+                Some(format!(
+                    "blob index {} is out of range",
+                    geometry.commands_blob
+                )),
+                "skipped the vector".to_owned(),
+                Some("Repair the file in Figma and retry.".to_owned()),
+            );
+            return None;
+        };
+        let commands = match decode_path_commands(blob, absolute) {
+            Ok(commands) => commands,
+            Err(reason) => {
+                emit(
+                    sink,
+                    element,
+                    "F2P-VECTOR-FAILED",
+                    Severity::Error,
+                    Outcome::Failed,
+                    "vector geometry could not be decoded".to_owned(),
+                    Some(reason),
+                    "skipped the vector".to_owned(),
+                    Some("Repair the vector in Figma and retry.".to_owned()),
+                );
+                return None;
+            }
+        };
+        let id = if geometries.len() > 1 {
+            Uuid::new_v5(
+                &ID_NAMESPACE,
+                format!(
+                    "shape:{}:{}:{}",
+                    node.guid.session_id, node.guid.local_id, order
+                )
+                .as_bytes(),
+            )
+        } else {
+            base_id
+        };
+        let mut shape = Shape::new(
+            id,
+            if geometries.len() > 1 {
+                format!("{} {}", node.name, order + 1)
+            } else {
+                node.name.clone()
+            },
+            ShapeType::Path,
+            absolute.m02,
+            absolute.m12,
+            width,
+            height,
+            parent_id,
+            frame_id,
+            page_id,
+        );
+        shape.content = Some(Content::Path(commands));
+        shape.svg_attrs = Some(SvgAttrs {
+            fill_rule: if geometry.winding_rule == "ODD" {
+                "evenodd".to_owned()
+            } else {
+                "nonzero".to_owned()
+            },
+        });
+        shape.fills = fills.clone();
+        shape.strokes = strokes.clone();
+        shape.proportion = Some(1.0);
+        shape.proportion_lock = Some(false);
+        if node.visible == Some(false) {
+            shape.hidden = Some(true);
+        }
+        let opacity = node.opacity.unwrap_or(1.0) as f64;
+        if opacity.is_finite() {
+            shape.opacity = opacity.clamp(0.0, 1.0);
+        }
+        shapes.push(shape);
+    }
+
+    let modified =
+        using_stroke_outline || fills_modified || strokes_modified || node.has_vector_network;
+    emit(
+        sink,
+        element,
+        if modified {
+            "F2P-NODE-APPROXIMATED"
+        } else {
+            "F2P-NODE-CONVERTED"
+        },
+        if modified {
+            Severity::Warning
+        } else {
+            Severity::Info
+        },
+        if modified {
+            Outcome::ConvertedWithModification
+        } else {
+            Outcome::Converted
+        },
+        format!("{} was converted as {} path(s)", node.kind, shapes.len()),
+        if modified {
+            Some("vector geometry required an approximation".to_owned())
+        } else {
+            None
+        },
+        format!("converted as {} path shape(s)", shapes.len()),
+        if modified {
+            Some("Review the vector in Penpot after import.".to_owned())
+        } else {
+            None
+        },
+    );
+    Some(shapes)
+}
+
+fn fills_from_strokes(node: &FigNode) -> Vec<Fill> {
+    node.strokes
+        .iter()
+        .filter(|paint| paint.visible)
+        .filter_map(|paint| {
+            if paint.kind != "SOLID" {
+                return None;
+            }
+            let color = paint.color?;
+            if !color.is_finite() {
+                return None;
+            }
+            Some(Fill {
+                fill_color: hex(color),
+                fill_opacity: (color.a as f64 * paint.opacity as f64).clamp(0.0, 1.0),
+            })
+        })
+        .collect()
+}
+
+fn decode_path_commands(bytes: &[u8], matrix: Affine) -> Result<Vec<PathCommand>, String> {
+    let mut index = 0usize;
+    let mut commands = Vec::new();
+    while index < bytes.len() {
+        let opcode = bytes[index];
+        index += 1;
+        match opcode {
+            0x00 => commands.push(PathCommand {
+                command: "close-path".to_owned(),
+                params: PathParams::default(),
+            }),
+            0x01 => {
+                let (x, y) = read_point(bytes, &mut index, matrix)?;
+                commands.push(PathCommand {
+                    command: "move-to".to_owned(),
+                    params: PathParams {
+                        x: Some(x),
+                        y: Some(y),
+                        ..PathParams::default()
+                    },
+                });
+            }
+            0x02 => {
+                let (x, y) = read_point(bytes, &mut index, matrix)?;
+                commands.push(PathCommand {
+                    command: "line-to".to_owned(),
+                    params: PathParams {
+                        x: Some(x),
+                        y: Some(y),
+                        ..PathParams::default()
+                    },
+                });
+            }
+            0x04 => {
+                let (c1x, c1y) = read_point(bytes, &mut index, matrix)?;
+                let (c2x, c2y) = read_point(bytes, &mut index, matrix)?;
+                let (x, y) = read_point(bytes, &mut index, matrix)?;
+                commands.push(PathCommand {
+                    command: "curve-to".to_owned(),
+                    params: PathParams {
+                        x: Some(x),
+                        y: Some(y),
+                        c1x: Some(c1x),
+                        c1y: Some(c1y),
+                        c2x: Some(c2x),
+                        c2y: Some(c2y),
+                    },
+                });
+            }
+            other => {
+                return Err(format!(
+                    "unknown command opcode 0x{other:02X} at byte {}",
+                    index - 1
+                ))
+            }
+        }
+    }
+    if commands.is_empty() {
+        return Err("geometry blob is empty".to_owned());
+    }
+    Ok(commands)
+}
+
+fn read_point(bytes: &[u8], index: &mut usize, matrix: Affine) -> Result<(f64, f64), String> {
+    let x = read_f32(bytes, index)? as f64;
+    let y = read_f32(bytes, index)? as f64;
+    let tx = matrix.m00 * x + matrix.m01 * y + matrix.m02;
+    let ty = matrix.m10 * x + matrix.m11 * y + matrix.m12;
+    Ok((round_coord(tx), round_coord(ty)))
+}
+
+fn read_f32(bytes: &[u8], index: &mut usize) -> Result<f32, String> {
+    let end = index
+        .checked_add(4)
+        .ok_or_else(|| "geometry offset overflow".to_owned())?;
+    let slice = bytes
+        .get(*index..end)
+        .ok_or_else(|| "geometry blob ended inside a coordinate".to_owned())?;
+    *index = end;
+    Ok(f32::from_le_bytes(slice.try_into().map_err(|_| {
+        "geometry coordinate has wrong size".to_owned()
+    })?))
+}
+
+fn round_coord(value: f64) -> f64 {
+    (value * 10_000.0).round() / 10_000.0
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum NodeClass {
     Frame,
@@ -421,6 +739,7 @@ enum NodeClass {
     Rect,
     Circle,
     Text,
+    Vector,
 }
 
 fn bounds(children: &[Shape]) -> Option<(f64, f64, f64, f64)> {
@@ -816,6 +1135,9 @@ mod tests {
             corner_radii: None,
             resize_to_fit: None,
             text: None,
+            fill_geometry: Vec::new(),
+            stroke_geometry: Vec::new(),
+            has_vector_network: false,
         }
     }
 

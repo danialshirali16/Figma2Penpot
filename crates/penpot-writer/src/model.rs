@@ -166,6 +166,7 @@ pub enum ShapeType {
     Rect,
     Circle,
     Text,
+    Path,
 }
 
 impl ShapeType {
@@ -176,6 +177,7 @@ impl ShapeType {
             Self::Rect => "rect",
             Self::Circle => "circle",
             Self::Text => "text",
+            Self::Path => "path",
         }
     }
 }
@@ -215,7 +217,9 @@ pub struct Shape {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub shapes: Option<Vec<Uuid>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub content: Option<TextContent>,
+    pub content: Option<Content>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub svg_attrs: Option<SvgAttrs>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub grow_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -273,6 +277,7 @@ impl Shape {
             r4: None,
             shapes: None,
             content: None,
+            svg_attrs: None,
             grow_type: None,
             proportion: None,
             proportion_lock: None,
@@ -414,6 +419,43 @@ pub struct Stroke {
     pub stroke_opacity: f64,
     pub stroke_width: f64,
     pub stroke_alignment: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(untagged)]
+pub enum Content {
+    Text(TextContent),
+    Path(Vec<PathCommand>),
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathCommand {
+    pub command: String,
+    pub params: PathParams,
+}
+
+#[derive(Debug, Clone, Default, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathParams {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub x: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub y: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub c1x: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub c1y: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub c2x: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub c2y: Option<f64>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SvgAttrs {
+    pub fill_rule: String,
 }
 
 #[derive(Debug, Clone, Serialize)]

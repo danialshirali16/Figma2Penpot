@@ -11,8 +11,9 @@ mod validate;
 
 pub use archive::{build_archive, write_atomic, write_penpot_atomic, WriteError};
 pub use model::{
-    FileOptions, Fill, PenpotDocument, PenpotFile, PenpotPage, Point, Rect, Shape, ShapeType,
-    Stroke, TextContent, TextParagraph, TextParagraphSet, TextRun, Transform, FEATURES, MIGRATIONS,
-    PENPOT_FILE_VERSION, PENPOT_MANIFEST_VERSION, TARGET_PENPOT,
+    Content, FileOptions, Fill, PathCommand, PathParams, PenpotDocument, PenpotFile, PenpotPage,
+    Point, Rect, Shape, ShapeType, Stroke, SvgAttrs, TextContent, TextParagraph, TextParagraphSet,
+    TextRun, Transform, FEATURES, MIGRATIONS, PENPOT_FILE_VERSION, PENPOT_MANIFEST_VERSION,
+    TARGET_PENPOT,
 };
 pub use validate::{validate_archive, ValidationError, ValidationReport};

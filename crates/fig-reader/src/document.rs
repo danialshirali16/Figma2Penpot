@@ -148,6 +148,13 @@ pub struct TextData {
     pub auto_resize: Option<String>,
 }
 
+/// A path geometry entry referencing a blob index in the decoded message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VectorGeometry {
+    pub commands_blob: u32,
+    pub winding_rule: String,
+}
+
 /// A node decoded from Figma's flat `nodeChanges` array.
 #[derive(Debug, Clone)]
 pub struct FigNode {
@@ -175,6 +182,9 @@ pub struct FigNode {
     pub corner_radii: Option<[f32; 4]>,
     pub resize_to_fit: Option<bool>,
     pub text: Option<TextData>,
+    pub fill_geometry: Vec<VectorGeometry>,
+    pub stroke_geometry: Vec<VectorGeometry>,
+    pub has_vector_network: bool,
 }
 
 impl FigNode {

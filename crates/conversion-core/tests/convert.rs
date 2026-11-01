@@ -5,7 +5,7 @@ use std::time::Duration;
 use conversion_core::{convert, ConvertOptions};
 use conversion_report::{FileStatus, ReportCollector, ValidationState};
 use fig_reader::read_fig;
-use penpot_writer::{build_archive, validate_archive, Shape};
+use penpot_writer::{build_archive, validate_archive, Content, Shape};
 
 fn fixture(relative: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -80,7 +80,9 @@ fn text_group_converts_absolute_geometry_and_text() {
     let text = shapes.iter().find(|shape| shape.name == "Title").unwrap();
     assert_eq!(text.kind.as_str(), "text");
     assert_eq!((text.x, text.y), (30.0, 130.0));
-    let content = text.content.as_ref().expect("text content");
+    let Content::Text(content) = text.content.as_ref().expect("text content") else {
+        panic!("expected text content");
+    };
     let run = &content.children[0].children[0].children[0];
     assert_eq!(run.text, "Hello Penpot");
     assert_eq!(run.font_family, "Inter");
@@ -113,16 +115,51 @@ fn text_group_converts_absolute_geometry_and_text() {
 }
 
 #[test]
-fn unsupported_vector_is_reported_not_dropped() {
+fn filled_vector_converts_to_multiple_paths() {
     let (_bytes, report, shapes) = run("OpenFigs.fig");
     assert_eq!(report.counts.detected, 2);
     assert_eq!(report.counts.converted, 1);
-    assert_eq!(report.counts.unsupported, 1);
+    assert_eq!(report.counts.approximated, 1);
+    assert_eq!(report.counts.unsupported, 0);
+    assert_eq!(report.counts.failed, 0);
     assert_eq!(report.status, FileStatus::CompletedWithWarnings);
-    assert!(shapes.iter().any(|shape| shape.kind.as_str() == "frame"));
     assert!(report.events.iter().any(|event| {
-        event.code == "F2P-NODE-UNSUPPORTED" && event.element.element_type == "VECTOR"
+        event.code == "F2P-VECTOR-NETWORK-LOST" && event.element.element_type == "VECTOR"
     }));
+    assert!(shapes.iter().any(|shape| shape.kind.as_str() == "frame"));
+    let frame = shapes
+        .iter()
+        .find(|shape| shape.kind.as_str() == "frame")
+        .expect("frame");
+    assert_eq!(frame.shapes.as_ref().map(Vec::len), Some(20));
+    let paths: Vec<_> = shapes
+        .iter()
+        .filter(|shape| shape.kind.as_str() == "path")
+        .collect();
+    assert_eq!(paths.len(), 20);
+    for path in &paths {
+        let Content::Path(commands) = path.content.as_ref().expect("path content") else {
+            panic!("expected path content");
+        };
+        assert!(!commands.is_empty());
+    }
+}
+
+#[test]
+fn stroke_only_vector_is_reported_as_approximated() {
+    let (_bytes, report, shapes) = run("vector-network/straight-2-point-line.fig");
+    assert_eq!(report.counts.detected, 1);
+    assert_eq!(report.counts.converted, 0);
+    assert_eq!(report.counts.approximated, 1);
+    assert!(report.events.iter().any(|event| {
+        event.code == "F2P-VECTOR-STROKE-OUTLINE" && event.element.element_type == "VECTOR"
+    }));
+    let path = shapes
+        .iter()
+        .find(|shape| shape.kind.as_str() == "path")
+        .expect("path");
+    assert!(path.strokes.is_empty());
+    assert!(!path.fills.is_empty());
 }
 
 #[test]
@@ -168,6 +205,27 @@ fn archive_has_expected_entries_and_refs() {
         .read_to_string(&mut root)
         .unwrap();
     assert!(root.contains("\"name\": \"Root Frame\""));
+}
+
+#[test]
+fn vector_report_snapshot() {
+    let (_bytes, report, _shapes) = run("OpenFigs.fig");
+    let mut value = serde_json::to_value(report).unwrap();
+    value["source"] = serde_json::json!("OpenFigs.fig");
+    value["output"] = serde_json::json!("out.penpot");
+    value["durationMs"] = serde_json::json!(0);
+    value["toolVersion"] = serde_json::json!("test");
+
+    let golden_path =
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden/openfigs.report.json");
+    let golden: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&golden_path).unwrap()).unwrap();
+    assert_eq!(
+        value,
+        golden,
+        "report changed; review {}",
+        golden_path.display()
+    );
 }
 
 #[test]

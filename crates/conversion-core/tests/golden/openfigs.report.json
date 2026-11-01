@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "source": "OpenFigs.fig",
+  "output": "out.penpot",
+  "status": "completed_with_warnings",
+  "durationMs": 0,
+  "counts": {
+    "detected": 2,
+    "converted": 1,
+    "approximated": 1,
+    "skipped": 0,
+    "unsupported": 0,
+    "failed": 0
+  },
+  "events": [
+    {
+      "code": "F2P-VECTOR-NETWORK-LOST",
+      "severity": "warning",
+      "outcome": "converted_with_modification",
+      "element": {
+        "figmaNodeId": "3:110",
+        "name": "WhiteOpenFigOutlinedIcon",
+        "elementType": "VECTOR",
+        "page": "Page 1",
+        "path": [
+          "Page 1",
+          "WhiteOpenFigOutlinedIcon",
+          "WhiteOpenFigOutlinedIcon"
+        ]
+      },
+      "description": "vector network handle metadata was not preserved",
+      "reason": "M3.1 converts commandsBlob geometry into path commands, not the editable network",
+      "actionTaken": "kept the path geometry; dropped network handles",
+      "suggestedAction": "Re-edit the path handles in Penpot if exact curvature control matters."
+    },
+    {
+      "code": "F2P-NODE-APPROXIMATED",
+      "severity": "warning",
+      "outcome": "converted_with_modification",
+      "element": {
+        "figmaNodeId": "3:110",
+        "name": "WhiteOpenFigOutlinedIcon",
+        "elementType": "VECTOR",
+        "page": "Page 1",
+        "path": [
+          "Page 1",
+          "WhiteOpenFigOutlinedIcon",
+          "WhiteOpenFigOutlinedIcon"
+        ]
+      },
+      "description": "VECTOR was converted as 20 path(s)",
+      "reason": "vector geometry required an approximation",
+      "actionTaken": "converted as 20 path shape(s)",
+      "suggestedAction": "Review the vector in Penpot after import."
+    },
+    {
+      "code": "F2P-NODE-CONVERTED",
+      "severity": "info",
+      "outcome": "converted",
+      "element": {
+        "figmaNodeId": "3:111",
+        "name": "WhiteOpenFigOutlinedIcon",
+        "elementType": "FRAME",
+        "page": "Page 1",
+        "path": [
+          "Page 1",
+          "WhiteOpenFigOutlinedIcon"
+        ]
+      },
+      "description": "FRAME was converted",
+      "reason": null,
+      "actionTaken": "converted as frame",
+      "suggestedAction": null
+    }
+  ],
+  "validation": "passed",
+  "toolVersion": "test",
+  "targetPenpot": "2.18.5"
+}

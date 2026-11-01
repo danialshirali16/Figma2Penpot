@@ -1,4 +1,4 @@
-use crate::document::{Blob, Color, FigNode, Guid, Matrix, Paint, Size, TextData};
+use crate::document::{Blob, Color, FigNode, Guid, Matrix, Paint, Size, TextData, VectorGeometry};
 use crate::error::{FigError, Result};
 use crate::limits::Limits;
 
@@ -128,6 +128,9 @@ fn decode_node(
         corner_radii: None,
         resize_to_fit: None,
         text: None,
+        fill_geometry: Vec::new(),
+        stroke_geometry: Vec::new(),
+        has_vector_network: false,
     };
     let mut has_guid = false;
 
@@ -204,6 +207,16 @@ fn decode_node(
             "resizeToFit" => {
                 node.resize_to_fit = Some(read_bool_field(cursor, field, "resizeToFit flag")?);
             }
+            "fillGeometry" => {
+                node.fill_geometry = read_vector_geometry(cursor, schema, field, limits, 1)?;
+            }
+            "strokeGeometry" => {
+                node.stroke_geometry = read_vector_geometry(cursor, schema, field, limits, 1)?;
+            }
+            "vectorData" => {
+                node.has_vector_network = true;
+                skip_field(cursor, schema, field, limits, 1)?;
+            }
             "textData" => {
                 let text = node.text.get_or_insert_with(TextData::default);
                 read_text_data(cursor, schema, field, limits, text, 1)?;
@@ -240,6 +253,45 @@ fn decode_node(
         )));
     }
     Ok(node)
+}
+
+fn read_vector_geometry(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<VectorGeometry>> {
+    if !field.is_array {
+        return Err(FigError::Decode("geometry field is not an array".into()));
+    }
+    let count = read_count(cursor, limits.max_array_items, "geometry count")?;
+    let def = schema.def(field.type_id as usize).ok_or_else(|| {
+        FigError::Decode(format!("geometry type {} does not exist", field.type_id))
+    })?;
+    let mut geometries = Vec::with_capacity(count.min(64));
+    for _ in 0..count {
+        let mut commands_blob = None;
+        let mut winding_rule = None;
+        read_object(cursor, schema, def, limits, depth, |field, cursor| {
+            match field.name.as_str() {
+                "commandsBlob" => {
+                    commands_blob = Some(read_u32_field(cursor, field, "geometry commandsBlob")?);
+                }
+                "windingRule" => {
+                    winding_rule = Some(read_enum(cursor, schema, field, "winding rule")?.1);
+                }
+                _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+            }
+            Ok(())
+        })?;
+        geometries.push(VectorGeometry {
+            commands_blob: commands_blob
+                .ok_or_else(|| FigError::Decode("geometry has no commandsBlob".into()))?,
+            winding_rule: winding_rule.unwrap_or_else(|| "NONZERO".to_owned()),
+        });
+    }
+    Ok(geometries)
 }
 
 fn read_paints(
