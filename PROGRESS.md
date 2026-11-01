@@ -65,6 +65,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Command / check | Result |
 |---|---|
 | `cargo test --offline --workspace` | **54 tests pass** (unit/integration + 1 doctest) |
+| GitHub Actions run 41327038266 | Ubuntu, macOS, Windows: all success (fmt, clippy, test) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/circle.fig --out …` | 2 detected, 2 converted, validation passed |
@@ -140,7 +141,8 @@ backend string, not just the tag, in future checks.
    visual output is correct, but understand Penpot's display before claiming group styling.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** CI should be retried; local M2 used `--offline`.
-5. **CI not yet run for M2.** Push and verify fmt/clippy/test on three OS.
+5. **CI is green at `819a398`** (run 41327038266) on Linux, macOS, and Windows. The
+   Node 20 action annotation remains cosmetic; harden action pinning in M8.
 6. **Docker stack was stopped.** Re-run via compose for future imports; telemetry off.
 7. **No real component/media/token data**, so those remain unverified.
 8. **`openfig-core` synthetic fixture generated with Node** (research-only); the product
@@ -186,6 +188,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
   and `f2p-cli convert`.
 - Added a project-owned synthetic text/group fixture and a golden report.
 - Ran 54 tests, clippy, fmt; all pass.
+- Pushed M2; GitHub Actions run 41327038266 passed on Linux, macOS, and Windows.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.

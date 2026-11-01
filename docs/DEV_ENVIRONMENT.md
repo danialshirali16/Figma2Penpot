@@ -91,7 +91,7 @@ Figma 2 Penpot/
 - Git repository: initialized on `main`; public remote
   `https://github.com/danialshirali16/Figma2Penpot`.
 - Cargo workspace: exists; `fig-reader` and `f2p-cli`; 4 fixtures under `tests/fixtures`.
-- CI: GitHub Actions added (`.github/workflows/ci.yml`); run **41322990919** passed
+- CI: GitHub Actions added (`.github/workflows/ci.yml`); M2 run **41327038266** passed
   `fmt`, `clippy`, and `test` on Ubuntu, macOS, and Windows.
 - Research checkouts live **outside** the repo at `~/Downloads/f2p-research-upstream/`
   so unlicensed upstream code cannot accidentally be committed.
