@@ -1,0 +1,18 @@
+Figma 2 Penpot
+Copyright (c) 2026 Figma 2 Penpot contributors
+
+This project is dual-licensed under the MIT License and the Apache License,
+Version 2.0. See LICENSE-MIT and LICENSE-APACHE.
+
+Figma 2 Penpot is not affiliated with or endorsed by Figma, Inc. or Penpot
+(Kaleidos). "Figma" and "Penpot" are trademarks of their respective owners and
+are used only to describe interoperability.
+
+No third-party source code is bundled in this repository at this time. Runtime
+dependencies will be listed in THIRD_PARTY_LICENSES when the workspace and
+release packaging land. Research-only upstream projects are documented in
+docs/LICENSE_ASSESSMENT.md and are not distributed.
+
+If MIT-licensed fixtures from openfig-core are added under tests/fixtures/, their
+copyright notice and the MIT permission text must be reproduced next to them and
+in the generated third-party notices.
