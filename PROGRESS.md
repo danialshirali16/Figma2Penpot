@@ -141,7 +141,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Penpot import masks/boolean | `17b9706f-02f0-8188-8008-e16179c815cf`, `error?=false` |
 | UI inspection (M3.6–M3.8) | color/typography libraries and links; 3 components + 2 variants; instance override; Light/Dark tokens and applied `brand.primary`; masked lens + boolean donut |
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
-| CI (M2/M3.1) | run 41329353648: Ubuntu/macOS/Windows success |
+| CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
 
@@ -308,6 +308,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
   provenance and hashes; 64 tests pass.
 - Imported all four into Penpot 2.18.5; `error?=false`; captured UI evidence.
 - Updated support matrix, issue codes, manual QA, fixtures README, README, and roadmap.
+- Pushed as `7abe99a`; CI run 41339781578 passed on Ubuntu, macOS, and Windows.
 
 ### Session 5 — 2026-11-01
 
