@@ -190,6 +190,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Desktop headless tests | 20 state/worker/UI tests, including a real fixture conversion |
 | Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 91 tests pass |
 | CI for M4.1–M5 | run 41347094495: Ubuntu/macOS/Windows success, including queue and desktop |
+| CI for M6.1 | run 41347957397: Ubuntu/macOS/Windows success |
 | CLI batch smoke test | 2 valid + 1 corrupt fixture: 2 completed, 1 failed; outputs/reports written |
 | Batch memory | 1 file 5.2 MB, 4 files 6.8 MB, 16 files 7.0 MB peak RSS (`--jobs 2`, release) |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
@@ -291,7 +292,7 @@ backend string, not just the tag, in future checks.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** M2/M3.1 built with `--offline` after dependencies were
    cached; CI still needs network for new crates.
-5. **CI is green at `c7b8453`** (run 41347094495) on Linux, macOS, and Windows. The Node 20
+5. **CI is green at `c80c393`** (run 41347957397) on Linux, macOS, and Windows. The Node 20
    action annotation remains cosmetic; harden action pinning in M8.
 6. **Docker stack was stopped** after M3.8 imports. Re-run via compose for future imports;
    telemetry off.
