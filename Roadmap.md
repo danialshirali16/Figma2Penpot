@@ -37,7 +37,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 | M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **In progress** — queue core, CLI batch, desktop Convert all |
 | M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **In progress** — exporters, CLI report, desktop export buttons |
 | M7 | Reliability and performance | Fuzz campaign, large-file corpus, recorded time and peak-memory benchmarks | **In progress** — fuzz, benchmarks, baseline; corpus/error drills pending |
-| M8 | Release engineering | Windows and macOS artifacts built in CI, docs and notices complete | **In progress** — packaging scripts, workflow, macOS bundle |
+| M8 | Release engineering | Windows and macOS artifacts built in CI, docs and notices complete | **Partial** — v0.1.0 artifacts published; signing/installers pending |
 
 ---
 
@@ -294,9 +294,10 @@ error-recovery drills are pending.
 
 ## M8 — Release engineering
 
-**Status: In progress (2026-11-02).** macOS `.app`, Windows zip, and Linux tarball scripts
-plus a tag-driven GitHub Actions release workflow exist. The macOS bundle builds and
-launches locally; Windows/Linux packaging and signing/notarization are unverified.
+**Status: Partial (2026-11-02).** `v0.1.0` was published with macOS `.app`, Windows zip,
+and Linux tarball artifacts plus SHA-256 files. The macOS bundle launched locally;
+Windows/Linux install-and-launch, MSI/DMG installers, and signing/notarization remain
+unverified.
 
 **Work**
 

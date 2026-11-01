@@ -119,8 +119,8 @@ Status vocabulary (no other labels are used):
 | Desktop drag-and-drop / file picker | **Implemented (unverified)** | M4.1; code path exists; OS interaction not automated |
 | Desktop folder scan | **Verified** | Recursive `.fig` scan, hidden folders skipped, bounded to 512 files; unit-tested |
 | Desktop keyboard shortcuts | **Implemented (unverified)** | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; headless key-event test only |
-| Release artifacts | **Partial** | macOS `.app` zip + checksum verified locally; Windows/Linux workflows not yet exercised; unsigned |
-| Installers / signing | Planned | MSI/DMG and notarization pending M8 |
+| Release artifacts | **Verified (v0.1.0)** | GitHub prerelease `v0.1.0`: macOS app/CLI, Windows zip, Linux tarball, all with SHA-256 |
+| Installers / signing | Planned | MSI/DMG and notarization pending; builds are unsigned |
 | Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 20 desktop tests |
 | Batch queue | **Partial** | Bounded queue, CLI batch, desktop Convert all, retry/remove; mid-write cancellation pending |
 | CLI batch command | **Verified** | Ran 2 valid + 1 corrupt fixture: 2 completed, 1 failed, outputs/reports written |

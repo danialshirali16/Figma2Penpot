@@ -126,9 +126,9 @@ M8.1 acceptance so far:
 |---|---|---|
 | macOS `.app` bundle | Done | `scripts/package-macos.sh`; launched via `open`; window captured |
 | macOS zip + checksum | Done | 3.8 MB `figma2penpot-0.1.0-macos-arm64.zip` + SHA-256 |
-| Windows zip script | Implemented (unverified) | `scripts/package-windows.ps1`; no Windows run |
-| Linux tarball script | Implemented (unverified) | `scripts/package-linux.sh`; no Linux run |
-| Tag-driven release workflow | Implemented (unverified) | `.github/workflows/release.yml`; tagged run pending |
+| Windows zip script | Built in CI | `figma2penpot-0.1.0-windows-x86_64.zip` (5.0 MB); local install untested |
+| Linux tarball script | Built in CI | `figma2penpot-0.1.0-linux-x86_64.tar.gz` (6.8 MB); local install untested |
+| Tag-driven release workflow | Done | tag `v0.1.0`; run 41351622397; GitHub prerelease with 8 assets |
 | Signing/notarization | Planned | ad-hoc/linker-signed macOS build only |
 | MSI/DMG installers | Planned | zip/tarball artifacts only |
 | `cargo deny` / `cargo audit` | Pending | tools absent in development environment |
@@ -320,7 +320,8 @@ backend string, not just the tag, in future checks.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** M2/M3.1 built with `--offline` after dependencies were
    cached; CI still needs network for new crates.
-5. **CI is green at `839473a`** (run 41350365611) on Linux, macOS, and Windows. The Node 20
+5. **CI is green at `19e12cb`** (run 41351149234) on Linux, macOS, and Windows; release
+   run 41351622397 published `v0.1.0`. The Node 20
    action annotation remains cosmetic; harden action pinning in M8.
 6. **Docker stack was stopped** after M3.8 imports. Re-run via compose for future imports;
    telemetry off.
@@ -390,7 +391,9 @@ follow its checklist. Do not trust a status claim without recorded evidence.
   GitHub Actions release workflow with checksums.
 - Built and launched the macOS bundle locally; captured `docs/qa/macos-app-bundle.png`.
 - Added release, privacy, and third-party notices documentation.
-- Windows/Linux packaging and signing/notarization remain unverified.
+- Tagged `v0.1.0`; release workflow built macOS, Windows, and Linux artifacts, generated
+  checksums, and published a GitHub pre-release.
+- Windows/Linux install-and-launch and signing/notarization remain unverified.
 
 ### Session 11 — 2026-11-02
 

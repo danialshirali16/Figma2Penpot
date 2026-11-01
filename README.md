@@ -9,7 +9,7 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M4–M6 in progress; M7 reliability evidence started
+> ## Status: pre-alpha — `v0.1.0` artifacts published; M4–M7 still have open items
 >
 > The Rust workspace reads real `.fig` files and converts the M2 slice plus vectors, masks,
 > boolean fallbacks, gradients, shadows, blur, image fills, text metrics, flex containers,
@@ -173,9 +173,10 @@ sudo apt-get install -y libgtk-3-dev libxkbcommon-dev libxkbcommon-x11-dev \
   libwayland-dev
 ```
 
-Release artifacts are packaged by `scripts/package-*.sh` and the tag-driven
-`release.yml` workflow. Builds are currently unsigned; see
-[`docs/RELEASE.md`](docs/RELEASE.md) and [`PRIVACY.md`](PRIVACY.md).
+Release [`v0.1.0`](https://github.com/danialshirali16/Figma2Penpot/releases/tag/v0.1.0)
+contains macOS app/CLI, Windows zip, and Linux tarball artifacts with SHA-256 checksums.
+Builds are currently unsigned; see [`docs/RELEASE.md`](docs/RELEASE.md) and
+[`PRIVACY.md`](PRIVACY.md).
 
 Optional fuzzing (the harness is in `fuzz/`):
 

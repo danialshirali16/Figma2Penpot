@@ -1,8 +1,10 @@
 # Release and Packaging
 
-Status: **M8 in progress (2026-11-02).** macOS and Windows/Linux packaging scripts and a
-tag-driven GitHub Actions release workflow exist. Builds are **unsigned** and **not
-notarized**; installers (MSI/DMG) are not built yet.
+Status: **M8 partial (2026-11-02).** `v0.1.0` is published as a GitHub pre-release with
+macOS, Windows, and Linux artifacts plus SHA-256 checksums. Builds are **unsigned** and
+**not notarized**; installers (MSI/DMG) are not built yet.
+
+Release: <https://github.com/danialshirali16/Figma2Penpot/releases/tag/v0.1.0>
 
 ## Artifacts
 
@@ -57,10 +59,10 @@ bash scripts/package-linux.sh 0.1.0
 | macOS `.app` builds | **Pass** — local build, `open` launched the app, window captured |
 | macOS zip/checksum | **Pass** — 3.8 MB zip, SHA-256 generated |
 | macOS signing/notarization | **Not done** — ad-hoc signature only |
-| Windows zip build | **Untested** — workflow added, not run locally |
-| Linux tarball build | **Untested** — workflow added, not run locally |
-| Install-and-launch on all platforms | **Pending** |
-| GitHub Release artifacts | **Pending tag** |
+| Windows zip build | **Pass in CI** — 5.0 MB artifact; local install **untested** |
+| Linux tarball build | **Pass in CI** — 6.8 MB artifact; local install **untested** |
+| Install-and-launch on all platforms | **Partial** — macOS pass; Windows/Linux untested |
+| GitHub Release artifacts | **Pass** — `v0.1.0` prerelease, 8 assets + checksums |
 
 ## Licensing and privacy
 
