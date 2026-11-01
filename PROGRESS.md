@@ -162,7 +162,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
 | Desktop headless tests | 18 state/worker/UI tests, including a real fixture conversion |
 | Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 82 tests pass |
-| CI for M4.1 | run 41343195721: Ubuntu/macOS/Windows success, including desktop crate |
+| CI for M4.1 | run 41344261599: Ubuntu/macOS/Windows success, including desktop crate |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
@@ -256,7 +256,7 @@ backend string, not just the tag, in future checks.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** M2/M3.1 built with `--offline` after dependencies were
    cached; CI still needs network for new crates.
-5. **CI is green at `09810a1`** (run 41343195721) on Linux, macOS, and Windows. The Node 20
+5. **CI is green at `df5b13f`** (run 41344261599) on Linux, macOS, and Windows. The Node 20
    action annotation remains cosmetic; harden action pinning in M8.
 6. **Docker stack was stopped** after M3.8 imports. Re-run via compose for future imports;
    telemetry off.
@@ -334,7 +334,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Updated CI with Linux GTK3/X11/Wayland build dependencies.
 - Captured Home, Queue, and Light theme screenshots; native dialog, drag-drop, and
   remaining screen interactions still need manual QA.
-- Pushed as `09810a1`; CI run 41343195721 passed on Ubuntu, macOS, and Windows.
+- Pushed as `df5b13f`; CI run 41344261599 passed on Ubuntu, macOS, and Windows.
 
 ### Session 6 — 2026-11-01
 
