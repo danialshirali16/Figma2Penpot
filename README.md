@@ -7,13 +7,14 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M0 research complete, no code yet
+> ## Status: pre-alpha — M1 `.fig` reader complete, no converter yet
 >
-> There is **no application, no binary, and no converter** yet. This repository contains
-> the completed M0 research baseline (format findings, architecture, license assessment,
-> risk register, and five decision records) plus planning documents. Everything below
-> describes the intended product, not shipped behavior. For the factual, current state see
-> [`PROGRESS.md`](PROGRESS.md); for sequencing see [`Roadmap.md`](Roadmap.md).
+> The repository now contains a Rust workspace, a bounded `.fig`/Kiwi reader, and the
+> `f2p-cli inspect` command. It can open real Figma files and print verified metadata.
+> **No `.penpot` writer or conversion exists yet**, and no output has been imported into
+> Penpot. Everything below describes the intended product unless it says otherwise. For the
+> factual, current state see [`PROGRESS.md`](PROGRESS.md); for sequencing see
+> [`Roadmap.md`](Roadmap.md).
 
 ---
 
@@ -88,14 +89,15 @@ status words.
 | **Not supported** | Out of reach or out of scope, and reported as such at runtime. |
 
 The authoritative per-feature list is [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md).
-It exists, and today every feature is **Planned** because there is no implementation yet.
+Reader features are **Implemented (unverified)** or **Partial**; conversion features remain
+**Planned** until they exist.
 
 ## Project status at a glance
 
 | Milestone | Scope | Status |
 |---|---|---|
 | M0 | Research, format findings, license assessment, architecture | **Done** — evidence in `PROGRESS.md` |
-| M1 | Cargo workspace, `.fig` container/decode, `f2p-cli inspect` | **Planned** |
+| M1 | Cargo workspace, `.fig` container/decode, `f2p-cli inspect` | **Done** — evidence in `PROGRESS.md` |
 | M2 | Minimal end-to-end conversion + validator + JSON report | **Planned** |
 | M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **Planned** |
 | M4 | Native desktop application (eight screens) | **Planned** |
@@ -108,7 +110,7 @@ It exists, and today every feature is **Planned** because there is no implementa
 
 ```text
 .fig
-  → fig-reader          container detection, safe extraction, schema + data decode
+  → fig-reader          container detection, safe extraction, schema + data decode   [implemented]
   → conversion-core     Figma IR, ordered mapping passes, diagnostics at every decision
   → penpot-writer       Penpot document model → .penpot archive
   → validation          structural checks against derived Penpot rules
@@ -121,19 +123,28 @@ CI. The core crates never depend on the UI.
 
 ## Building
 
-**Nothing to build yet.** There is no `Cargo.toml` in this repository.
-
-The target workflow, once M1 lands, will be:
+Requires a stable Rust toolchain. The workspace currently contains the reader and CLI; the
+GUI and converter crates arrive in later milestones.
 
 ```bash
 cargo build --workspace
 cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
+
+# Inspect a real file
+cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
 ```
 
-These commands are the intended quality gates; they are not yet runnable. Do not treat
-them as evidence of a working build.
+Optional fuzzing (the harness is in `fuzz/`):
+
+```bash
+cargo fuzz run read_fig --sanitizer none -- -max_total_time=60
+```
+
+`--sanitizer none` is needed on a stable toolchain without rustup/nightly; the harness has
+already been run with 829,577 executions and no crashes. See `PROGRESS.md` for the exact
+result.
 
 ## Documentation
 
@@ -151,7 +162,7 @@ them as evidence of a working build.
 | [`docs/RISKS.md`](docs/RISKS.md) | Technical risk register | Exists (M0) |
 | [`docs/DEV_ENVIRONMENT.md`](docs/DEV_ENVIRONMENT.md) | Verified toolchain and platform facts | Exists (M0) |
 | [`docs/RESEARCH_SOURCES.md`](docs/RESEARCH_SOURCES.md) | Pinned upstream commits and provenance | Exists (M0) |
-| [`docs/DECISIONS/`](docs/DECISIONS/) | Architecture decision records | 5 accepted |
+| [`docs/DECISIONS/`](docs/DECISIONS/) | Architecture decision records | 6 accepted/superseding |
 | `docs/ISSUE_CODES.md` | Stable diagnostic codes | Planned (M2+) |
 | `docs/MANUAL_QA.md` | Platform test checklist | Planned (M4) |
 

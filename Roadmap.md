@@ -30,7 +30,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 | ID | Milestone | Ends when | Status |
 |---|---|---|---|
 | M0 | Research and legal baseline | Format, architecture, and license documents exist with citations and explicit unknowns | **Done** — see `PROGRESS.md` |
-| M1 | Workspace and `.fig` reading | `f2p-cli inspect` prints verified metadata for ≥3 fixtures; malformed inputs error without panicking | **Planned** |
+| M1 | Workspace and `.fig` reading | `f2p-cli inspect` prints verified metadata for ≥3 fixtures; malformed inputs error without panicking | **Done** — see `PROGRESS.md` |
 | M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Planned** |
 | M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Planned** |
 | M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **Planned** |
@@ -76,6 +76,11 @@ whole project under an incompatible license.
 ---
 
 ## M1 — Workspace and `.fig` reading
+
+**Status: Done (2026-11-01).** The workspace builds; the reader parses four fixtures
+(550/627-definition schemas, ZIP and raw forms); 29 unit/integration tests and a doctest
+pass; hostile inputs return typed errors; the fuzz target ran 829,577 executions without a
+crash. Evidence is in `PROGRESS.md`. Conversion remains unimplemented.
 
 **Goal.** Open real files safely and print only what is actually known.
 

@@ -34,7 +34,7 @@ be bounded and memory-aware, and why streaming is preferred over holding decoded
 | Node.js | v22.23.1 | **Research only.** Never used by the product |
 | Python 3 | present (pyenv shim) | Used for research inspection scripts only |
 | Docker CLI | present (`/usr/local/bin/docker`) | Daemon **not running** |
-| `cargo-fuzz` | absent | M1/M7 dependency |
+| `cargo-fuzz` | 0.13.2 (Homebrew) | Installed in M1; `--sanitizer none` used on stable |
 | `cargo-deny` | absent | M8 / compliance gate |
 | `cargo-audit` | absent | M8 / compliance gate |
 | `insta` CLI | absent (crate can still be used) | Not needed yet |
@@ -62,13 +62,19 @@ only. The product's conversion path stays offline.
 
 ```text
 Figma 2 Penpot/
+├── Cargo.toml / Cargo.lock
+├── rust-toolchain.toml
+├── crates/
+│   ├── fig-reader/     container, Kiwi schema/message decode, raw nodes
+│   └── f2p-cli/        `inspect` command
+├── fuzz/               libFuzzer harness (`read_fig`)
+├── tests/fixtures/     4 MIT fixtures + provenance
+├── .github/workflows/  CI (fmt, clippy, test)
 ├── README.md
 ├── Roadmap.md
+├── PROGRESS.md
 ├── State.md            pointer to PROGRESS.md
-├── PROGRESS.md         canonical status
-├── LICENSE-MIT
-├── LICENSE-APACHE
-├── NOTICE
+├── LICENSE-MIT / LICENSE-APACHE / NOTICE
 └── docs/
     ├── DEV_ENVIRONMENT.md
     ├── RESEARCH_SOURCES.md
@@ -82,7 +88,8 @@ Figma 2 Penpot/
     └── DECISIONS/
 ```
 
-- Git repository: **not initialized** at `~/Downloads/Figma 2 Penpot`.
+- Git repository: initialized on `main`; public remote
+  `https://github.com/danialshirali16/Figma2Penpot`.
 - Cargo workspace: **does not exist** (M1).
 - CI: **does not exist** (M1).
 - Research checkouts live **outside** the repo at `~/Downloads/f2p-research-upstream/`
@@ -92,7 +99,7 @@ Figma 2 Penpot/
 
 | Area | Locally verifiable? | Consequence |
 |---|---|---|
-| Rust build, unit tests, clippy, fmt | Yes, after M1 workspace exists | Full local gate |
+| Rust build, unit tests, clippy, fmt | Yes | Workspace exists; gates run locally |
 | `.fig` parsing and `.penpot` generation | Yes | M1/M2/local golden tests |
 | Structural validation of `.penpot` | Yes | Build in Rust (M2) |
 | Real Penpot import | **No** (no instance, Docker daemon down) | Mark **pending**; provide exact manual steps |
@@ -135,14 +142,21 @@ sysctl -n hw.ncpu hw.memsize
 df -h .
 git --version
 node --version                        # research only
+
+# Project gates
+cargo build --workspace
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
+cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
+cargo fuzz run read_fig --sanitizer none -- -max_total_time=60
 ```
 
-## 8. Setup still needed (M1)
+## 8. Setup still needed (M2+)
 
-- Initialize git and the Cargo workspace.
-- Pin the toolchain in CI (stable, at least 1.95 for `eframe 0.37`).
-- Add `cargo-fuzz`, `cargo-deny`, and `cargo-audit` to CI images or install locally.
-- Add a Linux CI job as well as macOS and Windows; containerized Linux is the cheapest
-  place to run parser fuzzing.
+- Verify CI on GitHub Actions for Linux, macOS, and Windows (workflow added in M1).
+- Add `cargo-deny` and `cargo-audit` gates; the tools are not installed yet.
 - Decide whether to run Penpot via Docker for import checks; if yes, document the image
   tag and startup command, and keep it optional so ordinary builds stay offline.
+- Optional nightly toolchain for sanitizer-enabled fuzzing; the stable
+  `--sanitizer none` run is the current evidence.

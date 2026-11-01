@@ -16,7 +16,7 @@ metadata, and crates.io metadata. They can change upstream; re-check before rele
 | Can we copy or port the official exporter? | **Only under MPL-2.0 obligations.** We choose not to. |
 | Can we copy or port Penpot itself? | **Only under MPL-2.0 obligations.** We choose not to. |
 | Can we use `openfig-core` code as a Rust dependency? | No — it is JavaScript. Its **fixtures** are MIT and may be reused with attribution. |
-| Can we use the Rust `kiwi-schema` crate? | **Yes**, MIT, with attribution. |
+| Can we use the Rust `kiwi-schema` crate? | **Yes**, MIT, with attribution — but M1 uses an in-house bounded decoder instead (ADR-0006). |
 | Can we read upstream source to understand behavior? | Yes, for facts and behavior. Do not copy expression. |
 | What license should this project use? | **MIT OR Apache-2.0**, subject to the caveat in §7. |
 | Is this a formal clean-room? | **No.** It is a reimplementation without code reuse; see §6. |
@@ -130,7 +130,7 @@ a lockfile; `cargo-deny` will enforce it once the workspace exists.
 | `flate2` | MIT OR Apache-2.0 | Yes |
 | `miniz_oxide` | MIT OR Zlib OR Apache-2.0 | Yes |
 | `ruzstd` | MIT | Yes |
-| `kiwi-schema` | MIT | Yes |
+| ~~`kiwi-schema`~~ | MIT | Not a runtime dependency; in-house decoder (ADR-0006) |
 | `thiserror`, `anyhow` | MIT OR Apache-2.0 | Yes |
 | `tracing`, `tracing-subscriber` | MIT | Yes |
 | `uuid` | Apache-2.0 OR MIT | Yes |
@@ -153,7 +153,7 @@ Deliberately avoided:
 
 Planned `cargo-deny` policy:
 
-- Allow: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, Unlicense, Unicode-3.0.
+- Allow: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, Zlib, 0BSD, Unlicense, Unicode-3.0.
 - Deny: GPL-2.0, GPL-3.0, AGPL-3.0, SSPL, BUSL, Commons-Clause, unknown licenses.
 - Exceptions require an ADR and a documented reason.
 
@@ -177,7 +177,6 @@ Files to ship with every binary or release archive:
 - `LICENSE-MIT` and `LICENSE-APACHE` for the project.
 - `NOTICE` naming the project and any required attribution.
 - `THIRD_PARTY_LICENSES` generated with `cargo-about` or maintained by hand, including:
-  - `kiwi-schema` (MIT, Evan Wallace).
   - `openfig-core` fixtures (MIT, OpenFig contributors).
   - `egui`/`eframe` and other Rust dependencies.
   - Any icon set, font, or asset that is bundled.

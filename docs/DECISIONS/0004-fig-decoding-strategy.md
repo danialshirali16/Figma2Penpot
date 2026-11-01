@@ -1,6 +1,6 @@
 # ADR-0004 — `.fig` decoding: `kiwi-schema` + pure-Rust compression
 
-- **Status:** Accepted (provisional until hardening tests pass)
+- **Status:** Superseded by ADR-0006 for the decoder choice
 - **Date:** 2026-11-01
 - **Deciders:** engineering
 - **Related:** `docs/FIG_FORMAT.md`, `docs/RISKS.md`
@@ -26,10 +26,13 @@ Options considered:
 
 ## Decision
 
-Use **`kiwi-schema 0.2.1`** (MIT) for schema and message decoding, **`flate2` with the
-`miniz_oxide` backend** for raw deflate, and **`ruzstd`** (MIT, pure Rust) for zstd.
+~~Use `kiwi-schema 0.2.1` (MIT) for schema and message decoding, `flate2` with the
+`miniz_oxide` backend for raw deflate, and `ruzstd` (MIT, pure Rust) for zstd.~~
 
-The crate is treated as untrusted-input code:
+**Superseded by ADR-0006.** The crate allocates arrays directly from untrusted counts; the
+implemented decoder is in-house and bounded. `flate2`/`miniz_oxide` and `ruzstd` remain.
+
+The crate was treated as untrusted-input code:
 
 - Validate all sizes and counts before calling it.
 - Cap schema/message decompressed size, chunk count, node count, blob count, and depth.

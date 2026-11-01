@@ -2,180 +2,193 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-01** (session 1). Update this file at the end of every session.
+Last updated: **2026-11-01** (session 2, M1).
 
 ---
 
 ## 1. Where we are
 
-**Milestone: M0 complete. M1 (workspace and `.fig` reading) is next.**
+**Milestone: M1 complete. M2 (minimal end-to-end conversion) is next.**
 
-There is **no Cargo workspace and no application code yet**. The repository contains the
-M0 research baseline, decision records, and status documents. Every product feature remains
-**Planned**. No conversion has been run because no converter exists.
+The workspace builds and the `.fig` reader works on four real fixtures. `f2p-cli inspect`
+prints verified metadata. There is **no `.penpot` writer, no conversion, and no report yet**.
+Every conversion feature remains **Planned**.
 
-M0 is complete because every acceptance item has evidence:
+M1 acceptance:
 
-| M0 acceptance item | Status | Evidence |
+| Requirement | Status | Evidence |
 |---|---|---|
-| Clone and study the reference converter | Done | `docs/RESEARCH_SOURCES.md` §1; pinned commit `c29242f` |
-| Review community thread, official exporter, migration docs | Done | `docs/RESEARCH_SOURCES.md` §2 |
-| `docs/ARCHITECTURE.md` | Done | Upstream pipeline, mapping strategy, crates, reporting |
-| `docs/FIG_FORMAT.md` | Done | Container, chunks, Kiwi, nodes, vectors, unknowns |
-| `docs/PENPOT_FORMAT.md` | Done | Archive v3, manifest, shapes, import limits, unknowns |
-| `docs/LICENSE_ASSESSMENT.md` | Done | Per-source licenses, obligations, clean-room-style decision |
-| Technical risk assessment | Done | `docs/RISKS.md` |
-| Rust implementation strategy | Done | `docs/ARCHITECTURE.md` §10-12; ADR-0004 |
-| Claims cite files/lines/URLs | Done | Citations throughout the M0 documents |
-| Unknowns explicitly listed | Done | Each format document has an "Explicit unknowns" section |
-| Fork-vs-clean-room decision recorded | Done | `docs/DECISIONS/0002-no-code-reuse.md` |
+| Cargo workspace compiles on stable | Done | `cargo build --workspace`, `cargo test --workspace` |
+| CI runs fmt, clippy, test | Workflow added | `.github/workflows/ci.yml`; first GitHub run result recorded below when available |
+| Container detection + safe extraction | Done | ZIP and raw tests; zip-slip, entry-count, ratio, truncation tests |
+| Schema + data decoding | Done | In-house bounded Kiwi decoder; 550 and 627 definition schemas |
+| Raw node tree | Done (core fields) | GUID, parent, position, type, name, phase, visible, size, transform |
+| `f2p-cli inspect` prints verified metadata | Done | Real output on `circle.fig`; integration test |
+| Unit tests + ≥3 fixtures | Done | 4 fixtures; 29 unit/integration tests + 1 doctest |
+| Malformed/truncated/bomb samples error without panic | Done | 6 truncation lengths, corrupt chunk, zip-slip, entry bomb, ratio bomb, node limit |
+| Fuzz target exists and ran | Done | 829,577 executions in 61 s, no crashes, 61 MB peak RSS |
 
 ## 2. What exists
 
 ```text
 Figma 2 Penpot/
-├── AGENTS.md
-├── README.md
-├── Roadmap.md
-├── State.md                    pointer to this file (kept for the original brief naming)
-├── PROGRESS.md                 this file
-├── LICENSE-MIT
-├── LICENSE-APACHE
-├── NOTICE
-└── docs/
-    ├── ARCHITECTURE.md
-    ├── DEV_ENVIRONMENT.md
-    ├── FIG_FORMAT.md
-    ├── LICENSE_ASSESSMENT.md
-    ├── PENPOT_FORMAT.md
-    ├── PROJECT_BRIEF.md
-    ├── RESEARCH_SOURCES.md
-    ├── RISKS.md
-    ├── SUPPORT_MATRIX.md
-    └── DECISIONS/
-        ├── 0001-project-license.md
-        ├── 0002-no-code-reuse.md
-        ├── 0003-target-penpot-version.md
-        ├── 0004-fig-decoding-strategy.md
-        └── 0005-absolute-coordinates.md
+├── Cargo.toml / Cargo.lock
+├── rust-toolchain.toml
+├── crates/
+│   ├── fig-reader/
+│   │   ├── src/container.rs       ZIP/raw detection, entry limits, meta.json, images
+│   │   ├── src/document.rs        FigDocument, FigNode, Guid, Matrix, pages, stats
+│   │   ├── src/kiwi/cursor.rs     checked primitive reader
+│   │   ├── src/kiwi/schema.rs     bounded binary schema parser
+│   │   ├── src/kiwi/decode.rs     bounded message decoder
+│   │   ├── src/kiwi/payload.rs    header/chunks, deflate, zstd window cap
+│   │   └── tests/fixtures.rs      14 integration tests
+│   └── f2p-cli/
+│       ├── src/main.rs            `inspect` command
+│       └── tests/inspect.rs       2 CLI tests
+├── fuzz/                          libFuzzer harness `read_fig`
+├── tests/fixtures/                4 MIT fixtures + provenance + MIT notice
+├── .github/workflows/ci.yml       Linux/macOS/Windows fmt, clippy, test
+├── docs/                          M0 baseline + ADRs 0001–0006
+└── PROGRESS.md
 ```
-
-- Git repository: **not initialized**.
-- Cargo workspace: **does not exist**.
-- Tests, fixtures, CI: **do not exist**.
-- Research checkouts: `~/Downloads/f2p-research-upstream/` (outside the repo).
 
 ## 3. Environment
 
-Full record: `docs/DEV_ENVIRONMENT.md`. Summary:
+Full record: `docs/DEV_ENVIRONMENT.md`.
 
-- macOS 27.2, arm64 (Apple Silicon), 8 cores, 8 GiB RAM, ~28 GiB free.
-- Rust 1.99.1 (Homebrew), **no rustup**, Xcode CLT present.
-- Docker CLI present, **daemon not running**; no Penpot instance.
-- GUI available; Node.js present but forbidden in the product.
-- Windows and Intel macOS are **unverified on this platform**.
-- Network was available for research only; conversion must stay offline.
+- macOS 27.2, arm64 (Apple Silicon), 8 cores, 8 GiB RAM.
+- Rust 1.99.1 (Homebrew), no rustup, Xcode CLT.
+- `cargo-fuzz 0.13.2` installed via Homebrew.
+- Docker daemon not running; no Penpot instance.
+- Windows and Intel macOS remain **unverified on this platform** pending CI.
+- Network to crates.io became intermittent during M1; dependencies were already cached and
+  the build/fuzz completed. Do not assume network at build time.
 
-## 4. Evidence log (session 1)
+## 4. Evidence log (session 2)
 
-| Command / check | Result |
+| Command | Result |
 |---|---|
-| `git -C penpot-converter rev-parse --short HEAD` | `c29242f` |
-| `git -C penpot-exporter-figma-plugin rev-parse --short HEAD` | `eae25d8` |
-| `git -C openfig-core rev-parse --short HEAD` | `0d67354` |
-| GitHub API license: reference converter | `license: null` |
-| GitHub API license: exporter / Penpot | `MPL-2.0` / `MPL-2.0` |
-| npm `openfig-core@0.4.1` | MIT; deps `fzstd`, `fflate`, `kiwi-schema` |
-| Python ZIP inspection of `circle.fig` | `canvas.fig`, `thumbnail.png`, `meta.json`, `images/`; version 101; zstd magic |
-| Rust probe: `circle.canvas.fig` | 550 schema defs, root `Message` index 404, 5 nodes, 3 blobs |
-| Rust probe: `OpenFigs.canvas.fig` | 550 schema defs, 21 blobs |
-| Rust probe: truncated 4,000-byte input | Typed error `chunk past end`; no panic |
-| `@penpot/library 1.2.0` probe | `manifest.json`, file/page/shape JSON, root frame, file version 67 |
-| Coordinate probe (frame at 100,200; child at 5,7) | Library stored child `(5,7)`; writer must add the offset |
-| Penpot 2.18.5 vs develop importer diff | 2.18.5 lacks the newer text/entry limits and `externalLibraries` |
+| `cargo build --workspace` | Success |
+| `cargo test --workspace` | 29 unit/integration tests + 1 doctest pass; 0 failures |
+| `cargo clippy --workspace --all-targets -- -D warnings` | Success |
+| `cargo fmt --all -- --check` | Success |
+| `cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig` | 5 nodes, 3 blobs (540 B), 1 visible + 1 internal page, version 101 |
+| `cargo run ... OpenFigs.fig` | Version 106, 5 nodes, 21 blobs (12,098 B) |
+| `cargo run ... straight-2-point-line.fig` | Version 101, 627 schema defs, 4 nodes |
+| `cargo run ... corner-radius-middle-dot-20.fig` | Version 101, 627 schema defs, 4 nodes |
+| Research file `coloradjusted.fig` | 29 nodes, 51 blobs, 2 images; reports `BRUSH` as unknown type |
+| `cargo fuzz run read_fig --sanitizer none -- -max_total_time=60` | 829,577 runs, 61 s, no crashes, 61 MB peak RSS |
 
-The scratch Rust probe lives outside the repo and is not product code. It proves the
-decoding path is feasible, not that a parser exists.
+The `coloradjusted.fig` research file is **not committed** (2.1 MB); it was inspected from the
+upstream checkout outside the repo. Its `BRUSH` nodes prove unknown node types are reported
+rather than rejected.
 
-## 5. Decisions
+## 5. Implemented behavior
+
+- Container detection by magic bytes: ZIP (`PK`) and raw `fig-kiwi` (`fig-`).
+- ZIP entry validation: absolute paths, `..`, backslashes, NULs, control characters,
+  Windows drive prefixes, empty components, names over 1024 bytes.
+- ZIP limits: entry count, total declared uncompressed size, per-entry compression ratio,
+  `canvas.fig` size, meta size.
+- Raw payload: `fig-kiwi` header, 8-byte prelude, version, length-prefixed chunks with
+  checked arithmetic, maximum chunk count.
+- Schema: binary Kiwi schema parsed with definition/field/name/type-reference validation.
+- Message: bounded arrays, byte-array ranges, depth limit, blob size limit, node limit.
+- Metadata: pages, internal-only canvas, direct/descendant counts, node type histogram,
+  unknown node types, orphan count, max depth, warnings.
+- Blob access is bounds-checked; message bytes are retained for later conversion passes.
+- `f2p-cli inspect` prints document name, container, format/version, schema/chunk counts,
+  nodes, blobs, images, thumbnail, pages, node types, unknown types, orphans, depth, warnings.
+
+## 6. Explicitly not implemented
+
+- Any `.penpot` writing or conversion.
+- Any report event model or JSON/HTML/CSV export.
+- Paints, strokes, effects, text content, vector geometry, components, variables, tokens.
+- Image bytes; only names/sizes are enumerated in M1.
+- A materialized tree/arena API; M1 keeps the flat node list plus parent GUIDs.
+- UI, batch queue, cancellation.
+- Real Penpot import verification.
+
+## 7. Decisions
 
 | ADR | Decision |
 |---|---|
-| 0001 | Project license: **MIT OR Apache-2.0** |
-| 0002 | Reimplement without code reuse; no formal clean-room claim |
-| 0003 | Target **Penpot 2.18.5**, archive v3, file data version **67** |
-| 0004 | Decode with `kiwi-schema` 0.2.1 + `flate2`/`miniz_oxide` + `ruzstd`, wrapped in limits |
-| 0005 | Penpot geometry is **absolute**; accumulate transforms |
+| 0001 | Project license: MIT OR Apache-2.0 |
+| 0002 | Reimplementation without code reuse; not a formal clean-room claim |
+| 0003 | Target Penpot 2.18.5, archive v3, file data version 67 |
+| 0004 | Superseded by 0006 for the decoder choice |
+| 0005 | Penpot geometry is absolute; accumulate transforms |
+| 0006 | Bounded in-house Kiwi decoder; no `kiwi-schema` runtime dependency |
 
-## 6. Verified vs. unverified
+## 8. Verified vs. unverified
 
-- **Verified:** the research facts in the M0 documents, in the sense that they were checked
-  against source, bytes, or generated output. This is research verification, not product
-  verification.
-- **Implemented (unverified):** none. There is no implementation.
-- **Partial:** none.
-- **Planned:** every product feature.
-- **Pending:** real Penpot import of any output; Windows and Intel macOS behavior;
-  component/media/token JSON details.
+- **Verified:** reader facts above, against four fixtures and hostile synthetic inputs.
+- **Implemented (unverified):** container detection, schema/message decoding, `inspect`,
+  resource limits. Not confirmed by a Penpot import (not applicable to reading) and not yet
+  exercised by the full CI matrix.
+- **Partial:** image enumeration (no bytes), raw node metadata (core fields only), unknown
+  node type reporting (reports, does not map).
+- **Planned:** every conversion/report/UI/batch feature.
+- **Not supported:** `.deck`/`.jam`; rejected with a typed error.
 
-## 7. Known gaps and open questions
+## 9. Known gaps and open questions
 
-1. **No code.** M1 must create the workspace, CI, and reader.
-2. **No real import.** Docker daemon is down and no Penpot instance is reachable. The
-   manual steps are in `docs/DEV_ENVIRONMENT.md` §6.
-3. **Component, media, and token JSON are only partly mapped.** The field names are known;
-   no archive with those objects has been generated and imported. Do not claim fidelity.
-4. **Rotation/flip representation** in Penpot is unresolved; defer to M3 with a fixture.
-5. **`openfig-core` has no LICENSE file**, only MIT package metadata. Fixtures may be reused
-   with attribution, but record the gap.
-6. **`kiwi-schema` has no resource limits.** M1 must prove the wrapper can enforce them or
-   trigger the vendoring fallback in ADR-0004.
-7. **`PROJECT_BRIEF.md` was missing.** A working restatement now exists at
-   `docs/PROJECT_BRIEF.md`; README, Roadmap, and Architecture remain the detailed sources.
-8. **Git is not initialized.** The first M1 commit should include the M0 documents.
+1. **No conversion.** M2 must build the minimal writer, validator, and report.
+2. **CI not yet observed on GitHub.** Push and check the workflow; Windows behavior is the
+   main unknown.
+3. **No real Penpot instance.** Import verification stays pending.
+4. **`BRUSH` is an unknown Figma node type** in the research corpus. Decide in M3 whether it
+   is in scope; until then it is reported.
+5. **Images are only enumerated.** Conversion will need a lazy asset reader with byte limits.
+6. **The raw tree is flat.** M2 needs an arena/tree for mapping passes.
+7. **Sanitizer fuzzing needs nightly.** `--sanitizer none` is the current evidence; M7
+   should run ASAN/UBSAN on CI or a nightly toolchain.
+8. **`cargo-deny`/`cargo-audit` are absent.** Add them next; `THIRD_PARTY_LICENSES.md` is
+   current as of M1.
+9. **CI actions are pinned by tag, not SHA.** Harden in M8.
 
-## 8. Next steps (in order)
+## 10. Next steps (in order)
 
-1. **Initialize git**, add `.gitignore`, commit the M0 baseline with a clear message.
-2. **Create the Cargo workspace** with `fig-reader`, `conversion-core`,
-   `penpot-writer`, `conversion-report`, `conversion-queue`, `f2p-cli`, `desktop-app`
-   stubs; add `rust-toolchain.toml` and `#![forbid(unsafe_code)]`.
-3. **Add CI**: fmt, clippy `-D warnings`, test on Linux/macOS/Windows; `cargo-deny` and
-   `cargo-audit`.
-4. **Implement `fig-reader` M1**: ZIP/raw detection, limits, schema decode, typed raw tree,
-   `f2p-cli inspect`, fixtures, negative samples, fuzz target.
-5. **Add the first fixture manifest** (`tests/fixtures/PROVENANCE.md`) before copying any
-   upstream fixture, and wire `cargo-deny` into CI.
+1. Push M1; confirm the GitHub Actions matrix (Ubuntu, macOS, Windows) is green.
+2. Add `docs/ISSUE_CODES.md` and the `conversion-report` crate with `ReportEvent`,
+   `DiagnosticSink`, severity/outcome, and counts.
+3. Build the minimal `conversion-core` and `penpot-writer` for pages, frames, groups,
+   rectangles, ellipses, solid fills/strokes, opacity, and basic text.
+4. Implement the structural validator derived from `docs/PENPOT_FORMAT.md`.
+5. Add `f2p-cli convert` and a golden fixture test; attempt a real Penpot import or record
+   exact pending steps.
 
-## 9. How to resume
+## 11. How to resume
 
 ```bash
 cd "/Users/danial/Downloads/Figma 2 Penpot"
+git status
 cat PROGRESS.md
-cat docs/ARCHITECTURE.md
-cat docs/FIG_FORMAT.md
-cat docs/PENPOT_FORMAT.md
-cat docs/RISKS.md
+cargo test --workspace
+cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
 ```
 
-Then check whether `Cargo.toml` exists. If not, start at §8 step 1. Do not trust a status
-claim that is not backed by a command result recorded here or in a later entry.
+Then check whether `crates/conversion-core` and `crates/penpot-writer` exist. If not, start
+at §10 step 2. Do not trust a status claim that is not backed by a command result recorded
+here or in a later entry.
 
-## 10. Session log
+## 12. Session log
 
 ### Session 1 — 2026-11-01
 
-- Bootstrapped README, Roadmap, State.
-- Completed M0 research: upstream study, format documents, license assessment, risk
-  assessment, architecture, five ADRs.
-- Proved the pure-Rust Kiwi read path with a scratch probe.
-- Generated `.penpot` probes with the official library to confirm archive layout, file
-  version, shape fields, and absolute-coordinate behavior.
-- Renamed the canonical status file to `PROGRESS.md` per `AGENTS.md`; `State.md` remains a
-  pointer.
-- Removed an accidental copy of upstream MPL-2.0 source files (`penpot-files/`) from the
-  repository before any commit. Research checkouts stay outside the repo.
-- Reviewed all six posts of the community migration thread; recorded the import-failure
-  context in `docs/RESEARCH_SOURCES.md`.
-- Added `LICENSE-MIT`, `LICENSE-APACHE`, and `NOTICE`.
-- No product code was written. No conversion claim is made.
+- Completed M0: upstream study, format documents, license assessment, risk register,
+  architecture, ADRs 0001–0005.
+- Proved the pure-Rust read path with a scratch probe.
+- Generated `.penpot` probes with the official library.
+- Created the public repository and pushed the M0 baseline.
+
+### Session 2 — 2026-11-01
+
+- Created the Cargo workspace (`fig-reader`, `f2p-cli`), toolchain file, CI workflow.
+- Implemented the bounded `.fig`/Kiwi reader and `inspect` CLI.
+- Added 4 MIT fixtures with provenance and attribution.
+- Added 29 unit/integration tests + 1 doctest, hostile-input tests, and a fuzz harness.
+- Ran 829,577 fuzz executions in 61 s with no crashes.
+- Recorded ADR-0006 (in-house decoder) and updated the format/architecture/license docs.

@@ -355,8 +355,8 @@ write outside the destination.
   uncompressed size, total uncompressed size, and compression ratio; never extract by
   entry name.
 - **Kiwi**: cap schema/message decompressed size, definition counts, array lengths,
-  nesting depth, blob sizes, and node counts. `kiwi-schema` has no limits; wrap it and fuzz
-  it. If a limit cannot be enforced without patching, vendor the MIT crate.
+  nesting depth, blob sizes, and node counts. M1 implements an in-house bounded decoder
+  (ADR-0006); it is fuzzed rather than trusted.
 - **Images**: identify by content hash; verify declared size/hash where available; do not
   decode untrusted image data unless needed; cap dimensions and total bytes.
 - **Paths**: all output paths are constructed from our own UUIDs, never from input names.
@@ -386,7 +386,7 @@ All licenses below were checked against crates.io metadata on 2026-11-01. See
 | ZIP | `zip` | 9.2 | MIT | Disable unused features |
 | Deflate | `flate2` + `miniz_oxide` | 1.1 / 0.9 | MIT OR Apache-2.0 | Pure Rust backend |
 | Zstd read | `ruzstd` | 0.9 | MIT | Pure Rust; **not** the C `zstd` binding |
-| Kiwi | `kiwi-schema` | 0.2.1 | MIT | Official format author |
+| Kiwi | in-house decoder | — | Project license | ADR-0006; bounded, fuzzed |
 | Errors | `thiserror` (libs), `anyhow` (apps) | 2.0 / 1.0 | MIT OR Apache-2.0 | — |
 | Logging | `tracing`, `tracing-subscriber` | 0.1 / 0.3 | MIT | — |
 | IDs | `uuid` | 1.29 | Apache-2.0 OR MIT | — |
@@ -454,7 +454,7 @@ Golden policy:
   found to corrupt global state.
 - Whether `egui` can meet the accessibility bar on Windows and macOS without custom
   platform work. This is a real risk, not a checkbox; see `docs/RISKS.md`.
-- Whether to vendor `kiwi-schema` for resource limits or write a decoder. ADR-0004 makes
-  the current call and the fallback condition.
+- ~~Whether to vendor `kiwi-schema` for resource limits or write a decoder.~~ Resolved by
+  ADR-0006: the decoder is in-house and bounded.
 - How to represent Penpot rotation for non-axis-aligned shapes. Deferred to M3; do not
   invent a transform convention before a fixture proves it.

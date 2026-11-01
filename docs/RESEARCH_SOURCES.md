@@ -14,7 +14,7 @@ and are **not** part of the project source tree.
 | [`penpot/penpot-exporter-figma-plugin`](https://github.com/penpot/penpot-exporter-figma-plugin) | `eae25d8f796ecf690f47a6a30a5b2db56762600e` | 2026-10-26 | **MPL-2.0** | Behavior reference: Figma→Penpot mapping, Penpot model types. No code reused. |
 | [`penpot/penpot`](https://github.com/penpot/penpot) | tag `2.18.5` (`f44566963daf61fce4d8608e7c5e8c27c5853a88`) | 2026-10-26 | **MPL-2.0** | Authoritative `.penpot` importer/export schemas and shape model. No code reused. |
 | [`OpenFig-org/openfig-core`](https://github.com/OpenFig-org/openfig-core) | `0d67354fcd6d14c37b89c42f55330faf0a79e1ce` | 2026-08-02 | **MIT** (package metadata; no LICENSE file in repo) | `.fig` format notes and MIT-licensed fixtures. No runtime use. |
-| [`evanw/kiwi`](https://github.com/evanw/kiwi) / `kiwi-schema` crate | `0.2.1` (crate) | 2023-09-03 | **MIT** | Candidate runtime decoder (see ADR-0004) |
+| [`evanw/kiwi`](https://github.com/evanw/kiwi) / `kiwi-schema` crate | `0.2.1` (crate) | 2023-09-03 | **MIT** | Wire-format reference; not a runtime dependency (ADR-0006) |
 | [`penpot/penpot` `library/`](https://github.com/penpot/penpot/tree/2.18.5/library) / `@penpot/library` | `1.2.0` | — | **MPL-2.0** | Generated a real `.penpot` probe to observe the archive format. No code reused. |
 
 The reference converter is explicitly a Node port of the official MPL-2.0 exporter: its
@@ -31,7 +31,7 @@ license itself. That combination is why it is treated as reference-only (see
 | Penpot migration guide | <https://help.penpot.app/user-guide/first-steps/migration-guide/> | What users are told to expect (Flex/Grid, tokens, validation) |
 | Community thread | <https://community.penpot.app/t/migrate-figma-components-to-penpot/10870/5> | Original converter's scope and caveats |
 | openfig `.fig` notes | `openfig-core/docs/archive.md`, `containers.md`, `nodes.md`, `vector.md`, `overrides.md` | `.fig` container, chunks, node model, vector blobs |
-| Rust Kiwi crate | <https://crates.io/crates/kiwi-schema> | Runtime schema decoder evaluation |
+| Rust Kiwi crate | <https://crates.io/crates/kiwi-schema> | Wire-format evaluation; rejected for unbounded array allocation (ADR-0006) |
 
 The community thread (6 posts, 2026-09-07/08) documents a real migration attempt: the
 official exporter failed on a design-system file ("Penpot apparently can't verify the
@@ -49,7 +49,8 @@ are recorded in `PROGRESS.md`.
 |---|---|---|
 | `.fig` is a ZIP container | `python3 zipfile` over `openfig-core/test-fixtures/circle.fig` | Entries: `canvas.fig`, `thumbnail.png`, `meta.json`, `images/` |
 | Header and chunk layout | Byte inspection | `fig-kiwi`, version `101`, chunk 0 deflate, chunk 1 starts `28 b5 2f fd` (zstd) |
-| Schema is 550 definitions, root `Message` | `kiwi-schema` Rust crate | Schema decodes; root at def index 404; 44 fields |
+| Schema is 550 definitions, root `Message` | M0 Rust probe; re-confirmed by the M1 in-house reader | Schema decodes; root at def index 404; 44 fields |
+| M1 reader | `cargo test`, CLI, fuzz | 4 fixtures parse; 829,577 fuzz executions without a crash |
 | Full read path works in Rust | `kiwi-probe` on two fixtures | Nodes and blobs decoded; truncated input returned a typed error, no panic |
 | `.penpot` archive layout | `@penpot/library 1.2.0` generated a probe | `manifest.json`, `files/*.json`, `pages/*.json`, per-shape JSON, root frame |
 | Penpot file data version | Generated probe + 2.18.5 migrations | `version: 67` |

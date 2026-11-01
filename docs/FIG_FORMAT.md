@@ -110,8 +110,10 @@ not do. It is recorded for context, not relied on.
 ## 3. Kiwi wire format
 
 Kiwi is a schema-based binary format by Evan Wallace, similar to Protocol Buffers but with
-detectable optional fields. The Rust crate `kiwi-schema 0.2.1` (MIT, by the format author)
-implements schema and value decoding. Key properties:
+detectable optional fields. The wire format is documented by Evan Wallace's Kiwi project and the Rust crate of the same
+name. M1 implements a bounded decoder in-house (ADR-0006) rather than depending on a parser
+that allocates from untrusted counts. `flate2`/`miniz_oxide` and `ruzstd` handle
+decompression.
 
 - Native types: `bool`, `byte`, `int` (varint zigzag), `uint`, `float`, `string`
   (UTF-8, NUL-terminated), `int64`, `uint64`, and arrays.
@@ -439,55 +441,71 @@ Our policy:
 ## 13. Security limits
 
 Kiwi's decoder is linear, but counts inside the schema and message can still cause large
-allocations. Proposed M1 defaults (constants, configurable, documented in code):
+allocations. M1 implements the following defaults in
+`crates/fig-reader/src/limits.rs`; they are configurable per reader call:
 
-| Limit | Proposed default | Reason |
+| Limit | Implemented default | Reason |
 |---|---:|---|
-| Input file size | 2 GiB | Refuse absurd files before reading |
+| Input file size | 1 GiB | Refuse absurd files before reading |
 | ZIP entries | 10,000 | `.fig` has few entries; images are the bulk |
-| `canvas.fig` decompressed | 1 GiB | Hard ceiling for the payload |
+| `canvas.fig` decompressed | 512 MiB | Hard ceiling for the payload |
 | Schema decompressed | 16 MiB | Observed 62 KiB; 16 MiB is generous |
 | Message decompressed | 512 MiB | Large design files need room; cap memory |
 | Chunks | 16 | Observed 2 |
 | Nodes | 1,000,000 | Bound traversal and report memory |
 | Blobs | 1,000,000 | Bound index allocation |
 | Single blob | 256 MiB | Images/vector payloads |
-| Nesting depth | 256 | Bound recursion |
+| Generic array items | 4,000,000 | Bound non-byte arrays before allocation |
+| Nesting depth | 64 | Bound recursion |
 | ZIP compression ratio | 1,000:1 | Detect obvious bombs; absolute caps still apply |
-| Total extracted assets | 4 GiB | Bound disk/temp usage |
+| Total ZIP uncompressed | 4 GiB | Bound declared extraction size |
+| zstd window | 128 MiB | Bound decoder allocation independently of output |
+| Schema definitions | 10,000 | Observed 550/627 |
+| Schema fields | 200,000 | Bound schema metadata |
 
-These are **not implemented** yet. M1 must enforce them and test each with a crafted sample.
-`kiwi-schema` itself has no limits, so the wrapper must validate before calling into it and
-must be fuzzed. If the crate cannot be made allocation-safe, vendor a patched copy (MIT
-allows it) or write the decoder; see ADR-0004.
+These are enforced by the in-house decoder, not by a third-party parser. Tests cover
+truncation, corrupt chunk lengths, zip-slip names, entry-count limits, compression-ratio
+limits, and node limits. Fuzzing is the ongoing check; see ADR-0006.
 
-## 14. Rust decoding plan
+## 14. Rust decoding implementation (M1)
 
-Proven feasible in M0 with a scratch probe:
+Implemented in `crates/fig-reader`:
 
 ```text
 read bytes
-  -> detect ZIP vs raw
-  -> read header, chunk lengths (checked arithmetic)
+  -> detect ZIP vs raw (crates/fig-reader/src/container.rs)
+  -> read header, chunk lengths with checked arithmetic (src/kiwi/payload.rs)
   -> inflate schema (flate2 / miniz_oxide, raw deflate)
-  -> Schema::decode (kiwi-schema 0.2.1, MIT)
-  -> zstd decode message (ruzstd, MIT, pure Rust)
-  -> Value::decode with root Message definition
-  -> typed extraction into fig-reader::RawDocument
+  -> parse schema with bounded counts (src/kiwi/schema.rs)
+  -> zstd decode message with a window cap (ruzstd)
+  -> decode message with bounded arrays/depth (src/kiwi/cursor.rs, decode.rs)
+  -> FigNode list + blob ranges in FigDocument
 ```
 
-Observed on two fixtures: 550 schema definitions, root `Message` at index 404, 5 nodes and
-3 blobs in `circle.fig`, 21 blobs in `OpenFigs.fig`. A truncated payload returned a typed
-error, not a panic. This is a scratch probe, not production code.
+M1 results on four committed fixtures:
 
-Design rules for the crate:
+- `circle.fig`: version 101, 550 definitions, 5 nodes, 3 blobs (540 bytes).
+- `OpenFigs.fig`: version 106, 550 definitions, 5 nodes, 21 blobs (12,098 bytes).
+- `straight-2-point-line.fig`: version 101, **627** definitions, 4 nodes.
+- `corner-radius-middle-dot-20.fig`: version 101, 627 definitions, 4 nodes.
 
-- Keep raw `Value` decoding separate from typed mapping. The raw layer is generic and
-  fuzzable; the typed layer emits diagnostics for anything it cannot represent.
-- Represent GUIDs as `(u32, u32)`, not strings.
-- Represent transforms as `f64`/`f32` matrix structs with finite-number checks.
-- Never index `blobs[i]` without bounds checks; references are untrusted.
-- Bound recursion explicitly; do not rely on the call stack.
+The 627-definition files prove the schema is not fixed at 550 and that version integers are
+not a compatibility contract. A fifth research file (`coloradjusted.fig`) exposed an unknown
+`BRUSH` node type and was reported as unknown rather than rejected.
+
+`cargo fuzz run read_fig --sanitizer none -- -max_total_time=60` executed **829,577**
+inputs with no crashes and 61 MB peak RSS.
+
+Design rules actually followed:
+
+- Every length, count, string, and chunk offset is checked before allocation.
+- Byte arrays become `(offset, len)` ranges into the message buffer, not per-byte values.
+- GUIDs are `(u32, u32)`, not strings.
+- Matrices are typed with finite-number checks; non-finite geometry is reported.
+- Blob indexes are bounds-checked at access time.
+- Unknown enum values are preserved as `UNKNOWN(n)`; unknown fields in a known message are a
+  decode error because the embedded schema should describe them.
+- Recursion is capped at 64.
 
 ## 15. Fixtures and conformance
 

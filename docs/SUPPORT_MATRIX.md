@@ -1,7 +1,8 @@
 # Support Matrix
 
-Last updated: **2026-11-01** (M0). There is no implementation yet, so every product feature
-is **Planned** or explicitly **Not supported**. Nothing here is **Verified**.
+Last updated: **2026-11-01** (M1). The `.fig` reader and `inspect` CLI are implemented and
+tested; every conversion feature remains **Planned**. Nothing here is **Verified** by a real
+Penpot import.
 
 Status vocabulary (no other labels are used):
 
@@ -17,13 +18,16 @@ Status vocabulary (no other labels are used):
 
 | Feature | Status | Notes |
 |---|---|---|
-| ZIP-wrapped `.fig` | Planned | M1; layout confirmed in `FIG_FORMAT.md` |
-| Raw `fig-kiwi` binary | Planned | M1; detect by magic bytes |
-| `.deck` / `.jam` | Not supported | Out of v1 scope; reject with a clear error |
-| Embedded schema decode | Planned | M1; `kiwi-schema` + limits |
-| zstd and deflate message decoding | Planned | M1 |
-| Images embedded in the ZIP | Planned | M1/M3 |
-| Unknown fields/node types | Planned | Must emit diagnostics, never crash |
+| ZIP-wrapped `.fig` | **Implemented (unverified)** | M1; tested on 4 fixtures, ZIP-slip/bomb tests |
+| Raw `fig-kiwi` binary | **Implemented (unverified)** | M1; raw canvas fixture test |
+| `.deck` / `.jam` | Not supported | Out of v1 scope; explicit `UnsupportedFormat` error |
+| Embedded schema decode | **Implemented (unverified)** | M1; in-house bounded decoder, 550/627 defs |
+| zstd and deflate message decoding | **Implemented (unverified)** | M1; zstd window capped at 128 MiB |
+| Images embedded in the ZIP | **Partial** | Entries and sizes enumerated; bytes not loaded/mapped yet |
+| Unknown fields/node types | **Partial** | Unknown enum types reported (`BRUSH` fixture); unknown message fields error |
+| Safe archive/parser limits | **Implemented (unverified)** | M1; entry, size, ratio, node, depth, string caps |
+| `f2p-cli inspect` | **Implemented (unverified)** | M1; integration-tested on real fixtures |
+| Raw node metadata (type/name/GUID/transform) | **Partial** | Core fields only; paints/text/vector blobs not mapped yet |
 
 ## 2. Document structure
 
