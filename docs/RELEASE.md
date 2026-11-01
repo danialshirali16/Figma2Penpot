@@ -1,10 +1,10 @@
 # Release and Packaging
 
-Status: **M8 partial (2026-11-02).** `v0.1.0` is published as a GitHub pre-release with
-macOS, Windows, and Linux artifacts plus SHA-256 checksums. Builds are **unsigned** and
-**not notarized**; installers (MSI/DMG) are not built yet.
+Status: **M8 partial (2026-11-02).** `v0.1.1` is published as a GitHub pre-release with
+macOS app/DMG/CLI, Windows zip, and Linux tarball artifacts plus SHA-256 checksums. Builds
+are **unsigned** and **not notarized**; the Windows MSI installer is not built yet.
 
-Release: <https://github.com/danialshirali16/Figma2Penpot/releases/tag/v0.1.0>
+Release: <https://github.com/danialshirali16/Figma2Penpot/releases/tag/v0.1.1>
 
 ## Artifacts
 
@@ -65,7 +65,7 @@ bash scripts/package-linux.sh 0.1.0
 | Windows zip build | **Pass in CI** — 5.0 MB artifact; local install **untested** |
 | Linux tarball build | **Pass in CI** — 6.8 MB artifact; local install **untested** |
 | Install-and-launch on all platforms | **Partial** — macOS pass; Windows/Linux untested |
-| GitHub Release artifacts | **Pass** — `v0.1.0` prerelease, 8 assets + checksums |
+| GitHub Release artifacts | **Pass** — `v0.1.1` prerelease, 10 assets including DMG + checksums |
 
 ## Licensing and privacy
 

@@ -125,13 +125,13 @@ M8.1 acceptance so far:
 | Requirement | Status | Evidence |
 |---|---|---|
 | macOS `.app` bundle | Done | `scripts/package-macos.sh`; launched via `open`; window captured |
-| macOS zip + checksum | Done | 3.8 MB `figma2penpot-0.1.0-macos-arm64.zip` + SHA-256 |
+| macOS zip + checksum | Done | 3.8 MB `figma2penpot-0.1.1-macos-arm64.zip` + SHA-256 |
 | macOS DMG | Done locally | 4.3 MB compressed DMG + SHA-256 |
-| Windows zip script | Built in CI | `figma2penpot-0.1.0-windows-x86_64.zip` (5.0 MB); local install untested |
-| Linux tarball script | Built in CI | `figma2penpot-0.1.0-linux-x86_64.tar.gz` (6.8 MB); local install untested |
-| Tag-driven release workflow | Done | tag `v0.1.0`; run 41351622397; GitHub prerelease with 8 assets |
+| Windows zip script | Built in CI | `figma2penpot-0.1.1-windows-x86_64.zip` (5.0 MB); local install untested |
+| Linux tarball script | Built in CI | `figma2penpot-0.1.1-linux-x86_64.tar.gz` (6.8 MB); local install untested |
+| Tag-driven release workflow | Done | tags `v0.1.0`/`v0.1.1`; run 41352464597; `v0.1.1` has 10 assets including DMG |
 | Signing/notarization | Planned | ad-hoc/linker-signed macOS build only |
-| MSI/DMG installers | Planned | zip/tarball artifacts only |
+| MSI/DMG installers | Partial | DMG published; MSI not built |
 | `cargo deny` / `cargo audit` | Pending | tools absent in development environment |
 
 M2 acceptance remains as recorded below.
@@ -218,6 +218,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | CI for M6.1 | run 41349015729: Ubuntu/macOS/Windows success |
 | CI for M7.1 | run 41349735081: Ubuntu/macOS/Windows success |
 | CI for M7.2 baseline | run 41350365611: Ubuntu/macOS/Windows success |
+| CI for scale/DMG | run 41352461334: Ubuntu/macOS/Windows success |
 | CLI batch smoke test | 2 valid + 1 corrupt fixture: 2 completed, 1 failed; outputs/reports written |
 | Batch memory | 1 file 5.2 MB, 4 files 6.8 MB, 16 files 7.0 MB peak RSS (`--jobs 2`, release) |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
@@ -321,9 +322,9 @@ backend string, not just the tag, in future checks.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** M2/M3.1 built with `--offline` after dependencies were
    cached; CI still needs network for new crates.
-5. **CI is green at `19e12cb`** (run 41351149234) on Linux, macOS, and Windows; release
-   run 41351622397 published `v0.1.0`. The Node 20
-   action annotation remains cosmetic; harden action pinning in M8.
+5. **CI is green at `5a06cc4`** (run 41352461334) on Linux, macOS, and Windows; release
+   run 41351622397 published `v0.1.0`; release run 41352464597 published `v0.1.1`
+   with a DMG. The Node 20 action annotation remains cosmetic; harden action pinning in M8.
 6. **Docker stack was stopped** after M3.8 imports. Re-run via compose for future imports;
    telemetry off.
 7. **No third-party component/token corpus yet**; fixtures are synthetic and project-owned.
@@ -392,6 +393,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
   RSS; added it to the regression baseline (11 fixtures).
 - Added a macOS DMG packager (4.3 MB compressed image + SHA-256) and wired it into the
   release workflow.
+- Tagged `v0.1.1`; release run 41352464597 published 10 assets including the macOS DMG.
 - 95 tests pass.
 
 ### Session 12 — 2026-11-02

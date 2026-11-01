@@ -173,7 +173,7 @@ sudo apt-get install -y libgtk-3-dev libxkbcommon-dev libxkbcommon-x11-dev \
   libwayland-dev
 ```
 
-Release [`v0.1.0`](https://github.com/danialshirali16/Figma2Penpot/releases/tag/v0.1.0)
+Release [`v0.1.1`](https://github.com/danialshirali16/Figma2Penpot/releases/tag/v0.1.1)
 contains macOS app/CLI, Windows zip, and Linux tarball artifacts with SHA-256 checksums.
 Builds are currently unsigned; see [`docs/RELEASE.md`](docs/RELEASE.md) and
 [`PRIVACY.md`](PRIVACY.md).
