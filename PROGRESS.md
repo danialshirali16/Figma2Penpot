@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-01** (session 8, M5 core).
+Last updated: **2026-11-02** (session 8, M5 core).
 
 ---
 
@@ -177,7 +177,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
 | Desktop headless tests | 20 state/worker/UI tests, including a real fixture conversion |
 | Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 88 tests pass |
-| CI for M4.1 | run 41344261599: Ubuntu/macOS/Windows success, including desktop crate |
+| CI for M4.1–M5 | run 41347094495: Ubuntu/macOS/Windows success, including queue and desktop |
 | CLI batch smoke test | 2 valid + 1 corrupt fixture: 2 completed, 1 failed; outputs/reports written |
 | Batch memory | 1 file 5.2 MB, 4 files 6.8 MB, 16 files 7.0 MB peak RSS (`--jobs 2`, release) |
 | CI (M2–M3.8) | run 41339781578: Ubuntu/macOS/Windows success |
@@ -278,7 +278,7 @@ backend string, not just the tag, in future checks.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** M2/M3.1 built with `--offline` after dependencies were
    cached; CI still needs network for new crates.
-5. **CI is green at `df5b13f`** (run 41344261599) on Linux, macOS, and Windows. The Node 20
+5. **CI is green at `c7b8453`** (run 41347094495) on Linux, macOS, and Windows. The Node 20
    action annotation remains cosmetic; harden action pinning in M8.
 6. **Docker stack was stopped** after M3.8 imports. Re-run via compose for future imports;
    telemetry off.
@@ -342,7 +342,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
 
-### Session 8 — 2026-11-01
+### Session 8 — 2026-11-02
 
 - Added `conversion-queue` with bounded workers, per-job isolation, stage events,
   pause/cancel checkpoints, panic containment, and a mixed-batch test.
@@ -353,6 +353,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Workspace now has 88 tests; 4 queue tests and 20 desktop tests.
 - Added retry-failed/retry-selected/remove-completed controls.
 - Measured release batch peak RSS: 5.2 MB (1 file), 6.8 MB (4), 7.0 MB (16) at 2 workers.
+- Pushed as `c7b8453`; CI run 41347094495 passed on Ubuntu, macOS, and Windows.
 - M5 still pending: cancellation during a write and a batch aggregate report.
 
 ### Session 7 — 2026-11-01
