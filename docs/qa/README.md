@@ -1,4 +1,4 @@
-# M2–M4.1 QA evidence
+# M2–M6 QA evidence
 
 Screenshots from a local Penpot **2.18.5** stack (backend reports `2.18.5-RC1`) on
 2026-11-01. The stack used the official `docker/images/docker-compose.yaml` at tag 2.18.5,
@@ -43,6 +43,7 @@ Only project-owned or MIT-licensed fixtures were imported. No private designs ar
 | `desktop-home.png` | Native desktop Home/Import screen with drop zone and navigation |
 | `desktop-queue.png` | File Queue with two files staged, Ready states, and Convert all |
 | `desktop-light.png` | Light theme loaded from saved settings |
+| `report-html.png` | Self-contained HTML report: summary table, status, counts, and grouped events |
 Import log evidence is recorded in `docs/MANUAL_QA.md`. Reopen and move/edit persistence
 were not tested. Text line-height/letter-spacing fields were not independently read back;
 the imported typography style and link were verified.

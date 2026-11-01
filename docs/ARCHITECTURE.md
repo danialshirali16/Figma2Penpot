@@ -1,8 +1,8 @@
 # Architecture
 
-Status: M0 design baseline; updated at M4.1. The reader, M2/M3 converter, `.penpot` writer,
-structural validator, JSON report, CLI, and native desktop shell are implemented. The batch
-queue, report exports, and release packaging are not.
+Status: M0 design baseline; updated at M6.1. The reader, M2/M3 converter, `.penpot` writer,
+structural validator, JSON/HTML/CSV reports, CLI, native desktop shell, and batch queue are
+implemented. Richer report grouping and release packaging are not.
 
 This document describes the intended Rust system, what was learned from the upstream
 projects, and why the implementation is a reimplementation rather than a port.

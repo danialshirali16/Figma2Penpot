@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-02** (session 8, M5 core).
+Last updated: **2026-11-02** (session 9, M6 exports).
 
 ---
 
@@ -97,6 +97,18 @@ M5.1 acceptance so far:
 | Remove completed | Done (unit) | completed items removed; failed items retained |
 | Memory benchmarks | Done | 1/4/16 files, 2 workers: 5.2/6.8/7.0 MB peak RSS |
 
+M6.1 acceptance so far:
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Self-contained HTML exporter | Done | Inline CSS, no external assets; rendered in a browser |
+| CSV exporter | Done | RFC 4180 escaping unit-tested |
+| Batch aggregate HTML/CSV | Done | `batch --html/--csv`; summary + per-file detail |
+| CLI `report` | Done | JSON report → HTML/CSV smoke-tested |
+| Desktop export buttons | Done (unverified UI) | Results/Report actions; native save dialog not automated |
+| Report screen filters | Partial | Search + severity/outcome; grouping/jump-to-element pending |
+| Exporter snapshot tests | Done | 3 exporter tests with escaping and batch coverage |
+
 M2 acceptance remains as recorded below.
 
 ### 1.1 M2 acceptance (retained)
@@ -148,7 +160,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **88 tests pass** (64 core/CLI + 4 queue + 20 desktop) |
+| `cargo test --offline --workspace` | **91 tests pass** (67 core/CLI + 4 queue + 20 desktop) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -176,7 +188,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
 | Desktop headless tests | 20 state/worker/UI tests, including a real fixture conversion |
-| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 88 tests pass |
+| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 91 tests pass |
 | CI for M4.1–M5 | run 41347094495: Ubuntu/macOS/Windows success, including queue and desktop |
 | CLI batch smoke test | 2 valid + 1 corrupt fixture: 2 completed, 1 failed; outputs/reports written |
 | Batch memory | 1 file 5.2 MB, 4 files 6.8 MB, 16 files 7.0 MB peak RSS (`--jobs 2`, release) |
@@ -216,7 +228,8 @@ backend string, not just the tag, in future checks.
   atomic write.
 - Validator: manifest/file/page/shape structure, IDs, refs, finite geometry, fills,
   strokes, text/path content; rejects missing refs.
-- Report: event-based counts, worst-outcome per element (ADR-0008), schema-versioned JSON.
+- Report: event-based counts, worst-outcome per element (ADR-0008), schema-versioned JSON,
+  self-contained HTML, RFC 4180 CSV, and batch aggregate exports.
 - Queue: bounded workers, stage events, pause/cancel, per-job failure isolation, CLI batch,
   and desktop “Convert all”.
 
@@ -267,7 +280,7 @@ backend string, not just the tag, in future checks.
   and remaining manual interactions need QA; packaging is pending.
 - **Partial:** M5 batch core and desktop “Convert all”; retry/remove, mid-write cancel, and
   memory benchmarks pending.
-- **Planned:** report exports/UI polish beyond M4.1, packaging.
+- **Planned:** report grouping/jump-to-element, packaging.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -341,6 +354,16 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 9 — 2026-11-02
+
+- Added self-contained HTML and CSV exporters to `conversion-report`, with escaping and
+  batch aggregate coverage (3 tests).
+- Added `f2p-cli report` and `batch --html/--csv`.
+- Added desktop HTML/CSV export actions using native save dialogs.
+- Rendered the generated HTML report in a browser and captured
+  `docs/qa/report-html.png`.
+- Workspace now has 91 tests.
 
 ### Session 8 — 2026-11-02
 

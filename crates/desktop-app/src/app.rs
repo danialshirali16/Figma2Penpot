@@ -34,6 +34,8 @@ struct UiActions {
     retry_failed: bool,
     retry_selected: bool,
     remove_completed: bool,
+    export_html: bool,
+    export_csv: bool,
     open_folder: Option<PathBuf>,
 }
 
@@ -335,6 +337,39 @@ impl F2pApp {
         }
     }
 
+    fn export_report(&mut self, html: bool) {
+        let Some(result) = self.state.result.clone() else {
+            self.state.notify(NoticeKind::Warning, REPORT_EMPTY);
+            return;
+        };
+        let stem = result
+            .input
+            .file_stem()
+            .map(|value| value.to_string_lossy().into_owned())
+            .unwrap_or_else(|| "report".to_owned());
+        let extension = if html { "html" } else { "csv" };
+        let mut dialog = rfd::FileDialog::new()
+            .set_file_name(format!("{stem}.report.{extension}"))
+            .add_filter(extension.to_ascii_uppercase(), &[extension]);
+        if let Some(parent) = result.report_path.parent() {
+            dialog = dialog.set_directory(parent);
+        }
+        let Some(path) = dialog.save_file() else {
+            return;
+        };
+        let document = if html {
+            result.report.to_html()
+        } else {
+            result.report.to_csv()
+        };
+        match penpot_writer::write_atomic(&path, document.as_bytes()) {
+            Ok(()) => self.state.notify(NoticeKind::Success, EXPORT_DONE),
+            Err(error) => self
+                .state
+                .notify(NoticeKind::Error, format!("{EXPORT_FAILED}: {error}")),
+        }
+    }
+
     fn choose_folder(&mut self) {
         let mut dialog = rfd::FileDialog::new().set_title(ADD_FOLDER);
         if let Some(parent) = self
@@ -552,6 +587,12 @@ impl F2pApp {
                 self.state.notify(NoticeKind::Info, NO_COMPLETED_FILES);
             }
         }
+        if actions.export_html {
+            self.export_report(true);
+        }
+        if actions.export_csv {
+            self.export_report(false);
+        }
         if actions.settings_changed {
             self.save_settings(false);
         }
@@ -671,7 +712,7 @@ impl F2pApp {
                         Screen::Settings => draw_settings(ui, &mut self.state, actions),
                         Screen::Progress => draw_progress(ui, &mut self.state, actions),
                         Screen::Results => draw_results(ui, &mut self.state, actions),
-                        Screen::Report => draw_report(ui, &mut self.state),
+                        Screen::Report => draw_report(ui, &mut self.state, actions),
                         Screen::Preferences => draw_preferences(ui, &mut self.state, actions),
                     }
                 });
@@ -1203,13 +1244,19 @@ fn draw_results(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions
         if ui.button(VIEW_REPORT).clicked() {
             state.set_screen(Screen::Report);
         }
+        if ui.button(EXPORT_HTML).clicked() {
+            actions.export_html = true;
+        }
+        if ui.button(EXPORT_CSV).clicked() {
+            actions.export_csv = true;
+        }
         if ui.button(START_OVER).clicked() {
             state.set_screen(Screen::Home);
         }
     });
 }
 
-fn draw_report(ui: &mut egui::Ui, state: &mut AppState) {
+fn draw_report(ui: &mut egui::Ui, state: &mut AppState, actions: &mut UiActions) {
     ui.heading(REPORT_HEADING);
     let Some(result) = state.result.clone() else {
         ui.label(RichText::new(REPORT_EMPTY).weak());
@@ -1221,6 +1268,14 @@ fn draw_report(ui: &mut egui::Ui, state: &mut AppState) {
         .label(middle_truncate(&result.input.display().to_string(), 100))
         .on_hover_text(result.input.display().to_string());
     counts_grid(ui, &result.report);
+    ui.horizontal_wrapped(|ui| {
+        if ui.button(EXPORT_HTML).clicked() {
+            actions.export_html = true;
+        }
+        if ui.button(EXPORT_CSV).clicked() {
+            actions.export_csv = true;
+        }
+    });
     ui.add_space(10.0);
 
     ui.horizontal_wrapped(|ui| {

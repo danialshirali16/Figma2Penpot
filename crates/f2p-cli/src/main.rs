@@ -42,6 +42,24 @@ enum Command {
         /// Maximum concurrent conversions.
         #[arg(long, default_value_t = conversion_queue::DEFAULT_MAX_WORKERS)]
         jobs: usize,
+        /// Write a self-contained HTML batch report here.
+        #[arg(long)]
+        html: Option<PathBuf>,
+        /// Write a CSV batch report here.
+        #[arg(long)]
+        csv: Option<PathBuf>,
+    },
+
+    /// Export an existing JSON report to HTML and/or CSV.
+    Report {
+        /// JSON report produced by convert or batch.
+        report: PathBuf,
+        /// Write self-contained HTML here.
+        #[arg(long)]
+        html: Option<PathBuf>,
+        /// Write CSV here.
+        #[arg(long)]
+        csv: Option<PathBuf>,
     },
 
     /// Convert a .fig file to a .penpot file and a JSON report.
@@ -85,11 +103,23 @@ fn run(cli: Cli) -> Result<()> {
             out,
             force,
             jobs,
-        } => batch(files, &out, force, jobs),
+            html,
+            csv,
+        } => batch(files, &out, force, jobs, html.as_deref(), csv.as_deref()),
+        Command::Report { report, html, csv } => {
+            export_report(&report, html.as_deref(), csv.as_deref())
+        }
     }
 }
 
-fn batch(files: Vec<PathBuf>, out_dir: &Path, force: bool, jobs: usize) -> Result<()> {
+fn batch(
+    files: Vec<PathBuf>,
+    out_dir: &Path,
+    force: bool,
+    jobs: usize,
+    html: Option<&Path>,
+    csv: Option<&Path>,
+) -> Result<()> {
     use conversion_queue::{BatchRunner, JobState, QueueConfig, QueueEvent};
 
     let mut runner = BatchRunner::new(QueueConfig::bounded(jobs));
@@ -128,8 +158,45 @@ fn batch(files: Vec<PathBuf>, out_dir: &Path, force: bool, jobs: usize) -> Resul
         .count();
     let completed = results.len().saturating_sub(failed + cancelled);
     println!("Batch: {completed} completed, {failed} failed, {cancelled} cancelled");
+    let reports: Vec<conversion_report::FileReport> = results
+        .iter()
+        .filter_map(|result| result.report.clone())
+        .collect();
+    if let Some(path) = html {
+        let document = conversion_report::batch_html(&reports);
+        penpot_writer::write_atomic(path, document.as_bytes())
+            .with_context(|| format!("writing HTML report {}", path.display()))?;
+        println!("HTML report: {}", path.display());
+    }
+    if let Some(path) = csv {
+        let document = conversion_report::batch_csv(&reports);
+        penpot_writer::write_atomic(path, document.as_bytes())
+            .with_context(|| format!("writing CSV report {}", path.display()))?;
+        println!("CSV report: {}", path.display());
+    }
     if failed > 0 {
         anyhow::bail!("{failed} batch job(s) failed");
+    }
+    Ok(())
+}
+
+fn export_report(report_path: &Path, html: Option<&Path>, csv: Option<&Path>) -> Result<()> {
+    if html.is_none() && csv.is_none() {
+        anyhow::bail!("choose --html and/or --csv");
+    }
+    let text = std::fs::read_to_string(report_path)
+        .with_context(|| format!("reading {}", report_path.display()))?;
+    let report: FileReport = serde_json::from_str(&text)
+        .with_context(|| format!("parsing {}", report_path.display()))?;
+    if let Some(path) = html {
+        penpot_writer::write_atomic(path, report.to_html().as_bytes())
+            .with_context(|| format!("writing HTML report {}", path.display()))?;
+        println!("HTML report: {}", path.display());
+    }
+    if let Some(path) = csv {
+        penpot_writer::write_atomic(path, report.to_csv().as_bytes())
+            .with_context(|| format!("writing CSV report {}", path.display()))?;
+        println!("CSV report: {}", path.display());
     }
     Ok(())
 }

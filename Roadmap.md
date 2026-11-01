@@ -35,7 +35,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 | M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Done with Partial items** — all eight waves implemented; see `PROGRESS.md` |
 | M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **In progress** — M4.1 shell and worker |
 | M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **In progress** — queue core, CLI batch, desktop Convert all |
-| M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **Planned** |
+| M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **In progress** — exporters, CLI report, desktop export buttons |
 | M7 | Reliability and performance | Fuzz campaign, large-file corpus, recorded time and peak-memory benchmarks | **Planned** |
 | M8 | Release engineering | Windows and macOS artifacts built in CI, docs and notices complete | **Planned** |
 
@@ -243,6 +243,10 @@ isolation. Retry/remove controls, cancellation mid-write, and memory benchmarks 
 ---
 
 ## M6 — Report UI and exports
+
+**Status: In progress (2026-11-02).** Self-contained HTML and CSV exporters, CLI `report`,
+batch aggregate exports, and desktop export buttons exist. The report screen has search and
+severity/outcome filters; richer grouping and jump-to-element remain.
 
 **Goal.** The differentiator, finished.
 

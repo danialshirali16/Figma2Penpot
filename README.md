@@ -9,7 +9,7 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M4 desktop shell and M5 batch core in progress
+> ## Status: pre-alpha — M4/M5 batch in progress; M6 report exports started
 >
 > The Rust workspace reads real `.fig` files and converts the M2 slice plus vectors, masks,
 > boolean fallbacks, gradients, shadows, blur, image fills, text metrics, flex containers,
@@ -17,8 +17,9 @@ A native, offline, open-source desktop application for Windows and macOS that co
 > writes an event-based JSON report. M2–M3.8 outputs imported into a local **Penpot 2.18.5**
 > stack and were inspected. The native desktop shell now exists with eight screens, native
 > file dialogs, background conversion, headless UI tests, and a batch queue core exposed
-> through CLI `batch` and the desktop “Convert all” button. Batch retry/remove controls,
-> memory benchmarks, and release packaging are not built yet. Stroke-only vectors, editable network handles, fixed constraints, Auto Layout child
+> through CLI `batch` and the desktop “Convert all” button. Batch retry/remove controls and
+> memory benchmarks are done; release packaging is not. Self-contained HTML/CSV report
+> exports and a CLI `report` command are implemented. Stroke-only vectors, editable network handles, fixed constraints, Auto Layout child
 > sizing, effect style linkage, instance swaps, mixed text runs, and non-paint variable
 > bindings are documented Partial items with runtime diagnostics. See
 > [`PROGRESS.md`](PROGRESS.md) and [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
@@ -151,6 +152,10 @@ cargo run -p f2p-cli -- convert tests/fixtures/circle.fig --out /tmp/f2p-out
 # Batch convert
 cargo run -p f2p-cli -- batch tests/fixtures/circle.fig tests/fixtures/text-group.fig \
   --out /tmp/f2p-out --jobs 2
+
+# Export an existing JSON report
+cargo run -p f2p-cli -- report /tmp/f2p-out/circle.report.json \
+  --html /tmp/f2p-out/circle.html --csv /tmp/f2p-out/circle.csv
 ```
 
 Desktop shortcuts use **Cmd** on macOS and **Ctrl** elsewhere: `+O` open files,
