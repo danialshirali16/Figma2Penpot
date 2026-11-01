@@ -50,6 +50,7 @@ Figma 2 Penpot/
 ├── tests/fixtures/                4 MIT fixtures + provenance + MIT notice
 ├── .github/workflows/ci.yml       Linux/macOS/Windows fmt, clippy, test
 ├── docs/                          M0 baseline + ADRs 0001–0006
+│   └── ISSUE_CODES.md             reader warning registry (F2P codes in M2)
 └── PROGRESS.md
 ```
 
@@ -154,8 +155,8 @@ rather than rejected.
 ## 10. Next steps (in order)
 
 1. Push M1; confirm the GitHub Actions matrix (Ubuntu, macOS, Windows) is green.
-2. Add `docs/ISSUE_CODES.md` and the `conversion-report` crate with `ReportEvent`,
-   `DiagnosticSink`, severity/outcome, and counts.
+2. Create the `conversion-report` crate with `ReportEvent`, `DiagnosticSink`,
+   severity/outcome, and counts; extend `docs/ISSUE_CODES.md` with `F2P-*` codes.
 3. Build the minimal `conversion-core` and `penpot-writer` for pages, frames, groups,
    rectangles, ellipses, solid fills/strokes, opacity, and basic text.
 4. Implement the structural validator derived from `docs/PENPOT_FORMAT.md`.

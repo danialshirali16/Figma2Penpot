@@ -157,7 +157,8 @@ result.
 | [`Roadmap.md`](Roadmap.md) | Milestones, gates, and acceptance criteria | Exists |
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design, crates, passes, reporting | Exists (M0) |
 | [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) | Working restatement of the requirements | Exists (M0) |
-| [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md) | Per-feature support status | Exists (all **Planned**) |
+| [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md) | Per-feature support status | Exists (reader + Planned conversion) |
+| [`docs/ISSUE_CODES.md`](docs/ISSUE_CODES.md) | Stable diagnostic codes | Exists (reader warnings) |
 | [`docs/FIG_FORMAT.md`](docs/FIG_FORMAT.md) | `.fig` container, Kiwi, nodes, vectors, unknowns | Exists (M0) |
 | [`docs/PENPOT_FORMAT.md`](docs/PENPOT_FORMAT.md) | `.penpot` v3 archive, schema, import limits | Exists (M0) |
 | [`docs/LICENSE_ASSESSMENT.md`](docs/LICENSE_ASSESSMENT.md) | Upstream licenses and reuse decisions | Exists (M0) |
@@ -165,7 +166,7 @@ result.
 | [`docs/DEV_ENVIRONMENT.md`](docs/DEV_ENVIRONMENT.md) | Verified toolchain and platform facts | Exists (M0) |
 | [`docs/RESEARCH_SOURCES.md`](docs/RESEARCH_SOURCES.md) | Pinned upstream commits and provenance | Exists (M0) |
 | [`docs/DECISIONS/`](docs/DECISIONS/) | Architecture decision records | 6 accepted/superseding |
-| `docs/ISSUE_CODES.md` | Stable diagnostic codes | Planned (M2+) |
+| `docs/ISSUE_CODES.md` | Stable diagnostic codes | Exists (M1 reader warnings) |
 | `docs/MANUAL_QA.md` | Platform test checklist | Planned (M4) |
 
 ## Non-goals for v1
