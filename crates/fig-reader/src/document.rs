@@ -100,6 +100,54 @@ impl Size {
     }
 }
 
+/// RGBA color in Figma's 0-1 float space.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Color {
+    pub r: f32,
+    pub g: f32,
+    pub b: f32,
+    pub a: f32,
+}
+
+impl Color {
+    pub fn is_finite(self) -> bool {
+        [self.r, self.g, self.b, self.a]
+            .iter()
+            .all(|value| value.is_finite())
+    }
+}
+
+/// A fill or stroke paint. M2 maps solid paints; other kinds are reported.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Paint {
+    pub kind: String,
+    pub color: Option<Color>,
+    pub opacity: f32,
+    pub visible: bool,
+}
+
+impl Default for Paint {
+    fn default() -> Self {
+        Self {
+            kind: "UNKNOWN".to_owned(),
+            color: None,
+            opacity: 1.0,
+            visible: true,
+        }
+    }
+}
+
+/// Basic text attributes extracted for M2.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct TextData {
+    pub characters: Option<String>,
+    pub font_family: Option<String>,
+    pub font_style: Option<String>,
+    pub font_size: Option<f32>,
+    pub align_horizontal: Option<String>,
+    pub auto_resize: Option<String>,
+}
+
 /// A node decoded from Figma's flat `nodeChanges` array.
 #[derive(Debug, Clone)]
 pub struct FigNode {
@@ -118,6 +166,15 @@ pub struct FigNode {
     pub transform: Option<Matrix>,
     pub internal_only: bool,
     pub removed: bool,
+    pub opacity: Option<f32>,
+    pub fills: Vec<Paint>,
+    pub strokes: Vec<Paint>,
+    pub stroke_weight: Option<f32>,
+    pub stroke_align: Option<String>,
+    pub corner_radius: Option<f32>,
+    pub corner_radii: Option<[f32; 4]>,
+    pub resize_to_fit: Option<bool>,
+    pub text: Option<TextData>,
 }
 
 impl FigNode {

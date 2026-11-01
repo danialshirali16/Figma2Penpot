@@ -90,6 +90,41 @@ fn reads_raw_canvas_without_zip() {
 }
 
 #[test]
+fn reads_text_and_group_fixture() {
+    let document = read_fig(fixture("text-group.fig")).expect("text-group.fig should parse");
+    assert_eq!(document.stats.node_count, 9);
+    assert_eq!(document.stats.node_types.get("TEXT").copied(), Some(1));
+    assert_eq!(document.stats.node_types.get("FRAME").copied(), Some(2));
+
+    let text = document
+        .nodes
+        .iter()
+        .find(|node| node.name == "Title")
+        .expect("text node");
+    let text_data = text.text.as_ref().expect("text data");
+    assert_eq!(text_data.characters.as_deref(), Some("Hello Penpot"));
+    assert_eq!(text_data.font_family.as_deref(), Some("Inter"));
+    assert_eq!(text_data.font_size, Some(16.0));
+
+    let red = document
+        .nodes
+        .iter()
+        .find(|node| node.name == "Red Rect")
+        .expect("red rect");
+    assert_eq!(red.fills[0].kind, "SOLID");
+    assert_eq!(red.strokes[0].kind, "SOLID");
+    assert_eq!(red.stroke_weight, Some(2.0));
+    assert_eq!(red.corner_radii, Some([4.0, 4.0, 4.0, 4.0]));
+
+    let group = document
+        .nodes
+        .iter()
+        .find(|node| node.name == "Badge Group")
+        .expect("group frame");
+    assert_eq!(group.resize_to_fit, Some(true));
+}
+
+#[test]
 fn blob_access_is_bounds_checked() {
     let document = read_fig(fixture("circle.fig")).expect("circle.fig should parse");
     assert_eq!(document.blob(0).map(<[u8]>::len), Some(110));

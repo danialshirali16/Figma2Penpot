@@ -1,0 +1,59 @@
+{
+  "schemaVersion": 1,
+  "source": "circle.fig",
+  "output": "out.penpot",
+  "status": "completed",
+  "durationMs": 0,
+  "counts": {
+    "detected": 2,
+    "converted": 2,
+    "approximated": 0,
+    "skipped": 0,
+    "unsupported": 0,
+    "failed": 0
+  },
+  "events": [
+    {
+      "code": "F2P-NODE-CONVERTED",
+      "severity": "info",
+      "outcome": "converted",
+      "element": {
+        "figmaNodeId": "1:2",
+        "name": "Ellipse 1",
+        "elementType": "ELLIPSE",
+        "page": "Page 1",
+        "path": [
+          "Page 1",
+          "Frame 1",
+          "Ellipse 1"
+        ]
+      },
+      "description": "ELLIPSE was converted",
+      "reason": null,
+      "actionTaken": "converted as circle",
+      "suggestedAction": null
+    },
+    {
+      "code": "F2P-NODE-CONVERTED",
+      "severity": "info",
+      "outcome": "converted",
+      "element": {
+        "figmaNodeId": "1:3",
+        "name": "Frame 1",
+        "elementType": "FRAME",
+        "page": "Page 1",
+        "path": [
+          "Page 1",
+          "Frame 1"
+        ]
+      },
+      "description": "FRAME was converted",
+      "reason": null,
+      "actionTaken": "converted as frame",
+      "suggestedAction": null
+    }
+  ],
+  "validation": "passed",
+  "toolVersion": "test",
+  "targetPenpot": "2.18.5"
+}

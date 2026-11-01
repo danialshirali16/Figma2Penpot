@@ -37,6 +37,8 @@ pub struct Limits {
     pub max_schema_name_bytes: usize,
     /// Maximum bytes in a node name read by this crate.
     pub max_name_bytes: usize,
+    /// Maximum bytes in a text run's characters.
+    pub max_text_bytes: usize,
     /// Maximum number of schema definitions.
     pub max_schema_defs: usize,
     /// Maximum total number of schema fields.
@@ -63,6 +65,7 @@ impl Default for Limits {
             max_depth: 64,
             max_schema_name_bytes: 4_096,
             max_name_bytes: 1024 * 1024,
+            max_text_bytes: 16 * 1024 * 1024,
             max_schema_defs: 10_000,
             max_schema_fields: 200_000,
             max_zstd_window: 128 * 1024 * 1024,
@@ -89,6 +92,7 @@ impl Limits {
             max_depth: 32,
             max_schema_name_bytes: 256,
             max_name_bytes: 64 * 1024,
+            max_text_bytes: 256 * 1024,
             max_schema_defs: 2_000,
             max_schema_fields: 20_000,
             max_zstd_window: 8 * 1024 * 1024,

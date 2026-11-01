@@ -23,6 +23,12 @@ here.
 | `OpenFigs.fig` | `eecd50d4d4135ab4b146bbbb7079b7b0743ee0325f2b8e6f2b37454b59c79c4b` | Version 106, richer blob set |
 | `vector-network/straight-2-point-line.fig` | `142a92771c49289510d0a025736d62fa49e9e3a9ff3477bd483f2436b1cd8c7b` | Smallest vector-network case, 627 schema definitions |
 | `vector-network/corner-radius-middle-dot-20.fig` | `46cba181920fb1d018f6fdbe2d85301129dc78a0efc62a06bb7eaab9aab6e67f` | Vertex style-ID case |
+| `text-group.fig` | `467910fd3b66dacb1c0e341f4c89182ad51971f954e523d41a3cb66e25372f12` | **Synthetic**, project-owned: frame, resizeToFit group, rect with solid fill/stroke/radii, ellipse, single-run text |
+
+`text-group.fig` was generated with the MIT `openfig-core` encoder from our own node
+definitions. It is not upstream sample data and is licensed under this project's
+MIT/Apache-2.0 terms. It exists to exercise M2 text and group conversion; its provenance is
+recorded here so it is never mistaken for a real Figma export.
 
 ## Attribution
 

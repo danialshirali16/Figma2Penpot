@@ -1,4 +1,4 @@
-use crate::document::{Blob, FigNode, Guid, Matrix, Size};
+use crate::document::{Blob, Color, FigNode, Guid, Matrix, Paint, Size, TextData};
 use crate::error::{FigError, Result};
 use crate::limits::Limits;
 
@@ -119,6 +119,15 @@ fn decode_node(
         transform: None,
         internal_only: false,
         removed: false,
+        opacity: None,
+        fills: Vec::new(),
+        strokes: Vec::new(),
+        stroke_weight: None,
+        stroke_align: None,
+        corner_radius: None,
+        corner_radii: None,
+        resize_to_fit: None,
+        text: None,
     };
     let mut has_guid = false;
 
@@ -158,6 +167,67 @@ fn decode_node(
             "internalOnly" => {
                 node.internal_only = read_bool_field(cursor, field, "node internalOnly flag")?;
             }
+            "opacity" => {
+                node.opacity = Some(read_f32_field(cursor, field, "node opacity")?);
+            }
+            "fillPaints" => {
+                node.fills = read_paints(cursor, schema, field, limits, 1)?;
+            }
+            "strokePaints" => {
+                node.strokes = read_paints(cursor, schema, field, limits, 1)?;
+            }
+            "strokeWeight" => {
+                node.stroke_weight = Some(read_f32_field(cursor, field, "stroke weight")?);
+            }
+            "strokeAlign" => {
+                node.stroke_align = Some(read_enum(cursor, schema, field, "stroke align")?.1);
+            }
+            "cornerRadius" => {
+                node.corner_radius = Some(read_f32_field(cursor, field, "corner radius")?);
+            }
+            "rectangleTopLeftCornerRadius" => {
+                node.corner_radii.get_or_insert([0.0; 4])[0] =
+                    read_f32_field(cursor, field, "top-left corner radius")?;
+            }
+            "rectangleTopRightCornerRadius" => {
+                node.corner_radii.get_or_insert([0.0; 4])[1] =
+                    read_f32_field(cursor, field, "top-right corner radius")?;
+            }
+            "rectangleBottomRightCornerRadius" => {
+                node.corner_radii.get_or_insert([0.0; 4])[2] =
+                    read_f32_field(cursor, field, "bottom-right corner radius")?;
+            }
+            "rectangleBottomLeftCornerRadius" => {
+                node.corner_radii.get_or_insert([0.0; 4])[3] =
+                    read_f32_field(cursor, field, "bottom-left corner radius")?;
+            }
+            "resizeToFit" => {
+                node.resize_to_fit = Some(read_bool_field(cursor, field, "resizeToFit flag")?);
+            }
+            "textData" => {
+                let text = node.text.get_or_insert_with(TextData::default);
+                read_text_data(cursor, schema, field, limits, text, 1)?;
+            }
+            "fontName" => {
+                let (family, style) = read_font_name(cursor, schema, field, limits, 1)?;
+                let text = node.text.get_or_insert_with(TextData::default);
+                text.font_family = family;
+                text.font_style = style;
+            }
+            "fontSize" => {
+                let size = read_f32_field(cursor, field, "font size")?;
+                node.text.get_or_insert_with(TextData::default).font_size = Some(size);
+            }
+            "textAlignHorizontal" => {
+                let align = read_enum(cursor, schema, field, "text alignment")?.1;
+                node.text
+                    .get_or_insert_with(TextData::default)
+                    .align_horizontal = Some(align);
+            }
+            "textAutoResize" => {
+                let resize = read_enum(cursor, schema, field, "text auto resize")?.1;
+                node.text.get_or_insert_with(TextData::default).auto_resize = Some(resize);
+            }
             _ => skip_field(cursor, schema, field, limits, 1)?,
         }
         Ok(())
@@ -170,6 +240,143 @@ fn decode_node(
         )));
     }
     Ok(node)
+}
+
+fn read_paints(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<Paint>> {
+    if !field.is_array {
+        return Err(FigError::Decode("paint field is not an array".into()));
+    }
+    let count = read_count(cursor, limits.max_array_items, "paint count")?;
+    let def = schema
+        .def(field.type_id as usize)
+        .ok_or_else(|| FigError::Decode(format!("paint type {} does not exist", field.type_id)))?;
+    let mut paints = Vec::with_capacity(count.min(64));
+    for _ in 0..count {
+        paints.push(read_paint(cursor, schema, def, limits, depth)?);
+    }
+    Ok(paints)
+}
+
+fn read_paint(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    def: &Def,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Paint> {
+    let mut paint = Paint::default();
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "type" => {
+                paint.kind = read_enum(cursor, schema, field, "paint type")?.1;
+            }
+            "color" => {
+                paint.color = Some(read_color(cursor, schema, field, limits, depth + 1)?);
+            }
+            "opacity" => {
+                paint.opacity = read_f32_field(cursor, field, "paint opacity")?;
+            }
+            "visible" => {
+                paint.visible = read_bool_field(cursor, field, "paint visible flag")?;
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(paint)
+}
+
+fn read_color(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Color> {
+    let def = object_def(schema, field, "paint color")?;
+    let mut r = None;
+    let mut g = None;
+    let mut b = None;
+    let mut a = None;
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "r" => r = Some(read_f32_field(cursor, field, "color.r")?),
+            "g" => g = Some(read_f32_field(cursor, field, "color.g")?),
+            "b" => b = Some(read_f32_field(cursor, field, "color.b")?),
+            "a" => a = Some(read_f32_field(cursor, field, "color.a")?),
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(Color {
+        r: r.ok_or_else(|| FigError::Decode("paint color has no r".into()))?,
+        g: g.ok_or_else(|| FigError::Decode("paint color has no g".into()))?,
+        b: b.ok_or_else(|| FigError::Decode("paint color has no b".into()))?,
+        a: a.ok_or_else(|| FigError::Decode("paint color has no a".into()))?,
+    })
+}
+
+fn read_text_data(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    text: &mut TextData,
+    depth: usize,
+) -> Result<()> {
+    let def = object_def(schema, field, "textData")?;
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "characters" => {
+                let value =
+                    read_string_field(cursor, field, limits.max_text_bytes, "text characters")?;
+                text.characters = Some(value);
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })
+}
+
+fn read_font_name(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<(Option<String>, Option<String>)> {
+    let def = object_def(schema, field, "fontName")?;
+    let mut family = None;
+    let mut style = None;
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "family" => {
+                family = Some(read_string_field(
+                    cursor,
+                    field,
+                    limits.max_name_bytes,
+                    "font family",
+                )?);
+            }
+            "style" => {
+                style = Some(read_string_field(
+                    cursor,
+                    field,
+                    limits.max_name_bytes,
+                    "font style",
+                )?);
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok((family, style))
 }
 
 fn decode_blobs(
