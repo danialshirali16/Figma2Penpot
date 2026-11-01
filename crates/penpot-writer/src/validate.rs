@@ -229,6 +229,108 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
             checks += 3;
         }
 
+        let component_prefix = format!("files/{file_id}/components/");
+        let mut component_ids = HashSet::new();
+        let mut component_mains: HashMap<Uuid, Uuid> = HashMap::new();
+        for (path, data) in &entries {
+            if !path.starts_with(&component_prefix) || !path.ends_with(".json") {
+                continue;
+            }
+            let rest = &path[component_prefix.len()..];
+            if rest.contains('/') {
+                continue;
+            }
+            let component = parse_json(data, path)?;
+            let component = require_object(Some(&component), path)?;
+            let id = require_uuid(component.get("id"), "component.id")?;
+            if !path.ends_with(&format!("/{id}.json")) {
+                return Err(ValidationError::Invalid(format!(
+                    "{path}: component id does not match path"
+                )));
+            }
+            require_str(component.get("name"), "component.name")?;
+            require_str(component.get("path"), "component.path")?;
+            let main = require_uuid(component.get("mainInstanceId"), "component.mainInstanceId")?;
+            let page = require_uuid(
+                component.get("mainInstancePage"),
+                "component.mainInstancePage",
+            )?;
+            component_ids.insert(id);
+            component_mains.insert(id, main);
+            let _ = page;
+            checks += 2;
+        }
+
+        let color_prefix = format!("files/{file_id}/colors/");
+        let mut color_ids = HashSet::new();
+        for (path, data) in &entries {
+            if !path.starts_with(&color_prefix) || !path.ends_with(".json") {
+                continue;
+            }
+            let rest = &path[color_prefix.len()..];
+            if rest.contains('/') {
+                continue;
+            }
+            let color = parse_json(data, path)?;
+            let color = require_object(Some(&color), path)?;
+            let id = require_uuid(color.get("id"), "color.id")?;
+            if !path.ends_with(&format!("/{id}.json")) {
+                return Err(ValidationError::Invalid(format!(
+                    "{path}: color id does not match path"
+                )));
+            }
+            require_str(color.get("name"), "color.name")?;
+            validate_hex(color.get("color"), "color.color")?;
+            validate_unit(color.get("opacity"), "color.opacity")?;
+            color_ids.insert(id);
+            checks += 2;
+        }
+
+        let typography_prefix = format!("files/{file_id}/typographies/");
+        let mut typography_ids = HashSet::new();
+        for (path, data) in &entries {
+            if !path.starts_with(&typography_prefix) || !path.ends_with(".json") {
+                continue;
+            }
+            let rest = &path[typography_prefix.len()..];
+            if rest.contains('/') {
+                continue;
+            }
+            let typography = parse_json(data, path)?;
+            let typography = require_object(Some(&typography), path)?;
+            let id = require_uuid(typography.get("id"), "typography.id")?;
+            if !path.ends_with(&format!("/{id}.json")) {
+                return Err(ValidationError::Invalid(format!(
+                    "{path}: typography id does not match path"
+                )));
+            }
+            for field in [
+                "name",
+                "fontId",
+                "fontFamily",
+                "fontVariantId",
+                "fontSize",
+                "fontWeight",
+                "fontStyle",
+                "lineHeight",
+                "letterSpacing",
+                "textTransform",
+            ] {
+                require_str(typography.get(field), &format!("typography.{field}"))?;
+            }
+            typography_ids.insert(id);
+            checks += 2;
+        }
+
+        let tokens_path = format!("files/{file_id}/tokens.json");
+        if let Some(tokens) = entries.get(&tokens_path) {
+            let tokens = parse_json(tokens, &tokens_path)?;
+            let tokens = require_object(Some(&tokens), &tokens_path)?;
+            require_array(tokens.get("$themes"), "tokens.$themes")?;
+            require_object(tokens.get("$metadata"), "tokens.$metadata")?;
+            checks += 2;
+        }
+
         let page_prefix = format!("files/{file_id}/pages/");
         let page_paths: Vec<&str> = entries
             .keys()
@@ -246,6 +348,7 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
         }
 
         let mut file_shape_ids = HashSet::new();
+        let mut pending_shape_refs: Vec<(Uuid, Uuid)> = Vec::new();
         for page_path in page_paths {
             let page_bytes = entries
                 .get(page_path)
@@ -292,7 +395,7 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
                         "{shape_path}: shape id does not match path"
                     )));
                 }
-                if !file_shape_ids.insert(shape_id) {
+                if !shape_id.is_nil() && !file_shape_ids.insert(shape_id) {
                     return Err(ValidationError::Invalid(format!(
                         "duplicate shape id {shape_id} in file"
                     )));
@@ -306,15 +409,59 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
             }
 
             let mut checks_for_page = 0usize;
+
             for (shape_id, shape_json) in &shapes {
                 let shape = require_object(Some(shape_json), &format!("shape {shape_id}"))?;
-                validate_shape(shape, *shape_id, &media_ids)?;
+                validate_shape(
+                    shape,
+                    *shape_id,
+                    &media_ids,
+                    &color_ids,
+                    &typography_ids,
+                    file_id,
+                )?;
                 for field in ["parentId", "frameId"] {
                     let reference = require_uuid(shape.get(field), field)?;
                     if !reference.is_nil() && !shapes.contains_key(&reference) {
                         return Err(ValidationError::Invalid(format!(
                             "shape {shape_id} references missing {field} {reference}"
                         )));
+                    }
+                }
+                if let Some(component_id) = shape.get("componentId") {
+                    let component_id = require_uuid(Some(component_id), "shape.componentId")?;
+                    if !component_ids.contains(&component_id) {
+                        return Err(ValidationError::Invalid(format!(
+                            "shape {shape_id} references missing component {component_id}"
+                        )));
+                    }
+                    let component_file =
+                        require_uuid(shape.get("componentFile"), "shape.componentFile")?;
+                    if component_file != file_id {
+                        return Err(ValidationError::Invalid(format!(
+                            "shape {shape_id} componentFile does not match the file"
+                        )));
+                    }
+                    if shape.get("componentRoot").and_then(Value::as_bool) == Some(true)
+                        && component_mains.get(&component_id) != Some(shape_id)
+                    {
+                        return Err(ValidationError::Invalid(format!(
+                            "shape {shape_id} is a component root but is not the main instance"
+                        )));
+                    }
+                } else if shape.contains_key("componentFile") {
+                    return Err(ValidationError::Invalid(format!(
+                        "shape {shape_id} has componentFile without componentId"
+                    )));
+                }
+                if let Some(reference) = shape.get("shapeRef") {
+                    let reference = require_uuid(Some(reference), "shape.shapeRef")?;
+                    pending_shape_refs.push((*shape_id, reference));
+                }
+                if let Some(tokens) = shape.get("appliedTokens") {
+                    let tokens = require_object(Some(tokens), "shape.appliedTokens")?;
+                    for value in tokens.values() {
+                        require_str(Some(value), "appliedTokens value")?;
                     }
                 }
                 if let Some(children) = shape.get("shapes") {
@@ -363,6 +510,13 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
             }
             checks += 2;
         }
+        for (shape_id, reference) in pending_shape_refs {
+            if !file_shape_ids.contains(&reference) {
+                return Err(ValidationError::Invalid(format!(
+                    "shape {shape_id} references missing shapeRef {reference}"
+                )));
+            }
+        }
     }
 
     Ok(ValidationReport { checks })
@@ -372,6 +526,9 @@ fn validate_shape(
     shape: &serde_json::Map<String, Value>,
     expected_id: Uuid,
     media_ids: &HashSet<Uuid>,
+    color_ids: &HashSet<Uuid>,
+    typography_ids: &HashSet<Uuid>,
+    file_id: Uuid,
 ) -> Result<(), ValidationError> {
     if require_uuid(shape.get("id"), "shape.id")? != expected_id {
         return Err(ValidationError::Invalid("shape id mismatch".into()));
@@ -415,7 +572,10 @@ fn validate_shape(
     let fills = require_array(shape.get("fills"), "shape.fills")?;
     for fill in fills {
         let fill = require_object(Some(fill), "fill")?;
-        validate_fill(fill, media_ids)?;
+        validate_fill(fill, media_ids, color_ids, file_id)?;
+    }
+    if let Some(content) = shape.get("content") {
+        validate_typography_refs(content, typography_ids, file_id)?;
     }
     let strokes = require_array(shape.get("strokes"), "shape.strokes")?;
     for stroke in strokes {
@@ -508,6 +668,8 @@ fn object_extension(content_type: &str) -> &'static str {
 fn validate_fill(
     fill: &serde_json::Map<String, Value>,
     media_ids: &HashSet<Uuid>,
+    color_ids: &HashSet<Uuid>,
+    file_id: Uuid,
 ) -> Result<(), ValidationError> {
     let has_color = fill.contains_key("fillColor");
     let has_gradient = fill.contains_key("fillColorGradient");
@@ -574,6 +736,64 @@ fn validate_fill(
     }
     if let Some(opacity) = fill.get("fillOpacity") {
         validate_unit(Some(opacity), "fillOpacity")?;
+    }
+    if let Some(reference) = fill.get("fillColorRefId") {
+        let id = require_uuid(Some(reference), "fillColorRefId")?;
+        if !color_ids.contains(&id) {
+            return Err(ValidationError::Invalid(format!(
+                "fill references missing color style {id}"
+            )));
+        }
+        let reference_file = require_uuid(fill.get("fillColorRefFile"), "fillColorRefFile")?;
+        if reference_file != file_id {
+            return Err(ValidationError::Invalid(
+                "fillColorRefFile does not match the file".into(),
+            ));
+        }
+    } else if fill.contains_key("fillColorRefFile") {
+        return Err(ValidationError::Invalid(
+            "fillColorRefFile without fillColorRefId".into(),
+        ));
+    }
+    Ok(())
+}
+
+fn validate_typography_refs(
+    value: &Value,
+    typography_ids: &HashSet<Uuid>,
+    file_id: Uuid,
+) -> Result<(), ValidationError> {
+    match value {
+        Value::Object(map) => {
+            if let Some(reference) = map.get("typographyRefId") {
+                let id = require_uuid(Some(reference), "typographyRefId")?;
+                if !typography_ids.contains(&id) {
+                    return Err(ValidationError::Invalid(format!(
+                        "text references missing typography style {id}"
+                    )));
+                }
+                let reference_file =
+                    require_uuid(map.get("typographyRefFile"), "typographyRefFile")?;
+                if reference_file != file_id {
+                    return Err(ValidationError::Invalid(
+                        "typographyRefFile does not match the file".into(),
+                    ));
+                }
+            } else if map.contains_key("typographyRefFile") {
+                return Err(ValidationError::Invalid(
+                    "typographyRefFile without typographyRefId".into(),
+                ));
+            }
+            for child in map.values() {
+                validate_typography_refs(child, typography_ids, file_id)?;
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                validate_typography_refs(item, typography_ids, file_id)?;
+            }
+        }
+        _ => {}
     }
     Ok(())
 }

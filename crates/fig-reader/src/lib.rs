@@ -25,7 +25,7 @@ use std::path::Path;
 pub use document::{
     is_known_node_type, Blob, Color, ContainerKind, Effect, FigDocument, FigNode, Gradient,
     GradientStop, Guid, ImageEntry, Matrix, Meta, PageInfo, Paint, ParseWarning, Size, Stats,
-    TextData, VectorGeometry,
+    StyleRef, SymbolOverride, TextData, VariableMode, VariableValue, VectorGeometry,
 };
 pub use error::{FigError, Result};
 pub use limits::Limits;

@@ -2,21 +2,24 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-01** (session 5, M3.2–M3.5).
+Last updated: **2026-11-01** (session 6, M3.1–M3.8).
 
 ---
 
 ## 1. Where we are
 
-**Milestone: M3 in progress. M3.1–M3.5 are implemented; M3.1–M3.3 and M3.5 container
-properties are import-verified. M3.4 text metrics are unit-tested but not imported.**
+**Milestone: all M3 waves are implemented. M3.1–M3.3 and M3.5–M3.8 are import-verified;
+M3.4 metrics are unit-tested and carried through a verified typography style. Several
+sub-features remain Partial and are reported at runtime.**
 
-The workspace reads real `.fig` files, converts the M2 subset plus vector geometry,
-gradients, shadows, blur, image fills, text metrics, and flex containers to `.penpot`,
-validates archives structurally, and writes event-based JSON reports. M2–M3.3 and M3.5
-outputs imported into a local **Penpot 2.18.5** stack (`2.18.5-RC1`) with `error?=false`.
-Booleans, editable vector networks, masks, Auto Layout child sizing, styles, components, and
-tokens remain planned.
+The workspace reads real `.fig` files, converts the M2 subset plus vectors, masks, boolean
+fallbacks, gradients, shadows, blur, images, text metrics, flex containers, styles,
+components/variants, and tokens to `.penpot`, validates archives structurally, and writes
+event-based JSON reports. Every M3 wave imported into a local **Penpot 2.18.5** stack
+(`2.18.5-RC1`) with `error?=false`. Remaining Partial items: stroke-only vectors, editable
+network handles, fixed constraints, Auto Layout child sizing, per-paint blend modes, effect
+style linkage, instance swaps/properties, mixed text runs, and variable bindings outside
+painting.
 
 M3.1 acceptance so far:
 
@@ -44,7 +47,22 @@ M3.2–M3.5 acceptance:
 | Text alignment | Done (unverified) | horizontal/vertical strings; unit test only |
 | Line height / letter spacing | Done (unverified) | percent/pixels/raw → ratio/px; unit test only |
 | Auto Layout → flex | Partial | direction/gap/padding/alignment verified; child sizing reported |
-| Grid layout | Planned | not implemented |
+| Grid layout | Not supported / reported | `F2P-LAYOUT-GRID-UNSUPPORTED` |
+
+M3.6–M3.8 acceptance:
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Paint styles | Done | color library entry imported and linked from a fill |
+| Text styles | Done | typography entry imported and linked from text |
+| Effect styles | Partial | effects inlined with `F2P-STYLE-EFFECT-INLINED` |
+| Components | Done | main `Button` registered; Assets shows `Components 3` |
+| Instances + overrides | Partial | subtree materialized; text override rendered; swaps/properties not mapped |
+| Variants | Done | two variants registered in one set and collapsed in Assets |
+| Variables + modes | Partial | COLOR/FLOAT/etc. → token sets; modes → themes; no layout bindings |
+| Design tokens | Done | `tokens.json` imported; `brand.primary` applied to a fill |
+| Masks | Partial | masked group imported; mode reported approximated |
+| Booleans | Partial | rendered path imported; operands not reconstructed |
 
 M2 acceptance remains as recorded below.
 
@@ -97,7 +115,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **60 tests pass** (unit/integration + 1 doctest) |
+| `cargo test --offline --workspace` | **64 tests pass** (unit/integration + 1 doctest) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -113,6 +131,16 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Penpot import image (red) | `17b9706f-02f0-8188-8008-e153dadf0c7c`, `error?=false` |
 | Penpot import auto layout | `17b9706f-02f0-8188-8008-e1588bbf28a8`, `error?=false` |
 | UI inspection (M3.2–M3.5) | gradient/shadow/blur rendered; red image rendered; flex row gap 12, padding 8/20/12/10 |
+| `convert styles.fig` | 3 detected/3 converted; validation passed (19 checks) |
+| `convert components.fig` | 9 detected/9 converted; validation passed (23 checks) |
+| `convert tokens.fig` | 2 detected/2 converted; validation passed (16 checks) |
+| `convert masks-boolean.fig` | 5 detected/3 converted/2 approximated; validation passed (18 checks) |
+| Penpot import styles | `17b9706f-02f0-8188-8008-e15ca6d94f79`, `error?=false` |
+| Penpot import components | `17b9706f-02f0-8188-8008-e15e6267215d`, `error?=false` |
+| Penpot import tokens | `17b9706f-02f0-8188-8008-e16014ec506a`, `error?=false` |
+| Penpot import masks/boolean | `17b9706f-02f0-8188-8008-e16179c815cf`, `error?=false` |
+| UI inspection (M3.6–M3.8) | color/typography libraries and links; 3 components + 2 variants; instance override; Light/Dark tokens and applied `brand.primary`; masked lens + boolean donut |
+| Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
 | CI (M2/M3.1) | run 41329353648: Ubuntu/macOS/Windows success |
 
 Screenshots and exact checks: `docs/MANUAL_QA.md`, `docs/qa/`.
@@ -138,7 +166,11 @@ backend string, not just the tag, in future checks.
   - corner radii r1–r4;
   - text: single paragraph/run, family/style/size, weight, fill, horizontal/vertical
     alignment, line height, letter spacing; auto-height mapping;
-  - Auto Layout → flex direction, gap, padding, wrap, alignment;
+  - Auto Layout → flex direction, gap, padding, wrap, alignment; constraints mapped;
+  - masks → Penpot masked groups; booleans → rendered editable paths with diagnostics;
+  - paint and text styles → library entries; effect styles inlined with a diagnostic;
+  - components, instances with basic overrides, and variant sets;
+  - Figma variables → DTCG token sets/themes; paint variable bindings → `appliedTokens`;
   - unsupported node types, non-solid paints, unknown stroke alignment, empty text/groups,
     stroke-only outlines, and lost vector networks are reported with stable codes.
 - Writer: Penpot 2.18.5/v67 archive, deterministic UUIDs (ADR-0007), manifest last,
@@ -149,9 +181,10 @@ backend string, not just the tag, in future checks.
 
 ## 6. Explicitly not implemented
 
-- Booleans, editable vector networks (handle-level), masks, grid layout, Auto Layout child
-  sizing/constraints, styles, components/instances/variants, tokens.
-- Text: mixed/per-character styles, multiple paragraphs, lists, text styles.
+- Boolean operands/parameters, editable vector networks (handle-level), grid layout, Auto
+  Layout child sizing, per-paint blend modes, effect-style library linkage, grid styles.
+- Conditionally partial: instance swaps/component properties, variables bound to layout or
+  typography, mixed/per-character text styles, multiple paragraphs, lists.
 - Rotation/flip is approximated/reported; not preserved.
 - Locked/blocked, page background.
 - HTML/CSV report export.
@@ -175,16 +208,19 @@ backend string, not just the tag, in future checks.
 
 - **Verified (Penpot 2.18.5-RC1):** M2 pages, frames, groups, rectangles/radii, ellipses,
   solid fills/strokes, basic text, absolute positions, layer hierarchy, CLI convert;
-  M3.1 filled vector paths; M3.2 gradients/shadows/layer+background blur; M3.3 image fills;
-  M3.5 flex direction/gap/padding/alignment.
+  M3.1 filled vector paths, masks, boolean fallback; M3.2 gradients/shadows/layer+background
+  blur; M3.3 image fills; M3.5 flex direction/gap/padding/alignment; M3.6 paint/text styles;
+  M3.7 components/instances/variants; M3.8 tokens and applied fill tokens.
 - **Implemented (unverified):** JSON report/validator beyond the inspected subset; opacity
   node-level; other node types handled by unit tests.
-- **Implemented (unverified):** M3.4 text alignment/line height/letter spacing; radial
-  gradients; inner shadows; JPEG/GIF image sniffing.
-- **Partial:** stroke-only vectors (filled outline), vector network handles, layer order
-  complex cases, hidden/locked, missing fonts, Auto Layout child sizing, rotation.
-- **Planned:** booleans, masks, grid layout, styles, components, tokens, reports UI/exports,
-  GUI, batch.
+- **Implemented (unverified):** M3.4 line-height/letter-spacing numeric values; radial
+  gradients; inner shadows; JPEG/GIF image sniffing; effect-style inlining.
+- **Partial:** stroke-only vectors, vector network handles, booleans (flattened), mask mode,
+  layer order, hidden/locked, missing fonts, Auto Layout child sizing, fixed constraints,
+  per-paint blend modes, instance swaps/properties, variable layout bindings, mixed text
+  runs, rotation.
+- **Not supported / reported:** grid layout, grid styles, procedural effects, lists.
+- **Planned:** reports UI/exports, GUI, batch.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -206,17 +242,22 @@ backend string, not just the tag, in future checks.
    emit `F2P-VECTOR-NETWORK-LOST` when `vectorData` is present.
 10. **Auto Layout child sizing is not mapped.** The container is flex and verified, but child
     grow/fill behavior is reported via `F2P-LAYOUT-PARTIAL`.
-11. **Text metrics have no import evidence yet.** Alignment, line height, and letter spacing
-    are unit-tested only; add a text fixture and import before marking Verified.
+11. **Text metrics are only partly import-verified.** The typography style and linkage
+    imported, but line-height/letter-spacing values were not read back from form fields.
+12. **Effect styles and instance swaps are not fully modeled.** Effects are inlined; swaps
+    and component properties are reported as Partial/unmapped.
+13. **Token modes use duplicate token names across mode sets.** Only the first mode's set is
+    active by default; activating the other theme selects the other set. This is honest but
+    differs from Figma's per-mode override model.
 
 ## 10. Next steps (in order)
 
-1. Commit and push M3.2–M3.5; confirm CI green on Linux/macOS/Windows.
-2. M3.6 styles (paint/text/effect) with a fixture and import.
-3. M3.7 components, instances, and variants with a fixture and import.
-4. M3.8 variables/tokens with an explicit lossy-mapping report.
-5. M3.1 remainder: booleans and editable vector networks (handle-level).
-6. M3.4 follow-up: text-metrics fixture and import; masks; child sizing/constraints.
+1. Commit and push M3.1–M3.8; confirm CI green on Linux/macOS/Windows.
+2. Re-run a real Figma file with components/tokens to validate scale and decode coverage.
+3. Follow-ups: editable vector network handles, boolean operands, grid layout, effect-style
+   linkage, instance swaps/properties, variables bound to layout/typography.
+4. Read back text line-height/letter-spacing in Penpot to upgrade M3.4 to Verified.
+5. Then M4 desktop UI and M5 batch queue.
 
 ## 11. How to resume
 
@@ -253,6 +294,20 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 6 — 2026-11-01
+
+- Decoded Figma styles, style references, symbols/instances, variants, variables, masks,
+  booleans, blend modes, and constraints.
+- Implemented Penpot color/typography libraries and links; effect/grid style diagnostics.
+- Implemented component registration, instance materialization with basic overrides, and
+  variant sets.
+- Implemented variable → DTCG token sets/themes and paint `appliedTokens`.
+- Implemented mask groups and boolean rendered-path fallback.
+- Added `styles.fig`, `components.fig`, `tokens.fig`, `masks-boolean.fig` fixtures with
+  provenance and hashes; 64 tests pass.
+- Imported all four into Penpot 2.18.5; `error?=false`; captured UI evidence.
+- Updated support matrix, issue codes, manual QA, fixtures README, README, and roadmap.
 
 ### Session 5 — 2026-11-01
 

@@ -17,7 +17,7 @@ not change; add a new code instead.
 | `FIG-WARN-NONFINITE` | Warning | A node's size or transform contains NaN or infinity. | Preserve the raw value for diagnostics; do not emit invalid Penpot geometry. | Conversion fail path; explicit fixture pending |
 | `FIG-WARN-CYCLE` | Warning | Some active nodes are not reachable from a root because of a parent cycle or missing links. | Inspect the parent GUIDs; do not recurse indefinitely. | Pending synthetic fixture |
 
-## Conversion events (M2–M3.5)
+## Conversion events (M2–M3.8)
 
 | Code | Severity | Outcome | Meaning | Test |
 |---|---|---|---|---|
@@ -35,6 +35,17 @@ not change; add a new code instead.
 | `F2P-EFFECT-UNSUPPORTED` | Warning | Converted with modification | A Figma effect type has no Penpot mapping and was skipped. | `map_effects` unit path; fixture pending |
 | `F2P-EFFECT-DUPLICATE` | Warning | Converted with modification | More than one layer or background blur was present; Penpot keeps one of each. | Unit path; fixture pending |
 | `F2P-LAYOUT-PARTIAL` | Warning | Converted with modification | Auto Layout was mapped to Penpot flex, but child grow/fill sizing was not preserved. | `auto_layout_maps_to_flex_container` |
+| `F2P-LAYOUT-GRID-UNSUPPORTED` | Warning | Converted with modification | A Figma grid stack container was kept without its layout. | Unit path; fixture pending |
+| `F2P-MASK-APPROXIMATED` | Warning | Converted with modification | A Figma mask became a Penpot masked group; the mask mode is not preserved. | `masks_and_booleans_are_reported_and_rendered` |
+| `F2P-MASK-NO-TARGET` | Warning | Converted with modification | A mask had no following siblings to mask. | Unit path; fixture pending |
+| `F2P-BOOLEAN-FLATTENED` | Warning | Converted with modification | A boolean operation became editable rendered paths or flattened children; operands are not reconstructed. | `masks_and_booleans_are_reported_and_rendered` |
+| `F2P-BLEND-MODE-LOST` | Warning | Converted with modification | A node or paint blend mode had no exact Penpot equivalent. | Unit path; fixture pending |
+| `F2P-CONSTRAINT-APPROXIMATED` | Warning | Converted with modification | A fixed-size Figma constraint was mapped to the closest min/max constraint. | Unit path; fixture pending |
+| `F2P-STYLE-EFFECT-INLINED` | Warning | Converted with modification | A shared effect style was copied onto the shape instead of linked. | `styles_are_registered_and_linked` (effect path unit-tested) |
+| `F2P-STYLE-GRID-LOST` | Warning | Converted with modification | A shared grid style was not converted. | Unit path; fixture pending |
+| `F2P-INSTANCE-DETACHED` | Warning | Converted with modification | An instance referenced a symbol that could not be materialized. | Unit path; fixture pending |
+| `F2P-INSTANCE-OVERRIDE-LOST` | Warning | Converted with modification | An instance override path did not match a main-component shape. | Unit path; fixture pending |
+| `F2P-TEXT-MIXED-STYLES-LOST` | Warning | Converted with modification | Mixed per-character styles were flattened to the base run. | Unit path; fixture pending |
 | `F2P-VECTOR-EMPTY` | Warning | Unsupported | A vector node had no fill or stroke geometry blobs. | Pending explicit fixture |
 | `F2P-VECTOR-FAILED` | Error | Failed | A vector blob index or command stream was invalid. | Pending explicit fixture |
 | `F2P-TEXT-EMPTY` | Warning | Skipped | A text node had no usable characters and was skipped. | `empty_text_is_skipped` |

@@ -27,11 +27,16 @@ here.
 | `effects-gradient.fig` | `2b25cda8f65410f73558c558f7f50d390e15dd3fd7d8c393aca52425ddf20dbc` | **Synthetic**, project-owned: linear gradient, drop shadow, layer blur, background blur |
 | `image.fig` | `34abf1459abbd0bcb2a07f82506cf741bf8172af804d0a862106f448c23c157c` | **Synthetic**, project-owned: 8×8 PNG image fill |
 | `auto-layout.fig` | `93547f3365b3566e64f7d02184bd23e6eef4ccccfe8013f83b76773970b7cc8a` | **Synthetic**, project-owned: horizontal flex, asymmetric padding, gap, alignment |
+| `styles.fig` | `b3dd2e4a24b550f32db750d8bbef0ae40513c929bc78e925bbfb2d86e18c122d` | **Synthetic**, project-owned: paint and text styles linked from a page shape |
+| `components.fig` | `61e72e4c520b4e0b00aa523eca16c6b84ee3308aeae7cbe5ebd8f7385043e678` | **Synthetic**, project-owned: main symbol, instance with text override, two-variant set |
+| `tokens.fig` | `5ac1bee67a5b785e4ff3c2860b49dc0398e28a83fc6d9a47f821f0a5ea38e1c2` | **Synthetic**, project-owned: color and number variables in Light/Dark modes, variable-bound fill |
+| `masks-boolean.fig` | `24ce23ede95696a3bde1c9dfca4315dd8746b38dc33aa9d7dfc905e48533794b` | **Synthetic**, project-owned: alpha mask group and flattened subtract boolean path |
 
 The synthetic fixtures were generated with the MIT `openfig-core` encoder from our own node
 definitions. They are not upstream sample data and are licensed under this project's
-MIT/Apache-2.0 terms. They exercise M2 text/groups, M3.2 effects, M3.3 images, and M3.5
-flex layout; their provenance is recorded here so they are never mistaken for real Figma
+MIT/Apache-2.0 terms. They exercise M2 text/groups, M3.1 masks/booleans, M3.2 effects, M3.3
+images, M3.4 text metrics, M3.5 flex layout, M3.6 styles, M3.7 components, and
+M3.8 tokens; their provenance is recorded here so they are never mistaken for real Figma
 exports.
 
 ## Attribution

@@ -109,6 +109,68 @@ pub struct PenpotDocument {
     pub media: Vec<Media>,
     #[serde(skip)]
     pub objects: Vec<MediaObject>,
+    #[serde(skip)]
+    pub colors: Vec<ColorStyle>,
+    #[serde(skip)]
+    pub typographies: Vec<TypographyStyle>,
+    #[serde(skip)]
+    pub components: Vec<ComponentEntry>,
+    /// Full DTCG token document written to `files/<file>/tokens.json`.
+    #[serde(skip)]
+    pub tokens: Option<serde_json::Value>,
+}
+
+/// A Penpot library component (`files/<file>/components/<id>.json`).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ComponentEntry {
+    pub id: Uuid,
+    pub name: String,
+    pub path: String,
+    pub main_instance_id: Uuid,
+    pub main_instance_page: Uuid,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variant_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variant_properties: Option<Vec<VariantProperty>>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct VariantProperty {
+    pub name: String,
+    pub value: String,
+}
+
+/// A Penpot library color style (`files/<file>/colors/<id>.json`).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ColorStyle {
+    pub id: Uuid,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    pub color: String,
+    pub opacity: f64,
+}
+
+/// A Penpot library typography style (`files/<file>/typographies/<id>.json`).
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TypographyStyle {
+    pub id: Uuid,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    pub font_id: String,
+    pub font_family: String,
+    pub font_variant_id: String,
+    pub font_size: String,
+    pub font_weight: String,
+    pub font_style: String,
+    pub line_height: String,
+    pub letter_spacing: String,
+    pub text_transform: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -167,6 +229,10 @@ impl PenpotDocument {
             pages: Vec::new(),
             media: Vec::new(),
             objects: Vec::new(),
+            colors: Vec::new(),
+            typographies: Vec::new(),
+            components: Vec::new(),
+            tokens: None,
         }
     }
 }
@@ -274,6 +340,32 @@ pub struct Shape {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub layout_wrap_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub component_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component_file: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub component_root: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub main_instance: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub shape_ref: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variant_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub variant_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub is_variant_container: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub applied_tokens: Option<std::collections::BTreeMap<String, String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub masked_group: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blend_mode: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub constraints_h: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub constraints_v: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub grow_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proportion: Option<f64>,
@@ -345,6 +437,19 @@ impl Shape {
             layout_align_content: None,
             layout_align_items: None,
             layout_wrap_type: None,
+            component_id: None,
+            component_file: None,
+            component_root: None,
+            main_instance: None,
+            shape_ref: None,
+            variant_id: None,
+            variant_name: None,
+            is_variant_container: None,
+            applied_tokens: None,
+            masked_group: None,
+            blend_mode: None,
+            constraints_h: None,
+            constraints_v: None,
             grow_type: None,
             proportion: None,
             proportion_lock: None,
@@ -480,6 +585,10 @@ pub struct Fill {
     pub fill_color_gradient: Option<GradientFill>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fill_image: Option<ImageFill>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill_color_ref_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fill_color_ref_file: Option<Uuid>,
 }
 
 impl Fill {
@@ -489,6 +598,8 @@ impl Fill {
             fill_opacity: Some(opacity),
             fill_color_gradient: None,
             fill_image: None,
+            fill_color_ref_id: None,
+            fill_color_ref_file: None,
         }
     }
 
@@ -498,6 +609,8 @@ impl Fill {
             fill_opacity: Some(opacity),
             fill_color_gradient: Some(gradient),
             fill_image: None,
+            fill_color_ref_id: None,
+            fill_color_ref_file: None,
         }
     }
 
@@ -507,6 +620,8 @@ impl Fill {
             fill_opacity: Some(opacity),
             fill_color_gradient: None,
             fill_image: Some(image),
+            fill_color_ref_id: None,
+            fill_color_ref_file: None,
         }
     }
 }
@@ -684,6 +799,10 @@ pub struct TextRun {
     pub line_height: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub letter_spacing: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub typography_ref_id: Option<Uuid>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub typography_ref_file: Option<Uuid>,
     pub fills: Vec<Fill>,
 }
 

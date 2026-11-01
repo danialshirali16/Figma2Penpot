@@ -9,16 +9,17 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — M3.2–M3.5 verified in Penpot
+> ## Status: pre-alpha — all M3 fidelity waves implemented and import-checked
 >
-> The Rust workspace reads real `.fig` files and converts the M2 slice plus filled vector
-> paths, gradients, shadows, blur, image fills, text metrics, and flex containers to
-> `.penpot`. It validates the archive and writes an event-based JSON report. M2–M3.3 and
-> M3.5 outputs imported into a local **Penpot 2.18.5** stack and were inspected.
-> **No GUI or batch queue yet**; booleans, editable vector networks, masks, styles,
-> components, and tokens remain planned. Stroke-only vectors and Auto Layout child sizing
-> are reported approximations; text metrics are unit-tested but not import-verified. See
-> [`PROGRESS.md`](PROGRESS.md) and [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
+> The Rust workspace reads real `.fig` files and converts the M2 slice plus vectors, masks,
+> boolean fallbacks, gradients, shadows, blur, image fills, text metrics, flex containers,
+> styles, components/variants, and design tokens to `.penpot`. It validates the archive and
+> writes an event-based JSON report. M2–M3.8 outputs imported into a local **Penpot 2.18.5**
+> stack and were inspected. **No GUI or batch queue yet.** Stroke-only vectors, editable
+> network handles, fixed constraints, Auto Layout child sizing, effect style linkage,
+> instance swaps, mixed text runs, and non-paint variable bindings are documented Partial
+> items with runtime diagnostics. See [`PROGRESS.md`](PROGRESS.md) and
+> [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
 
 ---
 

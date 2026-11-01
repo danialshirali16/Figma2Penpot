@@ -1,9 +1,10 @@
 # Manual QA
 
-Status: **M2 and M3.1–M3.5 imports PASSED** on a local Penpot 2.18.5 stack (backend
+Status: **M2 and M3.1–M3.8 imports PASSED** on a local Penpot 2.18.5 stack (backend
 reports `2.18.5-RC1`), 2026-11-01. The converter outputs imported without errors and the
 features below were inspected in the Penpot UI. Reopen/edit persistence was not tested.
-Text metrics (M3.4) are implemented and unit-tested but have **no import evidence** yet.
+Text line-height/letter-spacing values are unit-tested and carried through the imported
+typography style, but were not independently read from the form fields.
 
 Evidence:
 
@@ -131,7 +132,21 @@ Verified on the same Penpot 2.18.5 stack, 2026-11-01. Fixture:
 | 5 | Deduplication | Identical hashes share one media entry | **Pass (unit)** — registry keyed by hash |
 | 6 | JPEG/GIF dimensions | Sniffed and converted | **Untested** — code path exists, no fixture |
 
-## 5. M3.5 — Auto Layout
+## 5. M3.4 — Text metrics
+
+No separate import; the `styles.fig` text uses the `Heading` typography with line height
+1.5 and letter spacing 2. Screenshot:
+[`docs/qa/text-metrics-inspect.png`](qa/text-metrics-inspect.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Typography link | Text uses `Heading (Inter)` | **Pass** — shown in the text section |
+| 2 | Font family/size | Inter 24 | **Pass (style asset)** — typography asset shows Inter |
+| 3 | Line height | 1.5 | **Untested** — value carried in the style but not read back from the form |
+| 4 | Letter spacing | 2 | **Untested** — value carried in the style but not read back from the form |
+| 5 | Mixed runs | Flattened with a diagnostic | **Pass (unit)** — no mixed-run fixture/import |
+
+## 6. M3.5 — Auto Layout
 
 - Import id: `17b9706f-02f0-8188-8008-e1588bbf28a8`; backend `error?=false`.
 - Screenshots: [`docs/qa/auto-layout-import.png`](qa/auto-layout-import.png),
@@ -149,7 +164,78 @@ Verified on the same Penpot 2.18.5 stack, 2026-11-01. Fixture:
 
 ---
 
-## 6. Future platform checklist (M4/M8)
+## 7. M3.6 — Styles
+
+- Import id: `17b9706f-02f0-8188-8008-e15ca6d94f79`; backend `error?=false`.
+- Screenshots: [`docs/qa/styles-import.png`](qa/styles-import.png),
+  [`docs/qa/styles-assets.png`](qa/styles-assets.png),
+  [`docs/qa/styles-colors-expanded.png`](qa/styles-colors-expanded.png),
+  [`docs/qa/styles-color-primary.png`](qa/styles-color-primary.png),
+  [`docs/qa/styles-rect-inspect.png`](qa/styles-rect-inspect.png),
+  [`docs/qa/styles-text-inspect.png`](qa/styles-text-inspect.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Import | No error | **Pass** — `error?=false` |
+| 2 | Color library | One `Brand/Primary` color | **Pass** — Assets shows `Colors 1`, `Brand > Primary #FF0040` |
+| 3 | Fill linkage | Rect fill shows the style name and a Detach action | **Pass** — `Primary` shown in the fill section |
+| 4 | Typography library | One `Type/Heading` typography | **Pass** — `Typographies 1`, `Heading (Inter)` |
+| 5 | Text linkage | Text run uses the typography | **Pass** — text panel shows `Heading (Inter)` |
+| 6 | Effect styles | Inline effects with a diagnostic | **Pass (unit)** — no effect-style fixture/import |
+| 7 | Grid styles | Reported as lost | **Pass (unit)** — no fixture |
+
+## 8. M3.7 — Components and variants
+
+- Import id: `17b9706f-02f0-8188-8008-e15e6267215d`; backend `error?=false`.
+- Screenshots: [`docs/qa/components-import.png`](qa/components-import.png),
+  [`docs/qa/components-assets.png`](qa/components-assets.png),
+  [`docs/qa/components-assets-expanded.png`](qa/components-assets-expanded.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Import | No error | **Pass** — `error?=false` |
+| 2 | Component library | Three components | **Pass** — Assets shows `Components 3` |
+| 3 | Main component | Registered from the symbol board | **Pass** — `Button` under `Controls` |
+| 4 | Instance | Materialized with the component subtree | **Pass** — blue button rendered inside `Usage` |
+| 5 | Text override | Instance label differs from the main | **Pass** — `Overridden` rendered |
+| 6 | Variant set | Two variants under one set | **Pass** — two thumbnails; `Button Size` variant set |
+| 7 | Instance swaps / component properties | Mapped | **Untested** — not implemented; reported as Partial |
+
+## 9. M3.8 — Variables and tokens
+
+- Import id (final): `17b9706f-02f0-8188-8008-e16014ec506a`; backend `error?=false`.
+- Screenshots: [`docs/qa/tokens-panel.png`](qa/tokens-panel.png),
+  [`docs/qa/tokens-color-expanded.png`](qa/tokens-color-expanded.png),
+  [`docs/qa/tokens2-panel.png`](qa/tokens2-panel.png),
+  [`docs/qa/tokens-rect-inspect.png`](qa/tokens-rect-inspect.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Import | No error | **Pass** — `error?=false` |
+| 2 | Token sets | Light and Dark sets | **Pass** — `Primitives` with `Light`/`Dark` |
+| 3 | Themes | One theme per mode | **Pass** — Light and Dark themes listed |
+| 4 | Mode values | Light `#FF0040`, Dark `#80001A` | **Pass** — Light active shows `#ff0040`; Dark defined in its set |
+| 5 | Applied token | Fill references `brand.primary` | **Pass** — fill shows `Name: brand.primary`, resolved `#ff0040` |
+| 6 | Number token | `space.sm` = 8/12 | **Pass** — `Number 1` in the token panel |
+| 7 | Layout/typography bindings | Applied to shapes | **Untested** — not implemented; reported as Partial |
+
+## 10. M3.1/M3.2 — Masks and booleans
+
+- Import id: `17b9706f-02f0-8188-8008-e16179c815cf`; backend `error?=false`.
+- Screenshot: [`docs/qa/masks-boolean2-import.png`](qa/masks-boolean2-import.png).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Import | No error | **Pass** — `error?=false` |
+| 2 | Mask group | Rect mask clips the ellipse | **Pass** — red lens shape clipped to the circle |
+| 3 | Mask diagnostic | Reported approximation | **Pass** — `F2P-MASK-APPROXIMATED` |
+| 4 | Boolean path | Subtract donut renders | **Pass** — green square with a hole |
+| 5 | Boolean diagnostic | Reported flattening | **Pass** — `F2P-BOOLEAN-FLATTENED` |
+| 6 | Boolean editability | Operands editable | **Untested** — rendered path is editable, operands are not reconstructed |
+
+---
+
+## 11. Future platform checklist (M4/M8)
 
 Not started. To be filled when the desktop app exists:
 

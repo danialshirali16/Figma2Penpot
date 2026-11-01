@@ -1,6 +1,6 @@
 use crate::document::{
-    Blob, Color, Effect, FigNode, Gradient, GradientStop, Guid, Matrix, Paint, Size, TextData,
-    VectorGeometry,
+    Blob, Color, Effect, FigNode, Gradient, GradientStop, Guid, Matrix, Paint, Size, StyleRef,
+    SymbolOverride, TextData, VariableMode, VariableValue, VectorGeometry,
 };
 use crate::error::{FigError, Result};
 use crate::limits::Limits;
@@ -135,6 +135,29 @@ fn decode_node(
         fill_geometry: Vec::new(),
         stroke_geometry: Vec::new(),
         has_vector_network: false,
+        mask: None,
+        boolean_operation: None,
+        blend_mode: None,
+        constraints_h: None,
+        constraints_v: None,
+        style_type: None,
+        style_id_for_fill: None,
+        style_id_for_stroke: None,
+        style_id_for_text: None,
+        style_id_for_effect: None,
+        style_id_for_grid: None,
+        symbol_id: None,
+        symbol_overrides: Vec::new(),
+        override_key: None,
+        is_state_group: None,
+        state_group_properties: Vec::new(),
+        variant_properties: Vec::new(),
+        variable_modes: Vec::new(),
+        variable_set_id: None,
+        variable_resolved_type: None,
+        variable_values: Vec::new(),
+        variable_key: None,
+        description: None,
         stack_mode: None,
         stack_spacing: None,
         stack_counter_spacing: None,
@@ -235,6 +258,89 @@ fn decode_node(
             "effects" => {
                 node.effects = read_effects(cursor, schema, field, limits, 1)?;
             }
+            "mask" => {
+                node.mask = Some(read_bool_field(cursor, field, "mask flag")?);
+            }
+            "booleanOperation" => {
+                node.boolean_operation =
+                    Some(read_enum(cursor, schema, field, "boolean operation")?.1);
+            }
+            "blendMode" => {
+                node.blend_mode = Some(read_enum(cursor, schema, field, "blend mode")?.1);
+            }
+            "constraintsHorizontal" => {
+                node.constraints_h =
+                    Some(read_enum(cursor, schema, field, "horizontal constraint")?.1);
+            }
+            "constraintsVertical" => {
+                node.constraints_v =
+                    Some(read_enum(cursor, schema, field, "vertical constraint")?.1);
+            }
+            "styleType" => {
+                node.style_type = Some(read_enum(cursor, schema, field, "style type")?.1);
+            }
+            "styleIdForFill" => {
+                node.style_id_for_fill = Some(read_style_ref(cursor, schema, field, limits, 1)?);
+            }
+            "styleIdForStrokeFill" => {
+                node.style_id_for_stroke = Some(read_style_ref(cursor, schema, field, limits, 1)?);
+            }
+            "styleIdForText" => {
+                node.style_id_for_text = Some(read_style_ref(cursor, schema, field, limits, 1)?);
+            }
+            "styleIdForEffect" => {
+                node.style_id_for_effect = Some(read_style_ref(cursor, schema, field, limits, 1)?);
+            }
+            "styleIdForGrid" => {
+                node.style_id_for_grid = Some(read_style_ref(cursor, schema, field, limits, 1)?);
+            }
+            "symbolData" => {
+                let (symbol_id, overrides) = read_symbol_data(cursor, schema, field, limits, 1)?;
+                node.symbol_id = Some(symbol_id);
+                node.symbol_overrides = overrides;
+            }
+            "overrideKey" => {
+                node.override_key = Some(read_guid(cursor, schema, field, limits, 1)?);
+            }
+            "isStateGroup" => {
+                node.is_state_group = Some(read_bool_field(cursor, field, "state group flag")?);
+            }
+            "stateGroupPropertyValueOrders" => {
+                node.state_group_properties =
+                    read_state_group_properties(cursor, schema, field, limits, 1)?;
+            }
+            "variantPropSpecs" => {
+                node.variant_properties = read_variant_props(cursor, schema, field, limits, 1)?;
+            }
+            "variableSetModes" => {
+                node.variable_modes = read_variable_modes(cursor, schema, field, limits, 1)?;
+            }
+            "variableSetID" | "variableSetId" => {
+                node.variable_set_id = Some(read_style_ref(cursor, schema, field, limits, 1)?);
+            }
+            "variableResolvedType" => {
+                node.variable_resolved_type =
+                    Some(read_enum(cursor, schema, field, "variable type")?.1);
+            }
+            "variableDataValues" => {
+                node.variable_values = read_variable_values(cursor, schema, field, limits, 1)?;
+            }
+            "key" => {
+                node.variable_key = Some(read_string_field(
+                    cursor,
+                    field,
+                    limits.max_name_bytes,
+                    "node key",
+                )?);
+            }
+            "description" => {
+                node.description = Some(read_string_field(
+                    cursor,
+                    field,
+                    limits.max_name_bytes,
+                    "node description",
+                )?);
+            }
             "stackMode" => {
                 node.stack_mode = Some(read_enum(cursor, schema, field, "stack mode")?.1);
             }
@@ -275,6 +381,37 @@ fn decode_node(
             }
             "stackWrap" => {
                 node.stack_wrap = Some(read_enum(cursor, schema, field, "stack wrap")?.1);
+            }
+            "characterStyleIDs" => {
+                let ids = read_u32_array(cursor, field, limits, "character style ids")?;
+                let mut unique = ids.clone();
+                unique.sort_unstable();
+                unique.dedup();
+                if unique.len() > 1 {
+                    node.text.get_or_insert_with(TextData::default).mixed_styles = true;
+                }
+            }
+            "styleOverrideTable" => {
+                if !field.is_array {
+                    return Err(FigError::Decode(
+                        "styleOverrideTable is not an array".into(),
+                    ));
+                }
+                let count = read_count(cursor, limits.max_array_items, "style override count")?;
+                let def = schema.def(field.type_id as usize).ok_or_else(|| {
+                    FigError::Decode(format!(
+                        "style override type {} does not exist",
+                        field.type_id
+                    ))
+                })?;
+                for _ in 0..count {
+                    read_object(cursor, schema, def, limits, 2, |field, cursor| {
+                        skip_field(cursor, schema, field, limits, 3)
+                    })?;
+                }
+                if count > 0 {
+                    node.text.get_or_insert_with(TextData::default).mixed_styles = true;
+                }
             }
             "textData" => {
                 let text = node.text.get_or_insert_with(TextData::default);
@@ -441,6 +578,13 @@ fn read_paint(
             "image" => {
                 paint.image_hash = read_image_hash(cursor, schema, field, limits, depth + 1)?;
             }
+            "colorVar" => {
+                paint.color_variable_key =
+                    read_variable_alias(cursor, schema, field, limits, depth + 1)?;
+            }
+            "blendMode" => {
+                paint.blend_mode = Some(read_enum(cursor, schema, field, "paint blend mode")?.1);
+            }
             _ => skip_field(cursor, schema, field, limits, depth + 1)?,
         }
         Ok(())
@@ -525,6 +669,518 @@ fn read_image_hash(
         Ok(())
     })?;
     Ok(name.or(hash))
+}
+
+fn read_style_ref(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<StyleRef> {
+    let def = object_def(schema, field, "style reference")?;
+    let mut reference = StyleRef::default();
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "guid" => {
+                reference.guid = Some(read_guid(cursor, schema, field, limits, depth + 1)?);
+            }
+            "assetRef" => {
+                let def = object_def(schema, field, "asset reference")?;
+                read_object(cursor, schema, def, limits, depth + 1, |field, cursor| {
+                    match field.name.as_str() {
+                        "key" => {
+                            reference.asset_key = Some(read_string_field(
+                                cursor,
+                                field,
+                                limits.max_name_bytes,
+                                "asset key",
+                            )?);
+                        }
+                        _ => skip_field(cursor, schema, field, limits, depth + 2)?,
+                    }
+                    Ok(())
+                })?;
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(reference)
+}
+
+fn read_symbol_data(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<(Guid, Vec<SymbolOverride>)> {
+    let def = object_def(schema, field, "symbolData")?;
+    let mut symbol_id = None;
+    let mut overrides = Vec::new();
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "symbolID" => {
+                symbol_id = Some(read_guid(cursor, schema, field, limits, depth + 1)?);
+            }
+            "symbolOverrides" => {
+                if !field.is_array {
+                    return Err(FigError::Decode("symbolOverrides is not an array".into()));
+                }
+                let count = read_count(cursor, limits.max_array_items, "symbol override count")?;
+                let override_def = schema.def(field.type_id as usize).ok_or_else(|| {
+                    FigError::Decode(format!(
+                        "symbol override type {} does not exist",
+                        field.type_id
+                    ))
+                })?;
+                for _ in 0..count {
+                    overrides.push(read_symbol_override(
+                        cursor,
+                        schema,
+                        override_def,
+                        limits,
+                        depth + 1,
+                    )?);
+                }
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok((
+        symbol_id.ok_or_else(|| FigError::Decode("symbolData has no symbolID".into()))?,
+        overrides,
+    ))
+}
+
+fn read_symbol_override(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    def: &Def,
+    limits: &Limits,
+    depth: usize,
+) -> Result<SymbolOverride> {
+    let mut over = SymbolOverride::default();
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "guidPath" => {
+                over.guid_path = read_guid_path(cursor, schema, field, limits, depth + 1)?;
+            }
+            "textData" => {
+                let text_def = object_def(schema, field, "override textData")?;
+                read_object(
+                    cursor,
+                    schema,
+                    text_def,
+                    limits,
+                    depth + 1,
+                    |field, cursor| {
+                        match field.name.as_str() {
+                            "characters" => {
+                                over.characters = Some(read_string_field(
+                                    cursor,
+                                    field,
+                                    limits.max_text_bytes,
+                                    "override characters",
+                                )?);
+                            }
+                            _ => skip_field(cursor, schema, field, limits, depth + 2)?,
+                        }
+                        Ok(())
+                    },
+                )?;
+            }
+            "fillPaints" => {
+                over.fills = read_paints(cursor, schema, field, limits, depth + 1)?;
+            }
+            "size" => {
+                over.size = Some(read_size(cursor, schema, field, limits, depth + 1)?);
+            }
+            "visible" => {
+                over.visible = Some(read_bool_field(cursor, field, "override visible flag")?);
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(over)
+}
+
+fn read_guid_path(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<Guid>> {
+    let def = object_def(schema, field, "guidPath")?;
+    let mut guids = Vec::new();
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "guids" => {
+                if !field.is_array {
+                    return Err(FigError::Decode("guidPath.guids is not an array".into()));
+                }
+                let count = read_count(cursor, limits.max_array_items, "guid path length")?;
+                let guid_def = schema.def(field.type_id as usize).ok_or_else(|| {
+                    FigError::Decode(format!("guid type {} does not exist", field.type_id))
+                })?;
+                for _ in 0..count {
+                    guids.push(read_object_guid(
+                        cursor,
+                        schema,
+                        guid_def,
+                        limits,
+                        depth + 1,
+                    )?);
+                }
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(guids)
+}
+
+fn read_object_guid(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    def: &Def,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Guid> {
+    let mut session_id = None;
+    let mut local_id = None;
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "sessionID" => {
+                session_id = Some(read_u32_field(cursor, field, "guid.sessionID")?);
+            }
+            "localID" => {
+                local_id = Some(read_u32_field(cursor, field, "guid.localID")?);
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(Guid::new(
+        session_id.ok_or_else(|| FigError::Decode("guid has no sessionID".into()))?,
+        local_id.ok_or_else(|| FigError::Decode("guid has no localID".into()))?,
+    ))
+}
+
+fn read_state_group_properties(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<String>> {
+    if !field.is_array {
+        return Err(FigError::Decode(
+            "stateGroupPropertyValueOrders is not an array".into(),
+        ));
+    }
+    let count = read_count(cursor, limits.max_array_items, "state group property count")?;
+    let def = schema.def(field.type_id as usize).ok_or_else(|| {
+        FigError::Decode(format!(
+            "state group property type {} does not exist",
+            field.type_id
+        ))
+    })?;
+    let mut names = Vec::new();
+    for _ in 0..count {
+        read_object(cursor, schema, def, limits, depth, |field, cursor| {
+            match field.name.as_str() {
+                "property" => {
+                    names.push(read_string_field(
+                        cursor,
+                        field,
+                        limits.max_name_bytes,
+                        "state group property",
+                    )?);
+                }
+                _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+            }
+            Ok(())
+        })?;
+    }
+    Ok(names)
+}
+
+fn read_variant_props(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<(String, String)>> {
+    if !field.is_array {
+        return Err(FigError::Decode("variantPropSpecs is not an array".into()));
+    }
+    let count = read_count(cursor, limits.max_array_items, "variant property count")?;
+    let def = schema.def(field.type_id as usize).ok_or_else(|| {
+        FigError::Decode(format!(
+            "variant property type {} does not exist",
+            field.type_id
+        ))
+    })?;
+    let mut props = Vec::new();
+    for _ in 0..count {
+        let mut value = None;
+        read_object(cursor, schema, def, limits, depth, |field, cursor| {
+            match field.name.as_str() {
+                "value" => {
+                    value = Some(read_string_field(
+                        cursor,
+                        field,
+                        limits.max_name_bytes,
+                        "variant property value",
+                    )?);
+                }
+                _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+            }
+            Ok(())
+        })?;
+        props.push((
+            String::new(),
+            value.ok_or_else(|| FigError::Decode("variant property has no value".into()))?,
+        ));
+    }
+    Ok(props)
+}
+
+fn read_variable_modes(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<VariableMode>> {
+    if !field.is_array {
+        return Err(FigError::Decode("variableSetModes is not an array".into()));
+    }
+    let count = read_count(cursor, limits.max_array_items, "variable mode count")?;
+    let def = schema.def(field.type_id as usize).ok_or_else(|| {
+        FigError::Decode(format!(
+            "variable mode type {} does not exist",
+            field.type_id
+        ))
+    })?;
+    let mut modes = Vec::new();
+    for _ in 0..count {
+        let mut id = None;
+        let mut name = None;
+        read_object(cursor, schema, def, limits, depth, |field, cursor| {
+            match field.name.as_str() {
+                "id" => id = Some(read_guid(cursor, schema, field, limits, depth + 1)?),
+                "name" => {
+                    name = Some(read_string_field(
+                        cursor,
+                        field,
+                        limits.max_name_bytes,
+                        "variable mode name",
+                    )?);
+                }
+                _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+            }
+            Ok(())
+        })?;
+        modes.push(VariableMode {
+            id: id.ok_or_else(|| FigError::Decode("variable mode has no id".into()))?,
+            name: name.ok_or_else(|| FigError::Decode("variable mode has no name".into()))?,
+        });
+    }
+    Ok(modes)
+}
+
+fn read_variable_values(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Vec<VariableValue>> {
+    let def = object_def(schema, field, "variableDataValues")?;
+    let mut values = Vec::new();
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "entries" => {
+                if !field.is_array {
+                    return Err(FigError::Decode(
+                        "variableDataValues.entries is not an array".into(),
+                    ));
+                }
+                let count = read_count(cursor, limits.max_array_items, "variable value count")?;
+                let entry_def = schema.def(field.type_id as usize).ok_or_else(|| {
+                    FigError::Decode(format!(
+                        "variable value type {} does not exist",
+                        field.type_id
+                    ))
+                })?;
+                for _ in 0..count {
+                    values.push(read_variable_value(
+                        cursor,
+                        schema,
+                        entry_def,
+                        limits,
+                        depth + 1,
+                    )?);
+                }
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(values)
+}
+
+fn read_variable_value(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    def: &Def,
+    limits: &Limits,
+    depth: usize,
+) -> Result<VariableValue> {
+    let mut mode_id = None;
+    let mut value = VariableValue {
+        mode_id: Guid::ZERO,
+        kind: String::new(),
+        color: None,
+        alias_key: None,
+        number: None,
+        text: None,
+        boolean: None,
+    };
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "modeID" => {
+                mode_id = Some(read_guid(cursor, schema, field, limits, depth + 1)?);
+            }
+            "variableData" => {
+                let data_def = object_def(schema, field, "variableData")?;
+                read_object(
+                    cursor,
+                    schema,
+                    data_def,
+                    limits,
+                    depth + 1,
+                    |field, cursor| {
+                        match field.name.as_str() {
+                            "value" => {
+                                read_variable_any_value(
+                                    cursor,
+                                    schema,
+                                    field,
+                                    limits,
+                                    depth + 2,
+                                    &mut value,
+                                )?;
+                            }
+                            "dataType" | "resolvedDataType" => {
+                                let (_, name) =
+                                    read_enum(cursor, schema, field, "variable data type")?;
+                                if value.kind.is_empty() {
+                                    value.kind = name;
+                                }
+                            }
+                            _ => skip_field(cursor, schema, field, limits, depth + 2)?,
+                        }
+                        Ok(())
+                    },
+                )?;
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    value.mode_id =
+        mode_id.ok_or_else(|| FigError::Decode("variable value has no modeID".into()))?;
+    Ok(value)
+}
+
+fn read_variable_any_value(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+    value: &mut VariableValue,
+) -> Result<()> {
+    let def = object_def(schema, field, "variable any value")?;
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "boolValue" => {
+                value.boolean = Some(read_bool_field(cursor, field, "variable boolean")?);
+            }
+            "textValue" => {
+                value.text = Some(read_string_field(
+                    cursor,
+                    field,
+                    limits.max_text_bytes,
+                    "variable text",
+                )?);
+            }
+            "floatValue" => {
+                value.number = Some(read_f32_field(cursor, field, "variable number")?);
+            }
+            "colorValue" => {
+                value.color = Some(read_color(cursor, schema, field, limits, depth + 1)?);
+            }
+            "alias" => {
+                let reference = read_style_ref(cursor, schema, field, limits, depth + 1)?;
+                value.alias_key = reference
+                    .asset_key
+                    .or_else(|| reference.guid.map(|guid| format!("{guid}")));
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(())
+}
+
+fn read_variable_alias(
+    cursor: &mut Cursor<'_>,
+    schema: &Schema,
+    field: &Field,
+    limits: &Limits,
+    depth: usize,
+) -> Result<Option<String>> {
+    let def = object_def(schema, field, "colorVar")?;
+    let mut key = None;
+    read_object(cursor, schema, def, limits, depth, |field, cursor| {
+        match field.name.as_str() {
+            "value" => {
+                let value_def = object_def(schema, field, "colorVar value")?;
+                read_object(
+                    cursor,
+                    schema,
+                    value_def,
+                    limits,
+                    depth + 1,
+                    |field, cursor| {
+                        match field.name.as_str() {
+                            "alias" => {
+                                let reference =
+                                    read_style_ref(cursor, schema, field, limits, depth + 2)?;
+                                key = reference
+                                    .asset_key
+                                    .or_else(|| reference.guid.map(|guid| format!("{guid}")));
+                            }
+                            _ => skip_field(cursor, schema, field, limits, depth + 2)?,
+                        }
+                        Ok(())
+                    },
+                )?;
+            }
+            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+        }
+        Ok(())
+    })?;
+    Ok(key)
 }
 
 fn read_effects(
@@ -812,6 +1468,23 @@ fn read_transform(
         m11: values[4],
         m12: values[5],
     })
+}
+
+fn read_u32_array(
+    cursor: &mut Cursor<'_>,
+    field: &Field,
+    limits: &Limits,
+    what: &str,
+) -> Result<Vec<u32>> {
+    if !field.is_array {
+        return Err(FigError::Decode(format!("{what} is not an array")));
+    }
+    let count = read_count(cursor, limits.max_array_items, what)?;
+    let mut values = Vec::with_capacity(count.min(1024));
+    for _ in 0..count {
+        values.push(read_u32_field(cursor, field, what)?);
+    }
+    Ok(values)
 }
 
 fn read_guid(

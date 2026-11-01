@@ -535,10 +535,14 @@ index, duplicate GUIDs.
 - Full node-type coverage across Figma versions; the list is empirical.
 - Whether raw `GROUP` still occurs, and whether `resizeToFit` is the only group
   discriminator.
-- Complete override semantics and variant matching rules.
-- All variable consumption fields and how modes should map to Penpot themes.
-- Exact behavior for boolean operations whose child geometry is only cached.
-- Text list formatting, paragraph spacing, and per-character style details.
+- Complete override semantics and variant matching rules (basic text/fill/size/visibility
+  overrides are mapped; swaps and component properties are not).
+- All variable consumption fields; color/number/string/boolean variables and paint aliases
+  are mapped, layout/typography bindings are not.
+- Exact behavior for boolean operations whose child geometry is only cached (rendered
+  geometry is used when present).
+- Text list formatting, paragraph spacing, and per-character style details (mixed runs are
+  detected and reported as lost).
 - Whether Figma's embedded schema ever includes fields our chosen Kiwi crate cannot decode
   (e.g. newer native types).
 - Maximum real-world file sizes and schema definition counts; the 550-definition sample is

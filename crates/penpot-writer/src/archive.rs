@@ -97,6 +97,42 @@ pub fn build_archive(document: &PenpotDocument) -> Result<Vec<u8>, WriteError> {
         }
     }
 
+    for color in &document.colors {
+        write_json(
+            &mut writer,
+            options,
+            &format!("files/{file_id}/colors/{}.json", color.id),
+            color,
+        )?;
+    }
+
+    for typography in &document.typographies {
+        write_json(
+            &mut writer,
+            options,
+            &format!("files/{file_id}/typographies/{}.json", typography.id),
+            typography,
+        )?;
+    }
+
+    for component in &document.components {
+        write_json(
+            &mut writer,
+            options,
+            &format!("files/{file_id}/components/{}.json", component.id),
+            component,
+        )?;
+    }
+
+    if let Some(tokens) = &document.tokens {
+        write_json(
+            &mut writer,
+            options,
+            &format!("files/{file_id}/tokens.json"),
+            tokens,
+        )?;
+    }
+
     for media in &document.media {
         write_json(
             &mut writer,

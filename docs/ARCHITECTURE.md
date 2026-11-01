@@ -1,8 +1,9 @@
 # Architecture
 
-Status: M0 design baseline; updated at M3.1. The reader, M2 converter, vector-path
-expansion, `.penpot` writer, structural validator, JSON report, and CLI are implemented.
-The GUI, batch queue, HTML/CSV export, and fidelity beyond M3.1 are not.
+Status: M0 design baseline; updated at M3.8. The reader, M2 converter, vector-path
+expansion, gradients/effects, image media, text metrics, flex layout, styles,
+components/variants, tokens, `.penpot` writer, structural validator, JSON report, and CLI
+are implemented. The GUI, batch queue, and HTML/CSV export are not.
 
 This document describes the intended Rust system, what was learned from the upstream
 projects, and why the implementation is a reimplementation rather than a port.
@@ -440,9 +441,9 @@ Golden policy:
    limits, fuzz target, `inspect` CLI. No conversion yet.
 2. **M2 vertical slice (done locally)**: pages/frames/groups/rectangles/ellipses, solid
    paints, opacity, basic text → writer → validator → JSON report. Real import pending.
-3. **M3 depth**: vectors, effects, images, text, layout, styles, components, tokens, in that
-   order. M3.1 filled vector paths are done and import-verified; each remaining feature gets
-   its own fixture, golden report, and support-matrix row.
+3. **M3 depth (done)**: vectors, masks/booleans, effects, images, text, layout, styles,
+   components/variants, and tokens. Each feature has a fixture, integration test, and
+   support-matrix row; Partial behavior is emitted as a stable diagnostic.
 4. **M4-M6**: UI and batch around the already-tested core; never the other way round.
 5. **M7-M8**: fuzz long runs, large-file corpus, benchmarks, installers.
 

@@ -11,6 +11,7 @@ description = "Figma to Penpot conversion passes and diagnostics"
 conversion-report = { path = "../conversion-report" }
 fig-reader = { path = "../fig-reader" }
 penpot-writer = { path = "../penpot-writer" }
+serde_json.workspace = true
 thiserror.workspace = true
 uuid.workspace = true
 

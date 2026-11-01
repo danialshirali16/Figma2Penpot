@@ -219,6 +219,137 @@ fn archive_has_expected_entries_and_refs() {
 }
 
 #[test]
+fn styles_are_registered_and_linked() {
+    let (_bytes, report, penpot) = run_full("styles.fig");
+    assert_eq!(report.counts.detected, 3);
+    assert_eq!(penpot.colors.len(), 1);
+    assert_eq!(penpot.colors[0].name, "Primary");
+    assert_eq!(penpot.colors[0].path.as_deref(), Some("Brand"));
+    assert_eq!(penpot.typographies.len(), 1);
+    assert_eq!(penpot.typographies[0].name, "Heading");
+    let rect = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Styled Rect")
+        .expect("styled rect");
+    assert_eq!(rect.fills[0].fill_color_ref_id, Some(penpot.colors[0].id));
+    let text = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Styled Text")
+        .expect("styled text");
+    let Some(penpot_writer::Content::Text(content)) = text.content.as_ref() else {
+        panic!("text content");
+    };
+    assert_eq!(
+        content.children[0].children[0].children[0].typography_ref_id,
+        Some(penpot.typographies[0].id)
+    );
+}
+
+#[test]
+fn components_instances_and_variants_are_registered() {
+    let (_bytes, report, penpot) = run_full("components.fig");
+    assert_eq!(report.counts.detected, 9);
+    assert_eq!(penpot.components.len(), 3);
+    let button = penpot
+        .components
+        .iter()
+        .find(|component| component.name == "Button")
+        .expect("button component");
+    let instance = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Button Instance")
+        .expect("instance");
+    assert_eq!(instance.component_id, Some(button.id));
+    assert_eq!(instance.component_root, Some(false));
+    assert_eq!(instance.shape_ref, Some(button.main_instance_id));
+    let label = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Label" && shape.shape_ref.is_some())
+        .expect("instance label");
+    let Some(penpot_writer::Content::Text(content)) = label.content.as_ref() else {
+        panic!("label content");
+    };
+    assert_eq!(
+        content.children[0].children[0].children[0].text,
+        "Overridden"
+    );
+    let variants: Vec<_> = penpot
+        .components
+        .iter()
+        .filter(|component| component.variant_id.is_some())
+        .collect();
+    assert_eq!(variants.len(), 2);
+    assert!(variants
+        .iter()
+        .all(|component| component.variant_properties.as_ref().map(Vec::len) == Some(1)));
+}
+
+#[test]
+fn variables_become_tokens_and_applied_fills() {
+    let (_bytes, report, penpot) = run_full("tokens.fig");
+    assert_eq!(report.counts.detected, 2);
+    let tokens = penpot.tokens.as_ref().expect("tokens document");
+    let tokens = tokens.as_object().expect("token object");
+    assert!(tokens.contains_key("Primitives / Light"));
+    assert!(tokens.contains_key("Primitives / Dark"));
+    assert_eq!(
+        tokens["Primitives / Light"]["brand"]["primary"]["$value"],
+        "#FF0040"
+    );
+    assert_eq!(
+        tokens["Primitives / Dark"]["brand"]["primary"]["$value"],
+        "#80001A"
+    );
+    let rect = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Brand Rect")
+        .expect("token rect");
+    assert_eq!(
+        rect.applied_tokens
+            .as_ref()
+            .and_then(|tokens| tokens.get("fill"))
+            .map(String::as_str),
+        Some("brand.primary")
+    );
+}
+
+#[test]
+fn masks_and_booleans_are_reported_and_rendered() {
+    let (_bytes, report, penpot) = run_full("masks-boolean.fig");
+    assert_eq!(report.counts.detected, 5);
+    assert_eq!(report.counts.approximated, 2);
+    let group = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Mask group")
+        .expect("mask group");
+    assert_eq!(group.masked_group, Some(true));
+    assert_eq!(group.shapes.as_ref().map(Vec::len), Some(3));
+    let boolean = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Boolean Donut")
+        .expect("boolean path");
+    assert!(matches!(
+        boolean.content.as_ref(),
+        Some(penpot_writer::Content::Path(_))
+    ));
+    assert!(report
+        .events
+        .iter()
+        .any(|event| event.code == "F2P-MASK-APPROXIMATED"));
+    assert!(report
+        .events
+        .iter()
+        .any(|event| event.code == "F2P-BOOLEAN-FLATTENED"));
+}
+
+#[test]
 fn vector_report_snapshot() {
     let (_bytes, report, _shapes) = run("OpenFigs.fig");
     let mut value = serde_json::to_value(report).unwrap();

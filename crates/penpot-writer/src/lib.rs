@@ -11,10 +11,11 @@ mod validate;
 
 pub use archive::{build_archive, write_atomic, write_penpot_atomic, WriteError};
 pub use model::{
-    BackgroundBlur, Blur, Content, FileOptions, Fill, GradientFill, GradientStop, ImageFill,
-    LayoutGap, LayoutPadding, Media, MediaObject, PathCommand, PathParams, PenpotDocument,
-    PenpotFile, PenpotPage, Point, Rect, Shadow, ShadowColor, Shape, ShapeType, Stroke, SvgAttrs,
-    TextContent, TextParagraph, TextParagraphSet, TextRun, Transform, FEATURES, MIGRATIONS,
-    PENPOT_FILE_VERSION, PENPOT_MANIFEST_VERSION, TARGET_PENPOT,
+    BackgroundBlur, Blur, ColorStyle, ComponentEntry, Content, FileOptions, Fill, GradientFill,
+    GradientStop, ImageFill, LayoutGap, LayoutPadding, Media, MediaObject, PathCommand, PathParams,
+    PenpotDocument, PenpotFile, PenpotPage, Point, Rect, Shadow, ShadowColor, Shape, ShapeType,
+    Stroke, SvgAttrs, TextContent, TextParagraph, TextParagraphSet, TextRun, Transform,
+    TypographyStyle, VariantProperty, FEATURES, MIGRATIONS, PENPOT_FILE_VERSION,
+    PENPOT_MANIFEST_VERSION, TARGET_PENPOT,
 };
 pub use validate::{validate_archive, ValidationError, ValidationReport};

@@ -141,6 +141,9 @@ pub struct Paint {
     pub visible: bool,
     pub gradient: Option<Gradient>,
     pub image_hash: Option<String>,
+    /// Asset key of the Figma variable bound to this paint's color.
+    pub color_variable_key: Option<String>,
+    pub blend_mode: Option<String>,
 }
 
 impl Default for Paint {
@@ -152,6 +155,8 @@ impl Default for Paint {
             visible: true,
             gradient: None,
             image_hash: None,
+            color_variable_key: None,
+            blend_mode: None,
         }
     }
 }
@@ -168,6 +173,42 @@ pub struct Effect {
     pub visible: bool,
 }
 
+/// A reference to a shared style: either a local GUID or a library asset key.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct StyleRef {
+    pub guid: Option<Guid>,
+    pub asset_key: Option<String>,
+}
+
+/// One mode declared by a Figma variable collection.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct VariableMode {
+    pub id: Guid,
+    pub name: String,
+}
+
+/// One mode-specific value of a Figma variable.
+#[derive(Debug, Clone, PartialEq)]
+pub struct VariableValue {
+    pub mode_id: Guid,
+    pub kind: String,
+    pub color: Option<Color>,
+    pub alias_key: Option<String>,
+    pub number: Option<f32>,
+    pub text: Option<String>,
+    pub boolean: Option<bool>,
+}
+
+/// One instance override addressed by a path of GUIDs.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct SymbolOverride {
+    pub guid_path: Vec<Guid>,
+    pub characters: Option<String>,
+    pub fills: Vec<Paint>,
+    pub size: Option<Size>,
+    pub visible: Option<bool>,
+}
+
 /// Basic text attributes extracted for M2.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct TextData {
@@ -182,6 +223,7 @@ pub struct TextData {
     pub line_height_units: Option<String>,
     pub letter_spacing_value: Option<f32>,
     pub letter_spacing_units: Option<String>,
+    pub mixed_styles: bool,
 }
 
 /// A path geometry entry referencing a blob index in the decoded message.
@@ -222,6 +264,35 @@ pub struct FigNode {
     pub fill_geometry: Vec<VectorGeometry>,
     pub stroke_geometry: Vec<VectorGeometry>,
     pub has_vector_network: bool,
+    pub mask: Option<bool>,
+    pub boolean_operation: Option<String>,
+    pub blend_mode: Option<String>,
+    pub constraints_h: Option<String>,
+    pub constraints_v: Option<String>,
+    /// Style master type when this node is a Figma style definition.
+    pub style_type: Option<String>,
+    pub style_id_for_fill: Option<StyleRef>,
+    pub style_id_for_stroke: Option<StyleRef>,
+    pub style_id_for_text: Option<StyleRef>,
+    pub style_id_for_effect: Option<StyleRef>,
+    pub style_id_for_grid: Option<StyleRef>,
+    /// Instance link: the SYMBOL this INSTANCE points at.
+    pub symbol_id: Option<Guid>,
+    pub symbol_overrides: Vec<SymbolOverride>,
+    /// Stable key bridging imported library copies to their originals.
+    pub override_key: Option<Guid>,
+    /// Component set (Figma "state group") container flag.
+    pub is_state_group: Option<bool>,
+    pub state_group_properties: Vec<String>,
+    pub variant_properties: Vec<(String, String)>,
+    /// Variable collection metadata for VARIABLE_SET nodes.
+    pub variable_modes: Vec<VariableMode>,
+    /// Variable fields for VARIABLE nodes.
+    pub variable_set_id: Option<StyleRef>,
+    pub variable_resolved_type: Option<String>,
+    pub variable_values: Vec<VariableValue>,
+    pub variable_key: Option<String>,
+    pub description: Option<String>,
     pub stack_mode: Option<String>,
     pub stack_spacing: Option<f32>,
     pub stack_counter_spacing: Option<f32>,
