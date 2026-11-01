@@ -32,7 +32,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 | M0 | Research and legal baseline | Format, architecture, and license documents exist with citations and explicit unknowns | **Done** — see `PROGRESS.md` |
 | M1 | Workspace and `.fig` reading | `f2p-cli inspect` prints verified metadata for ≥3 fixtures; malformed inputs error without panicking | **Done** — see `PROGRESS.md` |
 | M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Done** — verified in Penpot |
-| M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **In progress** — 3.1 vector paths verified |
+| M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Done with Partial items** — all eight waves implemented; see `PROGRESS.md` |
 | M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **Planned** |
 | M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **Planned** |
 | M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **Planned** |
@@ -46,8 +46,8 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 **Status: Done (2026-11-01).** Evidence is recorded in `PROGRESS.md`. The deliverables are
 `docs/ARCHITECTURE.md`, `docs/FIG_FORMAT.md`, `docs/PENPOT_FORMAT.md`,
 `docs/LICENSE_ASSESSMENT.md`, `docs/RISKS.md`, `docs/DEV_ENVIRONMENT.md`,
-`docs/RESEARCH_SOURCES.md`, and ADRs 0001–0005. Real Penpot import and all product features
-remain **pending**/**Planned**.
+`docs/RESEARCH_SOURCES.md`, and ADRs 0001–0008. Real Penpot import was pending at M0;
+it is now verified for M2–M3.8 in `PROGRESS.md`.
 
 **Goal.** Replace assumptions with cited facts, and settle what may legally be built upon.
 
@@ -81,7 +81,7 @@ whole project under an incompatible license.
 (550/627-definition schemas, ZIP and raw forms); 29 unit/integration tests and a doctest
 pass; hostile inputs return typed errors; the fuzz target ran 829,577 executions without a
 crash; CI is green on Linux, macOS, and Windows. Evidence is in `PROGRESS.md`. Conversion
-remains unimplemented.
+was out of scope for M1 and is now implemented through M3.
 
 **Goal.** Open real files safely and print only what is actually known.
 
@@ -176,9 +176,9 @@ report → `docs/SUPPORT_MATRIX.md` row → evidence in `PROGRESS.md`.
 a test asserting its issue code, and the support matrix reflects reality. A wave may ship
 as **Partial**; it may not ship as **Verified** without a Penpot import.
 
-**Dependency note:** 3.7 and 3.8 depend on decisions from M0 about Penpot's component and
-token model. If that model is not fully understood, the wave is deferred rather than
-guessed.
+**Dependency note:** the Penpot component and token models were implemented in 3.7 and 3.8.
+Remaining gaps are listed as Partial in `docs/SUPPORT_MATRIX.md`; they are not silently
+treated as complete.
 
 ---
 
