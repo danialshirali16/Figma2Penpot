@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-02** (session 10, M7 reliability).
+Last updated: **2026-11-02** (session 11, M7 baseline).
 
 ---
 
@@ -117,8 +117,8 @@ M7.1 acceptance so far:
 | Fixture benchmarks | Done | 10 fixtures, 0.01–0.03 s, 5.3–6.2 MB peak RSS |
 | Large-file benchmark | Partial | 4,629-node file: 1.09 s, 226 MB peak RSS, validation passed |
 | Batch memory | Done | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |
-| Regression baseline | Planned | no checked-in timing/memory baseline |
-| Error recovery drills | Partial | atomic writes and batch isolation covered; low-disk/short-write/cancel-mid-write pending |
+| Regression baseline | Done | `tests/benchmarks/baseline.json`; all fixtures checked for counts/status/validation |
+| Error recovery drills | Partial | atomic write failure + temp cleanup, overwrite refusal, batch isolation; low-disk/cancel-mid-write pending |
 
 M2 acceptance remains as recorded below.
 
@@ -171,7 +171,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **92 tests pass** (68 core/CLI + 4 queue + 20 desktop) |
+| `cargo test --offline --workspace` | **95 tests pass** (71 core/CLI + 4 queue + 20 desktop) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -199,7 +199,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
 | Desktop headless tests | 20 state/worker/UI tests, including a real fixture conversion |
-| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 92 tests pass |
+| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 95 tests pass |
 | CI for M4.1–M5 | run 41347094495: Ubuntu/macOS/Windows success, including queue and desktop |
 | CI for M6.1 | run 41349015729: Ubuntu/macOS/Windows success |
 | CI for M7.1 | run 41349735081: Ubuntu/macOS/Windows success |
@@ -369,6 +369,14 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Started Penpot 2.18.5 via Docker, imported both outputs, inspected UI, captured
   screenshots; backend logged `error?=false`. Stopped the stack.
 - Recorded ADR-0007/0008 and updated docs.
+
+### Session 11 — 2026-11-02
+
+- Added a checked-in conversion baseline (`tests/benchmarks/baseline.json`) and a CLI
+  integration test that re-converts all 10 fixtures and asserts counts, status, validation.
+- Added error-recovery tests: atomic write failure cleans temporary files; CLI write failure
+  reports failed status without a partial archive.
+- 95 tests pass; M7 still needs a large corpus and low-disk/cancel-mid-write drills.
 
 ### Session 10 — 2026-11-02
 

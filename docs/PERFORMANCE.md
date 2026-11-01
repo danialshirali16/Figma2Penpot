@@ -16,7 +16,9 @@ Recorded: **2026-11-02**. Re-measure before trusting these numbers on another ma
 
 Method: one run per fixture with `target/release/f2p-cli convert <fixture> --out <tmp> --force`,
 measured with `/usr/bin/time -l`. Times are wall-clock seconds; RSS is maximum resident set
-size. These are not statistically rigorous and are not yet a regression baseline.
+size. These are not statistically rigorous. The checked-in correctness baseline lives in
+`tests/benchmarks/baseline.json`; timing fields there are reference values with a documented
+30% manual tolerance and are not asserted in CI.
 
 | Fixture | Detected nodes | Wall time | Peak RSS | Result |
 |---|---:|---:|---:|---|
@@ -64,11 +66,17 @@ stat::peak_rss_mb: 49
 No crash artifacts were produced (`fuzz/artifacts/read_fig` was empty). This is one
 60-second campaign, not a proof of absence of panics.
 
+## Regression checks
+
+`crates/f2p-cli/tests/baseline.rs` checks every committed fixture against
+`tests/benchmarks/baseline.json`: counts, status, and structural validation. Timing values
+are documented with a 30% wall-time tolerance but are not asserted in CI.
+
 ## Known gaps
 
-- No checked-in regression baseline or tolerance yet.
 - Only one large real-world file has been exercised locally; no large corpus.
-- Low-disk, short-write, and cancellation-during-write paths are not exercised.
+- Low-disk and cancellation-during-write paths are not exercised. A forced write failure
+  (destination is a directory) is now covered and leaves no temporary files.
 - Benchmarks use one run each; noise is unquantified.
 - The local 4,629-node file is not committed (third-party/private input); only aggregate
   numbers are recorded.

@@ -839,6 +839,7 @@ dependencies = [
  "conversion-report",
  "fig-reader",
  "penpot-writer",
+ "serde",
  "serde_json",
 ]
 

@@ -75,6 +75,31 @@ fn rejects_zip_without_manifest() {
 }
 
 #[test]
+fn atomic_write_failure_removes_the_temporary_file() {
+    let dir = std::env::temp_dir().join(format!(
+        "f2p-writer-failure-{}-{}",
+        std::process::id(),
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos()
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let destination = dir.join("out.penpot");
+    std::fs::create_dir(&destination).unwrap();
+    let error = write_atomic(&destination, b"data").unwrap_err();
+    assert!(matches!(error, WriteError::Io { .. }));
+    assert!(destination.is_dir());
+    let leftovers: Vec<_> = std::fs::read_dir(&dir)
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp-"))
+        .collect();
+    assert!(leftovers.is_empty(), "temporary files were not cleaned up");
+    let _ = std::fs::remove_dir_all(dir);
+}
+
+#[test]
 fn atomic_write_replaces_the_destination() {
     let dir = std::env::temp_dir().join(format!(
         "f2p-writer-test-{}-{}",

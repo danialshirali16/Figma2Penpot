@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "machine": "macOS 27.2 arm64, 8 logical cores, 8 GiB",
+  "toolVersion": "0.1.0",
+  "wallTimeTolerancePercent": 30,
+  "note": "Timing values are reference measurements, not asserted in CI. Counts and status are asserted by crates/f2p-cli/tests/baseline.rs.",
+  "fixtures": [
+    {
+      "fixture": "circle.fig",
+      "detected": 2,
+      "converted": 2,
+      "approximated": 0,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed",
+      "wallMs": 30,
+      "peakRssMb": 5.3
+    },
+    {
+      "fixture": "text-group.fig",
+      "detected": 6,
+      "converted": 6,
+      "approximated": 0,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed",
+      "wallMs": 10,
+      "peakRssMb": 5.5
+    },
+    {
+      "fixture": "OpenFigs.fig",
+      "detected": 2,
+      "converted": 1,
+      "approximated": 1,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed_with_warnings",
+      "wallMs": 10,
+      "peakRssMb": 6.2
+    },
+    {
+      "fixture": "effects-gradient.fig",
+      "detected": 2,
+      "converted": 2,
+      "approximated": 0,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed",
+      "wallMs": 10,
+      "peakRssMb": 5.3
+    },
+    {
+      "fixture": "image.fig",
+      "detected": 2,
+      "converted": 2,
+      "approximated": 0,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed",
+      "wallMs": 10,
+      "peakRssMb": 5.3
+    },
+    {
+      "fixture": "auto-layout.fig",
+      "detected": 3,
+      "converted": 2,
+      "approximated": 1,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed_with_warnings",
+      "wallMs": 10,
+      "peakRssMb": 5.5
+    },
+    {
+      "fixture": "styles.fig",
+      "detected": 3,
+      "converted": 3,
+      "approximated": 0,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed",
+      "wallMs": 10,
+      "peakRssMb": 5.4
+    },
+    {
+      "fixture": "components.fig",
+      "detected": 9,
+      "converted": 9,
+      "approximated": 0,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed",
+      "wallMs": 10,
+      "peakRssMb": 5.6
+    },
+    {
+      "fixture": "tokens.fig",
+      "detected": 2,
+      "converted": 2,
+      "approximated": 0,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed",
+      "wallMs": 10,
+      "peakRssMb": 5.3
+    },
+    {
+      "fixture": "masks-boolean.fig",
+      "detected": 5,
+      "converted": 3,
+      "approximated": 2,
+      "skipped": 0,
+      "unsupported": 0,
+      "failed": 0,
+      "status": "completed_with_warnings",
+      "wallMs": 10,
+      "peakRssMb": 5.3
+    }
+  ]
+}

@@ -36,7 +36,7 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 | M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **In progress** — M4.1 shell and worker |
 | M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **In progress** — queue core, CLI batch, desktop Convert all |
 | M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **In progress** — exporters, CLI report, desktop export buttons |
-| M7 | Reliability and performance | Fuzz campaign, large-file corpus, recorded time and peak-memory benchmarks | **In progress** — fuzz + benchmarks recorded; corpus/baseline pending |
+| M7 | Reliability and performance | Fuzz campaign, large-file corpus, recorded time and peak-memory benchmarks | **In progress** — fuzz, benchmarks, baseline; corpus/error drills pending |
 | M8 | Release engineering | Windows and macOS artifacts built in CI, docs and notices complete | **Planned** |
 
 ---
@@ -272,9 +272,9 @@ severity/outcome filters; richer grouping and jump-to-element remain.
 ## M7 — Reliability and performance
 
 **Status: In progress (2026-11-02).** A 60-second fuzz campaign (818,204 executions, no
-artifacts), per-fixture release benchmarks, batch memory measurements, and one 4,629-node
-real file are recorded in `docs/PERFORMANCE.md`. A large corpus, checked-in regression
-baseline, and error-recovery drills remain.
+artifacts), per-fixture release benchmarks, batch memory measurements, one 4,629-node real
+file, and a checked-in conversion baseline are recorded. A large corpus and remaining
+error-recovery drills are pending.
 
 **Work**
 

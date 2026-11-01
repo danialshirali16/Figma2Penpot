@@ -62,6 +62,32 @@ fn convert_writes_archive_and_report() {
 }
 
 #[test]
+fn write_failure_reports_failure_without_a_partial_archive() {
+    let out = temp_dir("write-failure");
+    let archive = out.join("circle.penpot");
+    std::fs::create_dir(&archive).unwrap();
+    let output = run(&[
+        "convert",
+        fixture("circle.fig").to_str().unwrap(),
+        "--out",
+        out.to_str().unwrap(),
+        "--force",
+    ]);
+    assert!(!output.status.success());
+    assert!(archive.is_dir());
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(out.join("circle.report.json")).unwrap()).unwrap();
+    assert_eq!(report["status"], "failed");
+    let leftovers: Vec<_> = std::fs::read_dir(&out)
+        .unwrap()
+        .filter_map(Result::ok)
+        .filter(|entry| entry.file_name().to_string_lossy().contains(".tmp-"))
+        .collect();
+    assert!(leftovers.is_empty(), "temporary files were not cleaned up");
+    let _ = std::fs::remove_dir_all(out);
+}
+
+#[test]
 fn convert_refuses_to_overwrite_without_force() {
     let out = temp_dir("force");
     let source = fixture("circle.fig");
