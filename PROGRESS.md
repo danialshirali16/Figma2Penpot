@@ -469,6 +469,7 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Not verified: native dialogs, drag-and-drop, keyboard-only traversal, screen-reader
   output, Windows/Linux visuals, and cancellation during an in-flight atomic write.
   `cargo deny`/`cargo audit` are not installed.
+- Pushed as `4421884`; CI run 41415820909 passed on Ubuntu, macOS, and Windows.
 
 ### Session 9 — 2026-11-02
 
