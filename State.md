@@ -8,4 +8,6 @@ This file is retained because the original project brief and early documents ref
 
 **Read [`PROGRESS.md`](PROGRESS.md) instead.**
 
-Last updated: 2026-11-01.
+Last reviewed: **2026-11-02**. Source compatibility and verification results are recorded
+in `PROGRESS.md`; the complete document map is in
+[`docs/DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md).

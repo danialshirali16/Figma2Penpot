@@ -1,6 +1,6 @@
 # Support Matrix
 
-Last updated: **2026-11-02** (M4.2/M6.2). M2 features, vectors, masks, boolean fallbacks,
+Last updated: **2026-11-02** (session 16 private-file compatibility). M2 features, vectors, masks, boolean fallbacks,
 gradients, shadows, blur, images, text metrics, flex containers, styles, components,
 variants, and tokens imported successfully into a local Penpot 2.18.5 stack
 (`2.18.5-RC1`) and were inspected in the UI. Stroke-only vectors, Auto Layout child sizing,
@@ -42,7 +42,8 @@ Status vocabulary (no other labels are used):
 | Internal-only canvas exclusion | **Verified** | M2; internal canvas absent |
 | Frames / boards | **Verified** | M2; Card 400×300 at (20,30) |
 | Groups (including frame-encoded groups) | **Verified** | M2; Badge Group with Group Rect child, 80×30 |
-| Sections | Planned | M3 |
+| Sections | **Partial** | Converted to unclipped Penpot boards with children retained; section semantics differ and are reported. Five private-file imports accepted in Penpot 2.18.5-RC1. |
+| Frame clipping | **Implemented (unverified)** | `frameMaskDisabled` maps directly to `showContent`, including supported instance overrides; tested and imported, detailed overlap comparisons pending. |
 | Nested frames and absolute coordinates | **Verified** | M2; ADR-0005; inspector showed relative display for absolute data |
 | Layer order (`parentIndex.position`) | **Partial** | Simple sibling order verified; complex fractional indices not fixture-tested |
 | Hidden/locked layers | **Partial** | Visibility maps to `hidden`; locked/blocked not yet |
@@ -60,7 +61,8 @@ Status vocabulary (no other labels are used):
 | Editable vector networks | **Partial** | M3.1; rendered commands are editable; `vectorData` handle topology is not read and is reported (`F2P-VECTOR-NETWORK-LOST`) |
 | Boolean operations | **Partial** | M3.1; rendered boolean geometry becomes editable paths, operands are not reconstructed (`F2P-BOOLEAN-FLATTENED`) |
 | Rotation and flip | **Partial** | M2 reports rotation/skew as approximated and keeps translation/scale bounds |
-| Constraints and resizing | **Partial** | M3.5; MIN/MAX/STRETCH/CENTER/SCALE map to Penpot constraints; FIXED_MIN/FIXED_MAX are approximated |
+| Constraints and resizing | **Partial** | Constraint identifiers map; FIXED_MIN/FIXED_MAX are approximated. Instance transforms and resized child constraints are not fully recomputed and are explicitly reported. |
+| Unknown container dimensions | **Partial** | When the transform and converted children are finite, derive target bounds from those children and report source dimensions as unknown; otherwise fail the node. |
 
 ## 4. Appearance
 
@@ -69,7 +71,8 @@ Status vocabulary (no other labels are used):
 | Solid fills | **Verified** | M2; red fill and green 50% fill inspected |
 | Solid strokes, width, alignment | **Verified** | M2; red rect black 2 px; circle stroke visible |
 | Gradient fills | **Verified** | M3.2; linear gradient with stops imported and rendered; radial mapped, not fixture-tested |
-| Opacity and blend modes | **Partial** | Fill/node opacity verified; node blend mode maps to Penpot, per-paint blend mode is reported as lost |
+| Opacity and blend modes | **Partial** | Supported node modes map; unsupported linear modes use reported multiply/screen approximations, other unsupported modes use normal; per-paint modes remain partial. Validator rejects invalid target mode names. |
+| Multiple fill/stroke order | **Implemented (unverified)** | Reverse source stacks for Penpot's rendering order; regression-tested and accepted in private imports, comprehensive visual comparisons pending. |
 | Shadows (drop/inner) | **Verified** | M3.2; drop shadow imported and listed; inner shadow mapped, not fixture-tested |
 | Blur (foreground/background) | **Verified** | M3.2; layer blur and background blur imported and listed |
 | Procedural effects (grain, noise, glass, etc.) | Not supported | Reported as `F2P-EFFECT-UNSUPPORTED`; not converted |
@@ -93,13 +96,15 @@ Status vocabulary (no other labels are used):
 | Feature | Status | Notes |
 |---|---|---|
 | Auto Layout → flex | **Partial** | M3.5; direction, gap, padding, and alignment verified in Penpot; child grow/fill sizing and constraints are partial (`F2P-LAYOUT-PARTIAL`) |
+| Token preference propagation | **Partial** | Single-file CLI/desktop honors `keep_token_bindings`; the queue stores the preference but still uses default conversion options. Batch propagation needs a regression test and fix. |
 | Grid layout | Not supported | M3.5; reported as `F2P-LAYOUT-GRID-UNSUPPORTED`; the container is kept without layout |
 | Paint styles | **Verified** | M3.6; color library entry imported and linked from a fill |
 | Text styles | **Verified** | M3.6; typography library entry imported and linked from text |
 | Effect styles | **Partial** | M3.6; effects are inlined onto the shape and reported (`F2P-STYLE-EFFECT-INLINED`); no library linkage |
 | Grid styles | Not supported | M3.6; reported as `F2P-STYLE-GRID-LOST` |
 | Components | **Verified** | M3.7; main component registered and shown in the Assets panel |
-| Instances and overrides | **Partial** | M3.7; instances materialize and basic text/fill/size/visibility overrides apply; swaps and component properties are not mapped |
+| Instances and overrides | **Partial** | Restore required embedded masters on an Imported components page; build dependencies first, resolve nested instance override paths/keys, translate path controls with copied geometry. Properties, swaps, and some attributes remain unmapped and are reported. |
+| Token-name compatibility | **Implemented (unverified)** | Escape unsupported characters, disambiguate collection-local collisions, update converted bindings, and emit `F2P-TOKEN-NAME-NORMALIZED`; tested and accepted in real imports, editing/link behavior pending. |
 | Variants | **Verified** | M3.7; two variants registered under one variant set and collapsed in the Assets panel |
 | Variables / modes | **Partial** | M3.8; color/number/string/boolean variables become token sets; modes become themes; layout/typography bindings are not applied |
 | Design tokens | **Verified** | M3.8; `tokens.json` imported with Light/Dark themes; a fill shows `brand.primary` applied |
@@ -116,7 +121,7 @@ Status vocabulary (no other labels are used):
 | Report screen filters | **Implemented (unverified)** | Search, severity/result, grouping by what-to-do/page/none, copy advice/layer, JSON/HTML/CSV export; canvas jump-to-element pending |
 | Headless CLI | **Verified** | `inspect` + `convert` used for the import |
 | Native desktop UI | **Partial** | Designer-first eight-screen eframe shell; light/dark screenshots at large/compact on macOS 27.2; native dialogs, drag-drop, keyboard-only, and screen-reader checks unverified; Windows/Linux visuals untested |
-| Designer status/issue copy | **Verified** | Every file status, queue state, stage, outcome, severity, validation state, and known issue code maps to designer text; 28 codes tested |
+| Designer status/issue copy | **Verified** | Every file status, queue state, stage, outcome, severity, validation state, and known issue code maps to designer text; 30 codes tested |
 | Single-file pause/cancel | **Implemented (unverified)** | Cooperative checkpoints between stages; cancellation before saving leaves no output; UI screenshots checked |
 | Desktop report export | **Implemented (unverified)** | HTML/CSV/JSON through native save dialogs; exporters tested, dialog interaction not automated |
 | Accessibility | **Partial** | WCAG AA contrast calculated for both palettes; text+icon+colour statuses; keyboard-only and AccessKit/VoiceOver verification pending |
@@ -143,6 +148,8 @@ Status vocabulary (no other labels are used):
 | Large-file corpus | **Partial** | Committed 3,303-node synthetic fixture + one local 4,629-node file; broader corpus pending |
 | Regression baseline | **Verified (counts/status)** | 11 fixtures in `tests/benchmarks/baseline.json` + CLI integration test; timing reference with 30% manual tolerance |
 | Error recovery drills | **Partial** | Atomic write failure + temp cleanup, batch isolation, overwrite refusal tested; low-disk/cancel-mid-write pending |
+| Large output archives | **Implemented (unverified)** | Configurable validator defaults: 300,000 entries, 64 MiB/entry, 512 MiB total. Core expansion/cache limit 250,000 shapes; bounds/cycles are tested. Five private archives imported; exhaustive resource/fuzz coverage pending. |
+| Private-file import compatibility | **Verified** | All five supplied files accepted by Penpot 2.18.5-RC1. Overall fidelity remains **Partial**; reports contain warnings and unsupported outcomes. See `MANUAL_QA.md`. |
 
 ## 9. Non-goals
 

@@ -12,6 +12,8 @@ No third-party source code is bundled in this repository at this time. Runtime
 dependencies and their licenses are listed in THIRD_PARTY_LICENSES.md. Research-only
 upstream projects are documented in docs/LICENSE_ASSESSMENT.md and are not distributed.
 
-If MIT-licensed fixtures from openfig-core are added under tests/fixtures/, their
-copyright notice and the MIT permission text must be reproduced next to them and
-in the generated third-party notices.
+Four MIT-licensed reference fixtures from OpenFig-org/openfig-core are included under
+tests/fixtures/. Their copyright notice, permission text, pinned source, and hashes
+are reproduced in tests/fixtures/README.md. Nine additional synthetic fixtures are
+project-owned. The Inter UI font is bundled under SIL OFL 1.1; its full license is in
+crates/desktop-app/assets/fonts/OFL.txt. See THIRD_PARTY_LICENSES.md for the inventory.

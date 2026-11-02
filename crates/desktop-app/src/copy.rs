@@ -450,6 +450,18 @@ pub fn issue(code: &str) -> IssueCopy {
             "Reapply this change in Penpot.",
             IssueCategory::Review,
         ),
+        "F2P-INSTANCE-ATTRIBUTES-UNSUPPORTED" => (
+            "Some component settings need checking",
+            "Some instance settings have no conversion mapping yet.",
+            "Check these settings against the original design in Penpot.",
+            IssueCategory::Review,
+        ),
+        "F2P-TOKEN-NAME-NORMALIZED" => (
+            "A token name was adjusted",
+            "Penpot needs a different name for this token.",
+            "Use the adjusted name when connecting other designs.",
+            IssueCategory::Review,
+        ),
         "F2P-TEXT-MIXED-STYLES-LOST" => (
             "Mixed text styles were flattened",
             "The text is intact, but per-character styles were reduced to the base style.",
@@ -489,7 +501,7 @@ pub fn issue(code: &str) -> IssueCopy {
     }
 }
 
-pub const KNOWN_ISSUE_CODES: [&str; 28] = [
+pub const KNOWN_ISSUE_CODES: [&str; 30] = [
     "F2P-NODE-CONVERTED",
     "F2P-NODE-APPROXIMATED",
     "F2P-NODE-UNSUPPORTED",
@@ -514,6 +526,8 @@ pub const KNOWN_ISSUE_CODES: [&str; 28] = [
     "F2P-STYLE-GRID-LOST",
     "F2P-INSTANCE-DETACHED",
     "F2P-INSTANCE-OVERRIDE-LOST",
+    "F2P-INSTANCE-ATTRIBUTES-UNSUPPORTED",
+    "F2P-TOKEN-NAME-NORMALIZED",
     "F2P-TEXT-MIXED-STYLES-LOST",
     "F2P-VECTOR-EMPTY",
     "F2P-VECTOR-FAILED",

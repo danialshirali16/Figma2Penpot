@@ -1,8 +1,11 @@
 # Penpot `.penpot` Format — Target Model
 
-Status: M0 research baseline; updated at M2. The M2 writer exists in
-`crates/penpot-writer` and targets the subset in `SUPPORT_MATRIX.md`. It emits a v3 archive
-and runs a structural validator before writing. **Real Penpot import is still pending.**
+Reviewed **2026-11-02** through ADR-0011. The writer emits a v3 archive for Penpot 2.18.5
+(file data version 67), with pages/shapes, media, styles, components/variants, and tokens.
+Structural validation includes bounded archive reads, target blend/token identifiers, and
+finite in-range layout numbers. M2–M3 fixtures and all five private compatibility outputs
+were imported into local Penpot 2.18.5-RC1. Import compatibility is **Verified**; overall
+fidelity remains **Partial**. Full visual comparison and edit/reopen persistence are pending.
 
 Confidence labels are the same as in `docs/FIG_FORMAT.md`: **Confirmed**, **Reported**,
 **Hypothesis**, **Unknown**.
@@ -433,6 +436,13 @@ A structural validator must check, at minimum:
 
 The validator is part of the product, not a test helper: "output validation" is a setting,
 and a failed validation must prevent the temp file from being renamed to the final name.
+
+Session 16 added checks for target blend identifiers, token names (including applied
+bindings), and finite in-range layout gaps/padding. Real imports rejected archives that
+passed the previous checks; regression tests now cover those cases. The configurable
+`ValidationLimits` defaults are 300,000 entries, 64 MiB per entry, and 512 MiB total
+uncompressed data. Limits are enforced before reading entry data. The converter separately
+bounds cached/expanded shapes to 250,000 by default (ADR-0011).
 
 ## 11. Writer strategy
 

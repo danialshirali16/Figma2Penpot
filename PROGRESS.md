@@ -2,7 +2,7 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-02** (session 14, designer UI + report).
+Last updated: **2026-11-02** (session 17, documentation synchronization and GitHub integration).
 
 ---
 
@@ -21,6 +21,18 @@ event-based JSON reports. Every M3 wave imported into a local **Penpot 2.18.5** 
 network handles, fixed constraints, Auto Layout child sizing, per-paint blend modes, effect
 style linkage, instance swaps/properties, mixed text runs, and variable bindings outside
 painting.
+
+Session 16 compatibility result: all five privately supplied files converted with zero
+failed elements and were accepted by local Penpot **2.18.5-RC1**. Import compatibility is
+**Verified**; overall fidelity remains **Partial**, with warnings and unsupported outcomes
+preserved in the reports. Source hashes were recorded and checked for delivery. Private
+inputs/outputs are not fixtures and are not committed. The Rust workspace passes **116 tests**,
+formatting, and Clippy. `cargo-deny`/`cargo-audit` remain unavailable. See ADR-0011 and the
+latest session log; older acceptance tables retain historical evidence.
+
+Current documentation map: `docs/DOCUMENTATION_INDEX.md`. Source compatibility fixes
+postdate published `v0.1.1` artifacts; no replacement release has been published. Batch
+token-preference propagation remains a known source gap (`run_job` uses default options).
 
 M3.1 acceptance so far:
 
@@ -195,6 +207,11 @@ Figma 2 Penpot/
 
 See `docs/DEV_ENVIRONMENT.md`.
 
+The current session is on Windows 11 Pro with PowerShell 7.6.5. Rust/Cargo are not
+available on the host `PATH`. Docker-hosted stable Rust 1.99.1 provided full workspace
+verification: 116 tests, formatting and Clippy passed; five real Penpot imports passed.
+See `docs/DEV_ENVIRONMENT.md` §§9–10. The following facts describe earlier macOS sessions.
+
 - macOS 27.2, arm64, 8 GiB RAM.
 - Rust 1.99.1, no rustup; `cargo-fuzz 0.13.2`.
 - Docker Desktop daemon 29.9.2; Penpot 2.18.5 stack was started, used, and stopped.
@@ -292,9 +309,8 @@ backend string, not just the tag, in future checks.
   typography, mixed/per-character text styles, multiple paragraphs, lists.
 - Rotation/flip is approximated/reported; not preserved.
 - Locked/blocked, page background.
-- HTML/CSV report export.
-- Batch retry/remove controls, mid-write cancellation, memory benchmarks, desktop
-  packaging/installers.
+- Full instance resize/reflow, component property assignments, and instance swaps.
+- Mid-write cancellation; Windows MSI and signing/notarization.
 - Reopen/move/edit persistence verification for documents.
 
 ## 7. Decisions
@@ -310,6 +326,8 @@ backend string, not just the tag, in future checks.
 | 0007 | Deterministic UUIDs from Figma GUIDs |
 | 0008 | Explicit Skipped/Unsupported report outcomes |
 | 0009 | egui/eframe desktop shell, std-thread worker, native dialogs (GTK3 on Linux) |
+| 0010 | Designer-first UI and honest presentation mappings |
+| 0011 | Bounded private-file compatibility fixes and explicit remaining fidelity limits |
 
 ## 8. Verified vs. unverified
 
@@ -327,12 +345,13 @@ backend string, not just the tag, in future checks.
   per-paint blend modes, instance swaps/properties, variable layout bindings, mixed text
   runs, rotation.
 - **Not supported / reported:** grid layout, grid styles, procedural effects, lists.
-- **Partial:** desktop shell (M4.1): all screens and worker exist; native dialog/drag-drop
-  and remaining manual interactions need QA; packaging is pending.
-- **Partial:** M5 batch core and desktop “Convert all”; retry/remove, mid-write cancel, and
-  memory benchmarks pending.
-- **Planned:** jump-to-element (canvas navigation), large-file corpus, signing/notarization,
-  MSI/DMG installers.
+- **Partial:** M4/M6 designer UI: all screens, worker, plain-language reports, grouping,
+  filters and exports exist; native dialogs, drag/drop, accessibility and full platform
+  interactions need QA. Unsigned packaging exists; the new source fixes are unreleased.
+- **Partial:** M5 batch core, retry/remove, and historical memory benchmarks are implemented;
+  mid-write cancellation and batch token-preference propagation remain pending.
+- **Planned:** jump-to-element (canvas navigation), broader redistributable component-heavy
+  corpus, signing/notarization, and Windows MSI. macOS DMG is already implemented.
 - **Not supported:** `.deck`/`.jam`, lists, procedural effects.
 
 ## 9. Known gaps and open questions
@@ -343,12 +362,13 @@ backend string, not just the tag, in future checks.
 3. **Text auto-height changed 40→20**, expected from `HEIGHT`, but should be documented.
 4. **crates.io intermittent.** M2/M3.1 built with `--offline` after dependencies were
    cached; CI still needs network for new crates.
-5. **CI is green at `5a06cc4`** (run 41352461334) on Linux, macOS, and Windows; release
+5. **Historical CI was green at `5a06cc4`** (run 41352461334) on Linux, macOS, and Windows; release
    run 41351622397 published `v0.1.0`; release run 41352464597 published `v0.1.1`
    with a DMG. The Node 20 action annotation remains cosmetic; harden action pinning in M8.
 6. **Docker stack was stopped** after M3.8 imports. Re-run via compose for future imports;
    telemetry off.
-7. **No third-party component/token corpus yet**; fixtures are synthetic and project-owned.
+7. **No redistributable component-heavy real-world corpus yet.** Five private compatibility
+   files were tested locally; committed component/token fixtures remain project-owned.
 8. **`openfig-core` synthetic fixture generated with Node** (research-only); the product
    remains pure Rust and the fixture is project-owned.
 9. **Vector handle metadata is not read.** Paths are command-array geometry; current reports
@@ -365,20 +385,23 @@ backend string, not just the tag, in future checks.
 
 ## 10. Next steps (in order)
 
-1. Commit and push M3.1–M3.8; confirm CI green on Linux/macOS/Windows.
-2. Re-run a real Figma file with components/tokens to validate scale and decode coverage.
-3. Follow-ups: editable vector network handles, boolean operands, grid layout, effect-style
-   linkage, instance swaps/properties, variables bound to layout/typography.
-4. Read back text line-height/letter-spacing in Penpot to upgrade M3.4 to Verified.
-5. Then M4 desktop UI and M5 batch queue.
+1. Fix batch token-preference propagation with an end-to-end regression test.
+2. Implement and diagnose remaining component properties/swaps, resized child layout and
+   transform behavior; continue the documented vector/text/grid/token follow-ups.
+3. Compare every migrated page against Figma; verify component editing and reopening, and
+   read back typography metrics in Penpot before upgrading fidelity claims.
+4. Measure peak RSS and run targeted fuzz cases for expanded components; broaden the
+   redistributable corpus without committing private inputs.
+5. Complete native platform/accessibility QA, license/advisory scans and full notices;
+   align versions and package a new release from its verified commit.
 
 ## 11. How to resume
 
+From this checkout, use a stable Rust environment with the required platform dependencies:
+
 ```bash
-cd "/Users/danial/Downloads/Figma 2 Penpot"
 git status
-cat PROGRESS.md
-cargo test --offline --workspace
+cargo test --offline --locked --workspace
 cargo run -p f2p-cli -- inspect tests/fixtures/circle.fig
 cargo run -p f2p-cli -- convert tests/fixtures/circle.fig --out /tmp/f2p-check --force
 ```
@@ -387,6 +410,82 @@ For a real import, start the Penpot compose stack described in `docs/MANUAL_QA.m
 follow its checklist. Do not trust a status claim without recorded evidence.
 
 ## 12. Session log
+
+### Session 17 — 2026-11-02
+
+- Reviewed the documentation set and synchronized overview, roadmap, architecture, format,
+  support/reporting, environment/QA, privacy, provenance/license, release, UI, and fixture/
+  benchmark guidance with the tested source. Added a complete documentation index.
+- Replaced the stale proposed architecture with the implemented standard-thread/mpsc,
+  materialized conversion pipeline. Corrected obsolete release status, pending-import
+  claims, planned-feature descriptions, and the batch token-preference propagation claim.
+- Regenerated the locked Linux metadata inventory: **221 third-party packages**, all with
+  declared license expressions. This is target-scoped metadata, not a clean compliance
+  scan or full cross-platform license-text bundle. Dependency/lockfile contents are unchanged.
+- Retained historical ADRs, screenshots, goldens, and timing results as dated evidence;
+  no private designs/reports or new fidelity percentages were added to public documentation.
+- Source gates are the recorded **116 passing workspace tests**, formatting and Clippy;
+  documentation link checks cover **40 Markdown files**, **149 local links**, and all
+  **30 converter codes**, with no missing targets or mappings. Diff checks passed. The private delivery
+  checksum/ZIP integrity checks remain valid. `cargo-deny`/`cargo-audit` scans are unverified.
+- Publishing scope: the compatibility implementation/tests and synchronized documentation;
+  private outputs, development helpers, and credentials remain local/ignored. No release
+  version or immutable tag is changed. The user requested push and merge into `main`.
+
+### Session 16 — 2026-11-02
+
+- Parsed all five private files (Figma versions 106/110), recorded source hashes, and ran
+  baseline conversions. Found pruned sections, missing embedded component content, a
+  10,000-entry output ceiling, empty fill caches hiding stroke outlines, and invalid numbers.
+- Added dependency-ordered embedded master restoration, nested override key paths, path
+  translation, section boards, clipping, target paint order, bounded expansion/cache checks,
+  and configurable archive validation limits. Added explicit diagnostics for unmapped
+  instance fields, resized constraints/transforms, and token name normalization.
+- Fixed issues found by real imports: non-finite layout gaps, token identifiers, and
+  unsupported linear blend identifiers. Recovered one unknown container size from actual
+  converted child bounds, retaining the uncertainty in the event.
+- Studied the reference README at `c29242f60ebe3579265260894b40e9bcfe54ffb3`; no upstream
+  implementation was copied or ported. See ADR-0011 and the existing license policy.
+- Every delivered archive was structurally validated and accepted by an isolated local
+  Penpot **2.18.5-RC1** instance (SSE `end`, no error event). All five reports say
+  `completed_with_warnings`, with **0 failed elements**. Unsupported counts by supplied file
+  order: **26, 0, 120, 41, 20**. These are not lossless conversions.
+- Native Penpot UI opened the navigation file and Swiss Army page list; a navigation
+  screenshot was inspected inline. Full visual comparison, edit/reopen persistence, and
+  exhaustive component behavior remain unverified. A Swiss screenshot capture timed out.
+- `cargo test --offline --locked --workspace`: **116 passed**; full-workspace Clippy with
+  `-D warnings` and formatting pass. No dependency/lockfile changes. `cargo deny check` and
+  `cargo audit` return `no such command`; their scans remain unverified.
+- Windows has no host Rust toolchain. Used isolated local Linux containers with stable Rust
+  1.99.1 and native GTK/X11/Wayland build dependencies. Graph tools still return
+  `Transport closed`; source reads and tests supply verification.
+- Private artifacts/reports/import logs live under
+  `C:\Users\Danny\Downloads\Figma2Penpot-converted-2026-11-02`, outside tracked fixtures.
+- Packaged five source-named archives and fifteen JSON/HTML/CSV reports; the ZIP integrity
+  check passed. Source/output hashes matched. Stopped only task-owned verification/build
+  containers after testing and closed the isolated browser tab; volumes remain available.
+- Next: review the remaining report limitations, implement component properties/swaps and
+  resize/reflow behavior, then broaden visual/fuzz and native platform QA. Do not upgrade
+  overall fidelity to Verified from import acceptance alone.
+
+### Session 15 — 2026-11-02
+
+- Reviewed repository instructions, status, product brief, architecture, license assessment,
+  support matrix, issue codes, UI contract, recent ADRs, crate manifests, CI/release workflows,
+  and the main reader/converter/writer/report/queue/desktop/CLI entry points.
+- Recorded the current Windows environment in `docs/DEV_ENVIRONMENT.md` §9. No application
+  code or conversion behavior changed; no new architecture decision was needed.
+- Codebase-memory indexing and coverage checks failed with `Transport closed`; structural
+  understanding is based on direct source reads and `rg`, without graph verification.
+- Source-only follow-up: `conversion-queue::run_job` currently passes
+  `ConvertOptions::default()` instead of the job's `keep_token_bindings` value. The latest
+  UI notes describe that preference as propagated through batch conversion; runtime
+  verification and any fix are pending a task and a working Rust toolchain.
+- Older sections of this file retain stale pending/export/packaging claims. Use the latest
+  session notes, support matrix, and source together when choosing the next change.
+- Build, fmt, clippy, tests, deny, audit, GUI, and Penpot import were not run in this session;
+  previous passing results are historical evidence, not verification on this machine.
+- Next step: receive the implementation task and verify the affected paths and requirements.
 
 ### Session 1 — 2026-11-01
 

@@ -1,5 +1,10 @@
 # Conversion baseline
 
+Reviewed **2026-11-02**. The baseline still passes with the compatibility changes, and
+its expected counts/timings were not changed. The five private compatibility files are not
+redistributable fixtures or new performance baselines; their import evidence is described
+in `../../docs/MANUAL_QA.md` §14.
+
 `baseline.json` records the expected conversion counts, status, and reference performance
 for every committed fixture. The automated check is
 `crates/f2p-cli/tests/baseline.rs`:

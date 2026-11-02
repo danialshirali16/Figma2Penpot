@@ -81,8 +81,10 @@ folder…**). Converting is one click from Files (**Convert**). No setup wizard 
    and the compact report toolbar.
 3. Added **Pause** and **Cancel** to single-file conversion; cancellation is cooperative and
    checked between stages, and leaves no output when it happens before saving.
-4. Made the token preference real end to end: `ConvertOptions.keep_token_bindings`,
-   `JobSpec`, the queue worker, the single-file worker, and CLI `--inline-tokens`.
+4. Added `ConvertOptions.keep_token_bindings`, `JobSpec`, and CLI `--inline-tokens`.
+   **Correction, 2026-11-02:** the queue stores the option but `run_job` still passes
+   defaults into the converter. Single-file propagation works; batch propagation is
+   **Partial** and requires a regression test and fix.
 5. Fixed the single-file path to honor `keep_token_bindings` (it previously used defaults).
 6. Added a confirmation modal for **Clear all**; removed the dead `Clear all` behavior on
    empty Files.

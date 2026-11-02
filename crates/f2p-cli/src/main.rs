@@ -330,7 +330,7 @@ fn convert(
     }
 
     write_report(&report_path, &report)?;
-    println!("Converted {} -> {}", path.display(), out_path.display());
+    println!("Saved {} -> {}", path.display(), out_path.display());
     println!(
         "Status: {:?}; detected {}, converted {}, approximated {}, skipped {}, unsupported {}, failed {}",
         report.status,
@@ -343,6 +343,12 @@ fn convert(
     );
     println!("Validation: passed ({} checks)", validation.checks);
     println!("Report: {}", report_path.display());
+    if report.status == conversion_report::FileStatus::Failed {
+        anyhow::bail!(
+            "conversion contains failed elements; see {}",
+            report_path.display()
+        );
+    }
     Ok(())
 }
 

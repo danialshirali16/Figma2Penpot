@@ -207,6 +207,10 @@ pub struct SymbolOverride {
     pub fills: Vec<Paint>,
     pub size: Option<Size>,
     pub visible: Option<bool>,
+    /// Schema-known override attributes that this reader cannot preserve yet.
+    pub unmapped_fields: Vec<String>,
+    /// Frame clipping override; true means content may extend beyond the frame.
+    pub frame_mask_disabled: Option<bool>,
 }
 
 /// Basic text attributes extracted for M2.
@@ -259,6 +263,8 @@ pub struct FigNode {
     pub corner_radius: Option<f32>,
     pub corner_radii: Option<[f32; 4]>,
     pub resize_to_fit: Option<bool>,
+    /// True when children may render outside a Figma frame.
+    pub frame_mask_disabled: Option<bool>,
     pub text: Option<TextData>,
     pub effects: Vec<Effect>,
     pub fill_geometry: Vec<VectorGeometry>,

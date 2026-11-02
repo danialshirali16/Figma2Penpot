@@ -1,6 +1,10 @@
 # Research Sources and Provenance
 
-Snapshot: **2026-11-01**. All upstream checkouts used for M0 are pinned below by commit.
+M0 snapshot: **2026-11-01**; reviewed **2026-11-02**. Upstream references remain pinned
+below. Session 16 re-read the reference README at the same converter commit and rechecked
+its GitHub license metadata (still no declared license). Format facts guided independent
+Rust mappings; the reference runtime and implementation were not reused (ADR-0011).
+All upstream checkouts used for M0 are pinned below by commit.
 Research checkouts live outside this repository at `~/Downloads/f2p-research-upstream/`
 and are **not** part of the project source tree.
 
@@ -62,16 +66,20 @@ The probe generator is **not** part of the product. Its output (`probe.penpot`,
 ## 4. Fixtures and their license
 
 `openfig-core/test-fixtures/` is part of an MIT-declared package. The fixtures are
-reference inputs, not generated output. Planned use in M1:
+reference inputs, not generated output. The committed corpus contains four MIT reference
+files and nine project-owned synthetic files, listed in `tests/fixtures/README.md`.
+Original M0 candidates included:
 
 - `circle.fig` — minimal document, 5 nodes, 3 blobs.
 - `OpenFigs.fig` — richer document, version 106.
 - `vector-network/*.fig` — vector-network conformance cases, including a 2.2 MB file with
   embedded images.
 
-If these are copied into `tests/fixtures/`, the MIT notice and the upstream commit must be
-recorded in `THIRD_PARTY_LICENSES` and next to the fixtures. Do not add files produced by
-our own writer as conformance references.
+The copied fixtures have MIT notices, hashes, and pinned provenance next to them and in
+`THIRD_PARTY_LICENSES.md`. Synthetic inputs are identified separately. Private compatibility
+inputs and generated reports/outputs remain local; regression tests modify licensed inputs
+in memory or use synthetic models. Do not treat writer-generated outputs as independent
+conformance evidence.
 
 ## 5. Reported vs. verified
 

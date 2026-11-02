@@ -1,5 +1,9 @@
 # UI screenshots
 
+Reviewed **2026-11-02**. These images document the macOS designer UI before ADR-0011.
+They are not visual evidence for the new component/section compatibility mappings or for
+native Windows/Linux behavior. See `../../MANUAL_QA.md` for current verification scope.
+
 Captured on **macOS 27.2 (arm64, Apple M1)** on 2026-11-02 from the native app built with
 `cargo build --offline -p desktop-app`. Images are Retina captures scaled to 1440 px wide.
 

@@ -1,7 +1,9 @@
 # Technical Risk Assessment
 
-Status: M0 baseline; reviewed at M1. This register is reviewed at the end of every
-milestone; new risks are added when they are discovered, not when they bite.
+Reviewed **2026-11-02** after private-file compatibility work. Ratings remain qualitative;
+mitigations below distinguish implemented checks from pending work. ADR-0011 records the
+new component, geometry, target-schema, and resource-limit choices. Import acceptance
+remains Verified while overall fidelity remains Partial.
 
 Scoring: **Likelihood** and **Impact** are High / Medium / Low. A risk with High/High needs
 a mitigation before the milestone that depends on it starts.
@@ -66,6 +68,10 @@ a mitigation before the milestone that depends on it starts.
   before **Verified**.
 - **Early warning:** instances lose text or fills after import; component counts don't
   match the index; Penpot shows "broken component" states.
+- **Current evidence:** required embedded masters are restored in dependency order; nested
+  override paths/keys and cycle/expansion checks are tested. Properties, swaps, resized-child
+  constraints, and some attributes/transforms remain Partial and reported. Successful import
+  does not establish component update/edit persistence.
 - **Owner milestone:** M3.7.
 
 ### R5 — Token and mode mapping
@@ -79,6 +85,10 @@ a mitigation before the milestone that depends on it starts.
   dropped binding; never claim token fidelity without an import.
 - **Early warning:** token references resolve to nothing; colors are correct but bindings
   are gone without an event.
+- **Current evidence:** token names are escaped and disambiguated with converted bindings
+  updated; invalid target names are rejected. Per-node mode semantics remain Partial.
+  The batch queue currently ignores `JobSpec.keep_token_bindings`; fix and regression-test
+  that propagation before claiming the preference works end to end.
 - **Owner milestone:** M3.8.
 
 ### R6 — Text and font fidelity
@@ -112,6 +122,10 @@ a mitigation before the milestone that depends on it starts.
   measure peak RSS on named fixtures; fail with an actionable error instead of OOM.
 - **Early warning:** peak RSS grows with batch size; a single file exhausts memory; the UI
   freezes during allocation.
+- **Current evidence:** cached/expanded shapes default to 250,000; target validation is
+  bounded to 300,000 entries, 64 MiB each, 512 MiB total. Five private imports pass, but
+  component-heavy peak RSS and long-running fuzz behavior remain unmeasured. Assets and
+  the archive are currently held in memory; streaming/page splitting remain Planned.
 - **Owner milestone:** M5, M7.
 
 ### R9 — Parser panic or resource exhaustion
@@ -155,7 +169,9 @@ a mitigation before the milestone that depends on it starts.
 
 - **Likelihood:** Medium. **Impact:** Medium.
 - **Why:** Windows MSI/EXE and macOS `.app`/`.dmg` require platform tooling, signing
-  identities, and notarization. The current machine can only build macOS arm64.
+  identities, and notarization. Current native verification is split between historical
+  macOS evidence, cross-platform CI, and Windows-hosted Linux container checks; it does not
+  establish native Windows install-and-launch behavior.
 - **Mitigation:** GitHub Actions matrix from M1; unsigned dev artifacts early; signing plan
   documented; label unverified platforms honestly.
 - **Owner milestone:** M8.
@@ -242,5 +258,6 @@ quietly weakening a claim.
 - At the end of every milestone: re-score, close resolved risks, add new ones.
 - Before any **Verified** claim: confirm the risk's mitigation is evidenced, not just
   planned.
-- After a real-import failure: add the failing fixture to the corpus and a regression test
-  before fixing the mapping.
+- After a real-import failure: add a regression test reproducing the failure. Commit the
+  input only when redistribution rights are established; use synthetic/in-memory adaptations
+  for private cases. Keep private originals, outputs, reports, and screenshots local.

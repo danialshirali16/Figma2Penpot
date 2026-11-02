@@ -3,6 +3,10 @@
 Stable identifiers used by diagnostics. Once a code ships, its meaning must not change; add
 a new code instead.
 
+Reviewed **2026-11-02**. There are 30 converter codes with designer-facing copy, plus the
+reader warnings below. Schema-known unmapped instance attributes and normalized token
+names now emit dedicated events. Existing report schema version 1 is unchanged.
+
 This file documents **reader warnings** from `fig-reader` and **conversion events** from
 `conversion-core` / `conversion-report`. Codes are stable: once shipped, their meaning must
 not change; add a new code instead.
@@ -45,6 +49,8 @@ not change; add a new code instead.
 | `F2P-STYLE-GRID-LOST` | Warning | Converted with modification | A shared grid style was not converted. | Unit path; fixture pending |
 | `F2P-INSTANCE-DETACHED` | Warning | Converted with modification | An instance referenced a symbol that could not be materialized. | Unit path; fixture pending |
 | `F2P-INSTANCE-OVERRIDE-LOST` | Warning | Converted with modification | An instance override path did not match a main-component shape. | Unit path; fixture pending |
+| `F2P-INSTANCE-ATTRIBUTES-UNSUPPORTED` | Warning | Converted with modification | Schema-known instance override attributes have no implemented mapping. Supported attributes are applied; unmapped field names are retained in the event reason. | `unsupported_instance_attributes_emit_a_diagnostic`; reader `schema_known_unmapped_override_fields_are_retained_for_diagnostics` |
+| `F2P-TOKEN-NAME-NORMALIZED` | Warning | Converted with modification | A token identifier was escaped or disambiguated to satisfy Penpot's token-name grammar. Converted bindings use the adjusted name. | `token_names_are_escaped_and_converted_bindings_follow_the_new_name` |
 | `F2P-TEXT-MIXED-STYLES-LOST` | Warning | Converted with modification | Mixed per-character styles were flattened to the base run. | Unit path; fixture pending |
 | `F2P-VECTOR-EMPTY` | Warning | Unsupported | A vector node had no fill or stroke geometry blobs. | Pending explicit fixture |
 | `F2P-VECTOR-FAILED` | Error | Failed | A vector blob index or command stream was invalid. | Pending explicit fixture |
@@ -59,3 +65,11 @@ not change; add a new code instead.
   produce partial `FigDocument` output.
 - Every new code needs a test asserting it, a row here, and a note in `SUPPORT_MATRIX.md` if
   it describes a feature limitation.
+
+Session 16 also extends coverage of existing codes. `F2P-NODE-APPROXIMATED` records sections
+mapped to boards, unknown container bounds measured from converted children, unknown layout
+metrics given an explicit fallback, and instance transforms/resized constraints that are not
+fully reapplied. The original value stays described as unknown where appropriate.
+`F2P-BLEND-MODE-LOST` records `LINEAR_BURN` → `multiply`, `LINEAR_DODGE` → `screen`, and
+other unsupported modes → normal, with a manual-review action. Empty cached fill streams
+use a valid stroke outline when one exists; malformed/missing streams still fail.

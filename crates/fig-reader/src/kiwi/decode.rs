@@ -130,6 +130,7 @@ fn decode_node(
         corner_radius: None,
         corner_radii: None,
         resize_to_fit: None,
+        frame_mask_disabled: None,
         text: None,
         effects: Vec::new(),
         fill_geometry: Vec::new(),
@@ -244,6 +245,10 @@ fn decode_node(
             }
             "resizeToFit" => {
                 node.resize_to_fit = Some(read_bool_field(cursor, field, "resizeToFit flag")?);
+            }
+            "frameMaskDisabled" => {
+                node.frame_mask_disabled =
+                    Some(read_bool_field(cursor, field, "frame clipping flag")?);
             }
             "fillGeometry" => {
                 node.fill_geometry = read_vector_geometry(cursor, schema, field, limits, 1)?;
@@ -786,7 +791,11 @@ fn read_symbol_override(
                                     "override characters",
                                 )?);
                             }
-                            _ => skip_field(cursor, schema, field, limits, depth + 2)?,
+                            _ => {
+                                over.unmapped_fields
+                                    .push(format!("textData.{}", field.name));
+                                skip_field(cursor, schema, field, limits, depth + 2)?;
+                            }
                         }
                         Ok(())
                     },
@@ -801,7 +810,17 @@ fn read_symbol_override(
             "visible" => {
                 over.visible = Some(read_bool_field(cursor, field, "override visible flag")?);
             }
-            _ => skip_field(cursor, schema, field, limits, depth + 1)?,
+            "frameMaskDisabled" => {
+                over.frame_mask_disabled = Some(read_bool_field(
+                    cursor,
+                    field,
+                    "override frame clipping flag",
+                )?);
+            }
+            _ => {
+                over.unmapped_fields.push(field.name.clone());
+                skip_field(cursor, schema, field, limits, depth + 1)?;
+            }
         }
         Ok(())
     })?;
@@ -1840,4 +1859,29 @@ fn read_u32(cursor: &mut Cursor<'_>, what: &str) -> Result<u32> {
 
 fn decode_error(context: &str, error: CursorError) -> FigError {
     FigError::Decode(format!("{context}: {error}"))
+}
+
+#[cfg(test)]
+mod override_tests {
+    use super::*;
+
+    #[test]
+    fn schema_known_unmapped_override_fields_are_retained_for_diagnostics() {
+        let schema = Schema::parse(
+            b"\x01Overrides\0\x02\x01unknownFlag\0\x01\x00\x01",
+            &Limits::for_fuzzing(),
+        )
+        .unwrap();
+        let mut cursor = Cursor::new(&[1, 1, 0]);
+        let over = read_symbol_override(
+            &mut cursor,
+            &schema,
+            &schema.defs[0],
+            &Limits::for_fuzzing(),
+            0,
+        )
+        .unwrap();
+        assert_eq!(over.unmapped_fields, ["unknownFlag"]);
+        assert!(cursor.is_empty());
+    }
 }

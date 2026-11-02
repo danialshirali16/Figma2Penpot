@@ -13,6 +13,12 @@ are:
 
 If this file and the maintained sources disagree, the maintained sources win; fix this file.
 
+Reviewed **2026-11-02**. This is the product requirements document, not a claim that every
+listed feature is implemented. Current source imports all five private compatibility files
+into Penpot 2.18.5-RC1; overall fidelity remains **Partial**. Page selection/splitting,
+complete component behavior, exhaustive visual/persistence checks, and signed installers
+remain outside the verified implementation. See `SUPPORT_MATRIX.md` and ADR-0011.
+
 ---
 
 ## 1. Mission
