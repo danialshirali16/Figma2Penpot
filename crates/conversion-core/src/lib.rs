@@ -6,7 +6,7 @@
 //! [`DiagnosticSink`]; unsupported nodes and paints are skipped with a report
 //! event, never silently.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque};
 
 use conversion_report::{DiagnosticSink, ElementRef, Outcome, ReportEvent, Severity};
 use fig_reader::{Color, Effect, FigDocument, FigNode, Guid, Paint, Size, StyleRef, TextData};
@@ -21,6 +21,10 @@ use uuid::Uuid;
 /// Fixed namespace for deterministic Penpot UUIDs derived from Figma GUIDs.
 /// Stable IDs make golden reports reproducible; Penpot accepts any UUID.
 const ID_NAMESPACE: Uuid = Uuid::from_u128(0x6d2f_9a51_4c7e_4b1d_9f3a_2c8e_7d6b_5a41);
+
+/// Default bound on shapes created by component expansion and document traversal.
+pub const DEFAULT_MAX_EXPANDED_SHAPES: usize = 250_000;
+const MAX_CONVERSION_HIERARCHY_DEPTH: usize = 128;
 
 #[derive(Debug, thiserror::Error)]
 pub enum ConvertError {
@@ -38,6 +42,8 @@ pub struct ConvertOptions {
     /// Preserve token/style references. When false, resolved values are kept but links are
     /// removed ("Looks identical" in the desktop settings).
     pub keep_token_bindings: bool,
+    /// Maximum expanded shapes, including restored component definitions.
+    pub max_expanded_shapes: usize,
 }
 
 impl Default for ConvertOptions {
@@ -45,6 +51,7 @@ impl Default for ConvertOptions {
         Self {
             file_name: None,
             keep_token_bindings: true,
+            max_expanded_shapes: DEFAULT_MAX_EXPANDED_SHAPES,
         }
     }
 }
@@ -68,9 +75,18 @@ pub fn convert(
         .unwrap_or_else(|| "Untitled".to_owned());
     let file_id = id_for("file", &document.source_name);
     let styles = StyleLibrary::new(document, &file_id);
-    let tokens = TokenLibrary::new(document);
-    let components = build_component_registry(document, &assets, &styles, &tokens, &tree, sink);
+    let tokens = TokenLibrary::new(document, sink);
+    let components = build_component_registry(
+        document,
+        &assets,
+        &styles,
+        &tokens,
+        &tree,
+        options.max_expanded_shapes,
+        sink,
+    )?;
     let mut penpot = PenpotDocument::new(file_id, file_name);
+    let mut shape_count = components.library_shapes.len();
 
     let mut visible_pages = document
         .pages
@@ -104,6 +120,13 @@ pub fn convert(
                 &path,
                 sink,
             ) {
+                shape_count = shape_count.saturating_add(child_shapes.len());
+                if shape_count > options.max_expanded_shapes {
+                    return Err(ConvertError::Invalid(format!(
+                        "expanded shape count exceeds limit {}",
+                        options.max_expanded_shapes
+                    )));
+                }
                 shapes.append(&mut child_shapes);
             }
         }
@@ -120,6 +143,23 @@ pub fn convert(
             background: None,
             root_frame,
             shapes,
+        });
+    }
+    if !components.library_shapes.is_empty() {
+        let page_id = id_for("component-library-page", &document.source_name);
+        let roots = components
+            .library_shapes
+            .iter()
+            .filter(|shape| shape.parent_id.is_nil())
+            .map(|shape| shape.id)
+            .collect();
+        penpot.pages.push(PenpotPage {
+            id: page_id,
+            name: "Imported components".to_owned(),
+            index: penpot.pages.len(),
+            background: None,
+            root_frame: Shape::root_frame(page_id, roots),
+            shapes: components.library_shapes,
         });
     }
     penpot.media = assets.media;
@@ -150,7 +190,7 @@ struct VariableSetInfo<'a> {
 }
 
 impl TokenLibrary {
-    fn new(document: &FigDocument) -> Self {
+    fn new(document: &FigDocument, sink: &mut dyn DiagnosticSink) -> Self {
         let mut sets = Vec::new();
         for node in &document.nodes {
             if node.kind != "VARIABLE_SET" {
@@ -196,6 +236,7 @@ impl TokenLibrary {
         let mut token_sets: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
         let mut names_by_key = HashMap::new();
         let mut variables = Vec::new();
+        let mut used_names: HashMap<(Option<Guid>, String), String> = HashMap::new();
         for node in &document.nodes {
             if node.kind != "VARIABLE" {
                 continue;
@@ -204,8 +245,6 @@ impl TokenLibrary {
                 .variable_key
                 .clone()
                 .unwrap_or_else(|| node.guid.to_string());
-            let name = normalize_token_name(&node.name);
-            names_by_key.insert(key.clone(), name.clone());
             let set_guid = node
                 .variable_set_id
                 .as_ref()
@@ -220,6 +259,44 @@ impl TokenLibrary {
                                 .map(|set| set.guid)
                         })
                 });
+            let base_name = normalize_token_name(&node.name);
+            let mut name = base_name.clone();
+            let mut suffix = 0usize;
+            while used_names
+                .get(&(set_guid, name.clone()))
+                .is_some_and(|existing| existing != &key)
+            {
+                suffix += 1;
+                name = format!(
+                    "{base_name}_{}_{}_{suffix}",
+                    node.guid.session_id, node.guid.local_id
+                );
+            }
+            used_names.insert((set_guid, name.clone()), key.clone());
+            let canonical = node
+                .name
+                .trim()
+                .split('/')
+                .map(str::trim)
+                .filter(|part| !part.is_empty())
+                .collect::<Vec<_>>()
+                .join(".");
+            if name != canonical {
+                let element = ElementRef {
+                    figma_node_id: node.guid.to_string(),
+                    name: node.name.clone(),
+                    element_type: node.kind.clone(),
+                    page: None,
+                    path: vec![node.name.clone()],
+                };
+                sink.count_detected(&element);
+                emit(sink, &element, "F2P-TOKEN-NAME-NORMALIZED", Severity::Warning,
+                    Outcome::ConvertedWithModification, "token name was adapted for Penpot",
+                    Some("Penpot token names have a restricted character set and must be unique within a collection".to_owned()),
+                    format!("renamed the token to {name:?} and updated converted bindings"),
+                    Some("Use the adjusted token name when connecting other designs.".to_owned()));
+            }
+            names_by_key.insert(key.clone(), name.clone());
             variables.push((node, key, name, set_guid));
         }
 
@@ -341,13 +418,91 @@ fn token_value(
     }
 }
 
+fn map_blend_mode(
+    node: &FigNode,
+    element: &ElementRef,
+    sink: &mut dyn DiagnosticSink,
+) -> (Option<String>, bool) {
+    let Some(blend) = node.blend_mode.as_deref() else {
+        return (None, false);
+    };
+    if blend == "NORMAL" {
+        return (None, false);
+    }
+    let mapped = blend.to_ascii_lowercase().replace('_', "-");
+    if penpot_writer::is_valid_blend_mode(&mapped) {
+        return (Some(mapped), false);
+    }
+    let substitute = match blend {
+        "LINEAR_BURN" => "multiply",
+        "LINEAR_DODGE" => "screen",
+        _ => "normal",
+    };
+    emit(
+        sink,
+        element,
+        "F2P-BLEND-MODE-LOST",
+        Severity::Warning,
+        Outcome::ConvertedWithModification,
+        format!("{blend} blend mode has no supported Penpot equivalent"),
+        Some("the target Penpot schema rejects this blend mode".to_owned()),
+        format!("approximated using {substitute} blending"),
+        Some("Review this layer's blending in Penpot.".to_owned()),
+    );
+    (
+        if substitute == "normal" {
+            None
+        } else {
+            Some(substitute.to_owned())
+        },
+        true,
+    )
+}
+
+fn layout_number(value: Option<f32>, fallback: f64, field: &str, reasons: &mut Vec<String>) -> f64 {
+    match value.map(f64::from) {
+        Some(value)
+            if value.is_finite() && (i32::MIN as f64..=i32::MAX as f64).contains(&value) =>
+        {
+            value
+        }
+        Some(_) => {
+            reasons.push(format!("source {field} is unknown or outside Penpot's range; used {fallback} with the mapped distribution settings"));
+            fallback
+        }
+        None => fallback,
+    }
+}
+
 fn normalize_token_name(name: &str) -> String {
-    name.trim()
-        .split('/')
+    let normalized = name
+        .trim()
+        .split(['/', '.'])
         .map(str::trim)
         .filter(|part| !part.is_empty())
+        .enumerate()
+        .map(|(segment, part)| {
+            part.chars()
+                .enumerate()
+                .map(|(index, character)| {
+                    if character.is_ascii_alphanumeric()
+                        || matches!(character, '_' | '-')
+                        || (character == '$' && (segment > 0 || index > 0))
+                    {
+                        character.to_string()
+                    } else {
+                        format!("_u{:X}_", character as u32)
+                    }
+                })
+                .collect::<String>()
+        })
         .collect::<Vec<_>>()
-        .join(".")
+        .join(".");
+    if normalized.is_empty() {
+        "token".to_owned()
+    } else {
+        normalized
+    }
 }
 
 fn insert_token(
@@ -617,11 +772,24 @@ fn split_style_name(full: &str) -> (String, String) {
     (name, parts.join(" / "))
 }
 
-#[derive(Default)]
 struct ComponentRegistry {
     by_symbol: HashMap<Guid, ComponentSpec>,
     entries: Vec<ComponentEntry>,
     prebuilding: bool,
+    library_shapes: Vec<Shape>,
+    max_expanded_shapes: usize,
+}
+
+impl Default for ComponentRegistry {
+    fn default() -> Self {
+        Self {
+            by_symbol: HashMap::new(),
+            entries: Vec::new(),
+            prebuilding: false,
+            library_shapes: Vec::new(),
+            max_expanded_shapes: DEFAULT_MAX_EXPANDED_SHAPES,
+        }
+    }
 }
 
 struct ComponentSpec {
@@ -630,6 +798,7 @@ struct ComponentSpec {
     shapes: Vec<Shape>,
     guid_to_shape: HashMap<Guid, Uuid>,
     key_to_shape: HashMap<Guid, Uuid>,
+    override_targets: HashMap<Vec<Guid>, Uuid>,
     variant_id: Option<Uuid>,
     variant_name: Option<String>,
 }
@@ -650,139 +819,291 @@ fn build_component_registry(
     styles: &StyleLibrary,
     tokens: &TokenLibrary,
     tree: &Tree<'_>,
+    max_expanded_shapes: usize,
     sink: &mut dyn DiagnosticSink,
-) -> ComponentRegistry {
-    let empty = ComponentRegistry {
+) -> Result<ComponentRegistry, ConvertError> {
+    let mut registry = ComponentRegistry {
         prebuilding: true,
+        max_expanded_shapes,
         ..ComponentRegistry::default()
     };
-    let mut registry = ComponentRegistry::default();
     let file_id = styles.file_id;
-    for page in document.pages.iter().filter(|page| !page.internal_only) {
-        let page_id = id_for_guid("page", page.guid);
-        let mut symbols = Vec::new();
-        collect_symbols(tree, page.guid, true, &mut symbols);
-        for index in symbols {
-            let node = tree.node(index);
-            if has_symbol_ancestor(tree, index) {
-                continue;
+    let library_page_id = id_for("component-library-page", &document.source_name);
+    let (mut library_x, mut library_y, mut row_height) = (0.0_f64, 0.0_f64, 0.0_f64);
+    let mut library_column = 0usize;
+    let mut cached_shape_count = 0usize;
+    for (index, source_page) in component_build_order(document, tree) {
+        let node = tree.node(index);
+        let page = source_page.and_then(|index| document.pages.get(index));
+        let internal = page.is_none_or(|page| page.internal_only);
+        let page_name = page
+            .map(|page| page.name.as_str())
+            .unwrap_or("Imported components");
+        let page_id = if internal {
+            library_page_id
+        } else {
+            id_for_guid("page", page.expect("non-internal page exists").guid)
+        };
+        let parent_index = node
+            .parent
+            .and_then(|parent| tree.by_guid.get(&parent).copied());
+        let parent_is_canvas = parent_index
+            .map(|index| tree.node(index).kind == "CANVAS")
+            .unwrap_or(true);
+        let parent_id = if parent_is_canvas || internal {
+            Uuid::nil()
+        } else {
+            node.parent
+                .map(|parent| id_for_guid("shape", parent))
+                .unwrap_or(Uuid::nil())
+        };
+        let parent_abs = parent_index
+            .map(|index| tree.absolute_transform(index))
+            .unwrap_or(Affine::IDENTITY);
+        let frame_id = if parent_is_canvas || internal {
+            Uuid::nil()
+        } else {
+            parent_index
+                .and_then(|index| frame_of(tree, index))
+                .map(|guid| id_for_guid("shape", guid))
+                .unwrap_or(Uuid::nil())
+        };
+        let mut path = node_path(tree, index, page_name);
+        path.pop();
+        let Some(mut shapes) = convert_node(
+            document, assets, styles, tokens, &registry, tree, index, parent_id, frame_id,
+            parent_abs, page_id, page_name, &path, sink,
+        ) else {
+            continue;
+        };
+        if shapes.is_empty() {
+            continue;
+        }
+        cached_shape_count = cached_shape_count.saturating_add(shapes.len());
+        if cached_shape_count > max_expanded_shapes {
+            return Err(ConvertError::Invalid(format!(
+                "component cache exceeds limit {max_expanded_shapes}"
+            )));
+        }
+        let component_id = id_for_guid("component", node.guid);
+        let parent = node
+            .parent
+            .and_then(|parent| tree.by_guid.get(&parent).copied())
+            .map(|index| tree.node(index));
+        let variant_parent = parent.filter(|parent| parent.is_state_group == Some(true));
+        let (name, path_name) = if let Some(parent) = variant_parent {
+            split_style_name(&parent.name)
+        } else {
+            split_style_name(&node.name)
+        };
+        let variant_properties = if variant_parent.is_some() {
+            parse_variant_properties(&node.name)
+        } else {
+            Vec::new()
+        };
+        let variant_name = variant_parent.map(|_| node.name.clone());
+        let variant_id = variant_parent.map(|parent| id_for_guid("variant", parent.guid));
+        {
+            let root = &mut shapes[0];
+            root.component_id = Some(component_id);
+            root.component_file = Some(file_id);
+            root.component_root = Some(true);
+            root.main_instance = Some(true);
+            root.name = name.clone();
+            root.variant_id = variant_id;
+            root.variant_name = variant_name.clone();
+        }
+        let root_shape_id = shapes[0].id;
+        if internal {
+            let dx = library_x - shapes[0].x;
+            let dy = library_y - shapes[0].y;
+            for shape in &mut shapes {
+                shift_shape(shape, dx, dy);
             }
-            let parent_index = node
-                .parent
-                .and_then(|parent| tree.by_guid.get(&parent).copied());
-            let parent_is_canvas = parent_index
-                .map(|index| tree.node(index).kind == "CANVAS")
-                .unwrap_or(true);
-            let parent_id = if parent_is_canvas {
-                Uuid::nil()
-            } else {
-                node.parent
-                    .map(|parent| id_for_guid("shape", parent))
-                    .unwrap_or(Uuid::nil())
-            };
-            let parent_abs = parent_index
-                .map(|index| tree.absolute_transform(index))
-                .unwrap_or(Affine::IDENTITY);
-            let frame_id = if parent_is_canvas {
-                Uuid::nil()
-            } else {
-                parent_index
-                    .and_then(|index| frame_of(tree, index))
-                    .map(|guid| id_for_guid("shape", guid))
-                    .unwrap_or(Uuid::nil())
-            };
-            let path = node_path(tree, index, &page.name);
-            let Some(mut shapes) = convert_node(
-                document, assets, styles, tokens, &empty, tree, index, parent_id, frame_id,
-                parent_abs, page_id, &page.name, &path, sink,
-            ) else {
-                continue;
-            };
-            if shapes.is_empty() {
-                continue;
+            library_x += shapes[0].width.max(1.0) + 80.0;
+            row_height = row_height.max(shapes[0].height);
+            library_column += 1;
+            if library_column == 8 {
+                library_x = 0.0;
+                library_y += row_height + 80.0;
+                row_height = 0.0;
+                library_column = 0;
             }
-            let component_id = id_for_guid("component", node.guid);
-            let parent = node
-                .parent
-                .and_then(|parent| tree.by_guid.get(&parent).copied())
-                .map(|index| tree.node(index));
-            let variant_parent = parent.filter(|parent| parent.is_state_group == Some(true));
-            let (name, path_name) = if let Some(parent) = variant_parent {
-                split_style_name(&parent.name)
-            } else {
-                split_style_name(&node.name)
-            };
-            let variant_properties = if variant_parent.is_some() {
-                parse_variant_properties(&node.name)
-            } else {
-                Vec::new()
-            };
-            let variant_name = variant_parent.map(|_| node.name.clone());
-            let variant_id = variant_parent.map(|parent| id_for_guid("variant", parent.guid));
-            {
-                let root = &mut shapes[0];
-                root.component_id = Some(component_id);
-                root.component_file = Some(file_id);
-                root.component_root = Some(true);
-                root.main_instance = Some(true);
-                root.name = name.clone();
-                root.variant_id = variant_id;
-                root.variant_name = variant_name.clone();
+            if registry.library_shapes.len().saturating_add(shapes.len()) > max_expanded_shapes {
+                return Err(ConvertError::Invalid(format!(
+                    "embedded component shapes exceed limit {max_expanded_shapes}"
+                )));
             }
-            let root_shape_id = shapes[0].id;
-            let mut guid_to_shape = HashMap::new();
-            let mut key_to_shape = HashMap::new();
-            for descendant in std::iter::once(index).chain(descendants(tree, index)) {
-                let descendant_node = tree.node(descendant);
-                let shape_id = id_for_guid("shape", descendant_node.guid);
-                if shapes.iter().any(|shape| shape.id == shape_id) {
-                    guid_to_shape.insert(descendant_node.guid, shape_id);
+            registry.library_shapes.extend(shapes.iter().cloned());
+        }
+        let mut guid_to_shape = HashMap::new();
+        let mut key_to_shape = HashMap::new();
+        let mut override_targets = HashMap::new();
+        let available_ids: HashSet<_> = shapes.iter().map(|shape| shape.id).collect();
+        for descendant in std::iter::once(index).chain(descendants(tree, index)) {
+            let descendant_node = tree.node(descendant);
+            let shape_id = id_for_guid("shape", descendant_node.guid);
+            if available_ids.contains(&shape_id) {
+                guid_to_shape.insert(descendant_node.guid, shape_id);
+                override_targets.insert(vec![descendant_node.guid], shape_id);
+            }
+            if let Some(key) = descendant_node.override_key {
+                if available_ids.contains(&shape_id) {
+                    key_to_shape.insert(key, shape_id);
+                    override_targets.insert(vec![key], shape_id);
                 }
-                if let Some(key) = descendant_node.override_key {
-                    if shapes.iter().any(|shape| shape.id == shape_id) {
-                        key_to_shape.insert(key, shape_id);
+            }
+            if descendant_node.kind == "INSTANCE" {
+                if let Some(nested) = descendant_node
+                    .symbol_id
+                    .and_then(|guid| registry.spec(guid))
+                {
+                    let prefix = descendant_node.override_key.unwrap_or(descendant_node.guid);
+                    for (nested_path, old_id) in &nested.override_targets {
+                        let target = if *old_id == nested.root_shape_id {
+                            shape_id
+                        } else {
+                            id_for(
+                                "instance-shape",
+                                &format!("{}:{}", descendant_node.guid, old_id),
+                            )
+                        };
+                        if available_ids.contains(&target) && nested_path.len() < 128 {
+                            let mut path = Vec::with_capacity(nested_path.len() + 1);
+                            path.push(prefix);
+                            path.extend(nested_path);
+                            override_targets.insert(path, target);
+                        }
                     }
                 }
             }
-            registry.entries.push(ComponentEntry {
-                id: component_id,
-                name: name.clone(),
-                path: path_name.clone(),
-                main_instance_id: root_shape_id,
-                main_instance_page: page_id,
-                variant_id,
-                variant_properties: if variant_properties.is_empty() {
-                    None
-                } else {
-                    Some(variant_properties.clone())
-                },
-            });
-            registry.by_symbol.insert(
-                node.guid,
-                ComponentSpec {
-                    component_id,
-                    root_shape_id,
-                    shapes,
-                    guid_to_shape,
-                    key_to_shape,
-                    variant_id,
-                    variant_name,
-                },
-            );
         }
+        registry.entries.push(ComponentEntry {
+            id: component_id,
+            name: name.clone(),
+            path: path_name.clone(),
+            main_instance_id: root_shape_id,
+            main_instance_page: page_id,
+            variant_id,
+            variant_properties: if variant_properties.is_empty() {
+                None
+            } else {
+                Some(variant_properties.clone())
+            },
+        });
+        registry.by_symbol.insert(
+            node.guid,
+            ComponentSpec {
+                component_id,
+                root_shape_id,
+                shapes,
+                guid_to_shape,
+                key_to_shape,
+                override_targets,
+                variant_id,
+                variant_name,
+            },
+        );
     }
-    registry
+    registry.prebuilding = false;
+    Ok(registry)
 }
 
-fn collect_symbols(tree: &Tree<'_>, parent: Guid, root: bool, out: &mut Vec<usize>) {
-    for index in tree.children_of(parent) {
-        let node = tree.node(index);
-        if node.kind == "SYMBOL" {
-            out.push(index);
+/// Restore only referenced embedded definitions, with dependencies before their users.
+/// Cycles are broken deterministically; an unresolved cyclic instance emits a diagnostic.
+fn component_build_order(document: &FigDocument, tree: &Tree<'_>) -> Vec<(usize, Option<usize>)> {
+    let mut pending = VecDeque::new();
+    for page in document.pages.iter().filter(|page| !page.internal_only) {
+        let Some(index) = tree.by_guid.get(&page.guid).copied() else {
+            continue;
+        };
+        for child in descendants(tree, index) {
+            let node = tree.node(child);
+            if node.kind == "SYMBOL" && !has_symbol_ancestor(tree, child) {
+                pending.push_back(node.guid);
+            }
+            if let Some(symbol) = node.symbol_id {
+                pending.push_back(symbol);
+            }
         }
-        collect_symbols(tree, node.guid, false, out);
     }
-    let _ = root;
+    let mut required = BTreeMap::new();
+    let mut dependencies = BTreeMap::new();
+    while let Some(symbol) = pending.pop_front() {
+        if required.contains_key(&symbol) {
+            continue;
+        }
+        let Some(index) = tree.by_guid.get(&symbol).copied() else {
+            continue;
+        };
+        if tree.node(index).kind != "SYMBOL" {
+            continue;
+        }
+        let mut current = Some(index);
+        let mut source_page = None;
+        for _ in 0..=tree.nodes.len().min(512) {
+            let Some(ancestor) = current else {
+                break;
+            };
+            let node = tree.node(ancestor);
+            if node.kind == "CANVAS" {
+                source_page = document
+                    .pages
+                    .iter()
+                    .position(|page| page.guid == node.guid);
+                break;
+            }
+            current = node
+                .parent
+                .and_then(|parent| tree.by_guid.get(&parent).copied());
+        }
+        required.insert(symbol, (index, source_page));
+        let deps: BTreeSet<Guid> = descendants(tree, index)
+            .into_iter()
+            .filter_map(|index| tree.node(index).symbol_id)
+            .collect();
+        pending.extend(deps.iter().copied());
+        dependencies.insert(symbol, deps);
+    }
+    let mut counts = HashMap::new();
+    let mut dependents: HashMap<Guid, Vec<Guid>> = HashMap::new();
+    let mut ready = BTreeSet::new();
+    for (symbol, deps) in &dependencies {
+        let mut count = 0usize;
+        for dependency in deps
+            .iter()
+            .filter(|dependency| required.contains_key(dependency))
+        {
+            count += 1;
+            dependents.entry(*dependency).or_default().push(*symbol);
+        }
+        counts.insert(*symbol, count);
+        if count == 0 {
+            ready.insert(*symbol);
+        }
+    }
+    let mut ordered = Vec::new();
+    while !required.is_empty() {
+        let next = ready
+            .pop_first()
+            .or_else(|| required.keys().next().copied());
+        let Some(symbol) = next else {
+            break;
+        };
+        let Some(source) = required.remove(&symbol) else {
+            continue;
+        };
+        ordered.push(source);
+        for dependent in dependents.get(&symbol).into_iter().flatten() {
+            if let Some(count) = counts.get_mut(dependent) {
+                *count = count.saturating_sub(1);
+                if *count == 0 && required.contains_key(dependent) {
+                    ready.insert(*dependent);
+                }
+            }
+        }
+    }
+    ordered
 }
 
 fn has_symbol_ancestor(tree: &Tree<'_>, index: usize) -> bool {
@@ -806,8 +1127,12 @@ fn has_symbol_ancestor(tree: &Tree<'_>, index: usize) -> bool {
 
 fn descendants(tree: &Tree<'_>, index: usize) -> Vec<usize> {
     let mut out = Vec::new();
+    let mut seen = HashSet::from([tree.node(index).guid]);
     let mut stack = tree.children_of(tree.node(index).guid);
     while let Some(index) = stack.pop() {
+        if !seen.insert(tree.node(index).guid) {
+            continue;
+        }
         out.push(index);
         stack.extend(tree.children_of(tree.node(index).guid));
     }
@@ -823,7 +1148,10 @@ fn frame_of(tree: &Tree<'_>, index: usize) -> Option<Guid> {
             return None;
         }
         let node = tree.node(index);
-        if matches!(node.kind.as_str(), "FRAME" | "SYMBOL" | "CANVAS") {
+        if matches!(
+            node.kind.as_str(),
+            "FRAME" | "SYMBOL" | "SECTION" | "CANVAS"
+        ) {
             return Some(node.guid);
         }
         current = node
@@ -1159,7 +1487,7 @@ fn convert_instance(
             Severity::Warning,
             Outcome::ConvertedWithModification,
             "instance has no convertible main component".to_owned(),
-            Some("the referenced symbol is missing or lives on an internal-only canvas".to_owned()),
+            Some("the referenced symbol is missing or depends on a cyclic component".to_owned()),
             "converted the instance bounds without children".to_owned(),
             Some("Recreate this instance from a local component in Penpot.".to_owned()),
         );
@@ -1188,6 +1516,35 @@ fn convert_instance(
     let mut shapes = spec.shapes.clone();
     let root_old = spec.root_shape_id;
     let root_old_index = shapes.iter().position(|shape| shape.id == root_old)?;
+    let resized_constraints = node.size.is_some_and(|size| {
+        let resized_h = (size.width as f64 - shapes[root_old_index].width).abs() > 1e-6;
+        let resized_v = (size.height as f64 - shapes[root_old_index].height).abs() > 1e-6;
+        shapes
+            .iter()
+            .filter(|shape| shape.parent_id == root_old)
+            .any(|shape| {
+                (resized_h
+                    && shape
+                        .constraints_h
+                        .as_deref()
+                        .is_some_and(|mode| mode != "left"))
+                    || (resized_v
+                        && shape
+                            .constraints_v
+                            .as_deref()
+                            .is_some_and(|mode| mode != "top"))
+            })
+    });
+    let transformed = !absolute.is_translation_scale()
+        || (absolute.m00 - 1.0).abs() > 1e-6
+        || (absolute.m11 - 1.0).abs() > 1e-6;
+    if resized_constraints || transformed {
+        emit(sink, &element, "F2P-NODE-APPROXIMATED", Severity::Warning, Outcome::ConvertedWithModification,
+            "instance geometry requires a manual review",
+            Some("instance transforms and resized child constraints are not fully reapplied to cached component geometry".to_owned()),
+            "preserved the component subtree and instance bounds using cached child geometry",
+            Some("Compare this instance's child positions and sizing with Figma.".to_owned()));
+    }
     let delta_x = absolute.m02 - shapes[root_old_index].x;
     let delta_y = absolute.m12 - shapes[root_old_index].y;
     let mut id_map = HashMap::new();
@@ -1268,6 +1625,12 @@ fn convert_instance(
     if node.visible == Some(false) {
         root.hidden = Some(true);
     }
+    if let Some(disabled) = node.frame_mask_disabled {
+        root.show_content = Some(disabled);
+    }
+    if node.blend_mode.is_some() {
+        root.blend_mode = map_blend_mode(node, &element, sink).0;
+    }
 
     let index_by_old: HashMap<Uuid, usize> = old_ids
         .iter()
@@ -1275,10 +1638,24 @@ fn convert_instance(
         .map(|(index, id)| (*id, index))
         .collect();
     for over in &node.symbol_overrides {
-        let target = over.guid_path.last().and_then(|guid| {
-            spec.guid_to_shape
-                .get(guid)
-                .or_else(|| spec.key_to_shape.get(guid))
+        if !over.unmapped_fields.is_empty() {
+            emit(sink, &element, "F2P-INSTANCE-ATTRIBUTES-UNSUPPORTED",
+                Severity::Warning, Outcome::ConvertedWithModification,
+                "some instance attributes could not be preserved",
+                Some(format!("unmapped override fields: {}", over.unmapped_fields.join(", "))),
+                "applied supported attributes and retained the component defaults for other attributes",
+                Some("Review the listed component settings in Penpot.".to_owned()));
+        }
+        let target = spec.override_targets.get(&over.guid_path).or_else(|| {
+            if over.guid_path.len() == 1 {
+                over.guid_path.first().and_then(|guid| {
+                    spec.guid_to_shape
+                        .get(guid)
+                        .or_else(|| spec.key_to_shape.get(guid))
+                })
+            } else {
+                None
+            }
         });
         let Some(old_id) = target else {
             emit(
@@ -1334,6 +1711,9 @@ fn convert_instance(
         if let Some(visible) = over.visible {
             shape.hidden = Some(!visible);
         }
+        if let Some(disabled) = over.frame_mask_disabled {
+            shape.show_content = Some(disabled);
+        }
     }
 
     emit(
@@ -1362,6 +1742,30 @@ fn shift_shape(shape: &mut Shape, dx: f64, dy: f64) {
     for point in &mut shape.points {
         point.x += dx;
         point.y += dy;
+    }
+    if let Some(Content::Path(commands)) = &mut shape.content {
+        for command in commands {
+            for value in [
+                &mut command.params.x,
+                &mut command.params.c1x,
+                &mut command.params.c2x,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                *value += dx;
+            }
+            for value in [
+                &mut command.params.y,
+                &mut command.params.c1y,
+                &mut command.params.c2y,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                *value += dy;
+            }
+        }
     }
 }
 
@@ -1406,8 +1810,22 @@ fn convert_node(
     let element = element_ref(node, page_name, &element_path);
     sink.count_detected(&element);
 
+    if element_path.len() > MAX_CONVERSION_HIERARCHY_DEPTH {
+        emit(
+            sink,
+            &element,
+            "F2P-NODE-FAILED",
+            Severity::Error,
+            Outcome::Failed,
+            "node hierarchy exceeds the conversion depth limit",
+            Some("the hierarchy may be cyclic or excessively nested".to_owned()),
+            "stopped traversing this branch",
+            Some("Repair the parent hierarchy in Figma.".to_owned()),
+        );
+        return None;
+    }
     let kind = match node.kind.as_str() {
-        "FRAME" | "SYMBOL" => {
+        "FRAME" | "SYMBOL" | "SECTION" => {
             if node.resize_to_fit == Some(true) {
                 NodeClass::Group
             } else {
@@ -1444,6 +1862,18 @@ fn convert_node(
         .unwrap_or((0.0, 0.0));
     let mut modified = false;
     let mut reasons: Vec<String> = Vec::new();
+    let recover_container_size = absolute.is_finite()
+        && (!width.is_finite() || !height.is_finite())
+        && matches!(kind, NodeClass::Frame | NodeClass::Group);
+    if recover_container_size {
+        modified = true;
+        reasons.push("source container size is unknown (non-finite); used bounds measured from converted children".to_owned());
+    }
+
+    if node.kind == "SECTION" {
+        modified = true;
+        reasons.push("Figma section was preserved as a Penpot board with its children".to_owned());
+    }
 
     if !absolute.is_translation_scale() {
         modified = true;
@@ -1455,7 +1885,9 @@ fn convert_node(
         width *= absolute.m00.abs();
         height *= absolute.m11.abs();
     }
-    if !width.is_finite() || !height.is_finite() || !absolute.is_finite() {
+    if !absolute.is_finite()
+        || ((!width.is_finite() || !height.is_finite()) && !recover_container_size)
+    {
         emit(
             sink,
             &element,
@@ -1546,6 +1978,28 @@ fn convert_node(
                     &element_path,
                     sink,
                 ) {
+                    if descendants
+                        .len()
+                        .saturating_add(immediate.len())
+                        .saturating_add(child_shapes.len())
+                        > components.max_expanded_shapes
+                    {
+                        emit(
+                            sink,
+                            &element,
+                            "F2P-NODE-FAILED",
+                            Severity::Error,
+                            Outcome::Failed,
+                            "container exceeds the expanded shape limit",
+                            Some(format!(
+                                "limit is {} shapes",
+                                components.max_expanded_shapes
+                            )),
+                            "stopped expanding this container",
+                            Some("Split the design into smaller files.".to_owned()),
+                        );
+                        return None;
+                    }
                     if tree.node(child).mask == Some(true) {
                         if let Some(root) = child_shapes.first() {
                             mask_roots.insert(root.id);
@@ -1584,11 +2038,21 @@ fn convert_node(
                 );
                 return None;
             }
-            let (x, y, w, h) = if kind == NodeClass::Group {
-                bounds(&immediate).unwrap_or((absolute.m02, absolute.m12, width, height))
-            } else {
-                (absolute.m02, absolute.m12, width, height)
-            };
+            let (x, y, w, h) =
+                if recover_container_size {
+                    let Some(measured) = bounds(&immediate) else {
+                        emit(sink, &element, "F2P-NODE-FAILED", Severity::Error, Outcome::Failed,
+                        "container size is unknown and no finite children can determine its bounds",
+                        Some("source size is non-finite".to_owned()), "skipped the container",
+                        Some("Repair its dimensions in Figma and retry.".to_owned()));
+                        return None;
+                    };
+                    measured
+                } else if kind == NodeClass::Group {
+                    bounds(&immediate).unwrap_or((absolute.m02, absolute.m12, width, height))
+                } else {
+                    (absolute.m02, absolute.m12, width, height)
+                };
             let child_ids = immediate.iter().map(|child| child.id).collect();
             descendants.extend(immediate);
             let mut shape = Shape::new(
@@ -1612,6 +2076,11 @@ fn convert_node(
             shape.proportion_lock = Some(false);
             if kind == NodeClass::Frame {
                 shape.hide_fill_on_export = Some(false);
+                if node.kind == "SECTION" || recover_container_size {
+                    shape.show_content = Some(true);
+                } else {
+                    shape.show_content = Some(node.frame_mask_disabled.unwrap_or(false));
+                }
             }
             shape
         }
@@ -1644,24 +2113,11 @@ fn convert_node(
     if node.is_state_group == Some(true) {
         shape.is_variant_container = Some(true);
     }
-    if let Some(blend) = node.blend_mode.as_deref() {
-        if blend != "NORMAL" && blend != "PASS_THROUGH" {
-            shape.blend_mode = Some(blend.to_ascii_lowercase().replace('_', "-"));
-        } else if blend == "PASS_THROUGH" {
-            emit(
-                sink,
-                &element,
-                "F2P-BLEND-MODE-LOST",
-                Severity::Warning,
-                Outcome::ConvertedWithModification,
-                "pass-through blend mode has no Penpot equivalent".to_owned(),
-                Some("Penpot has no pass-through blend mode".to_owned()),
-                "used normal blending".to_owned(),
-                Some("Review the group blending in Penpot.".to_owned()),
-            );
-            modified = true;
-            reasons.push("pass-through blend mode was lost".to_owned());
-        }
+    let (blend, blend_modified) = map_blend_mode(node, &element, sink);
+    shape.blend_mode = blend;
+    if blend_modified {
+        modified = true;
+        reasons.push("blend mode required a reported approximation".to_owned());
     }
     shape.constraints_h = map_constraint(node.constraints_h.as_deref(), true);
     shape.constraints_v = map_constraint(node.constraints_v.as_deref(), false);
@@ -1890,11 +2346,23 @@ fn convert_vector_node(
     page_id: Uuid,
     sink: &mut dyn DiagnosticSink,
 ) -> Option<Vec<Shape>> {
-    let using_fill = !node.fill_geometry.is_empty();
+    let (blend_mode, blend_modified) = map_blend_mode(node, element, sink);
+    // Figma can cache an empty fill stream alongside a valid expanded stroke.
+    // A missing blob remains an error; only known empty streams are filtered.
+    let nonempty = |geometry: &&fig_reader::VectorGeometry| {
+        document
+            .blob(geometry.commands_blob as usize)
+            .is_none_or(|blob| !blob.is_empty())
+    };
+    let fill_geometry: Vec<_> = node.fill_geometry.iter().filter(nonempty).collect();
+    let stroke_geometry: Vec<_> = node.stroke_geometry.iter().filter(nonempty).collect();
+    let using_fill = !fill_geometry.is_empty();
+    let ignored_empty = fill_geometry.len() != node.fill_geometry.len()
+        || stroke_geometry.len() != node.stroke_geometry.len();
     let geometries = if using_fill {
-        &node.fill_geometry
+        &fill_geometry
     } else {
-        &node.stroke_geometry
+        &stroke_geometry
     };
     if geometries.is_empty() {
         emit(
@@ -1904,7 +2372,7 @@ fn convert_vector_node(
             Severity::Warning,
             Outcome::Unsupported,
             "vector node has no geometry blobs".to_owned(),
-            Some("fillGeometry and strokeGeometry are both empty".to_owned()),
+            Some("no non-empty fill or stroke geometry is available".to_owned()),
             "skipped the vector".to_owned(),
             Some("Recreate the vector manually in Penpot.".to_owned()),
         );
@@ -2043,6 +2511,7 @@ fn convert_vector_node(
             page_id,
         );
         shape.content = Some(Content::Path(commands));
+        shape.blend_mode = blend_mode.clone();
         shape.svg_attrs = Some(SvgAttrs {
             fill_rule: if geometry.winding_rule == "ODD" {
                 "evenodd".to_owned()
@@ -2071,6 +2540,8 @@ fn convert_vector_node(
     }
 
     let modified = using_stroke_outline
+        || blend_modified
+        || ignored_empty
         || fills_modified
         || strokes_modified
         || effects_modified
@@ -2094,7 +2565,9 @@ fn convert_vector_node(
             Outcome::Converted
         },
         format!("{} was converted as {} path(s)", node.kind, shapes.len()),
-        if modified {
+        if ignored_empty {
+            Some("empty cached geometry was ignored; valid path geometry was preserved".to_owned())
+        } else if modified {
             Some("vector geometry required an approximation".to_owned())
         } else {
             None
@@ -2112,6 +2585,7 @@ fn convert_vector_node(
 fn fills_from_strokes(node: &FigNode) -> Vec<Fill> {
     node.strokes
         .iter()
+        .rev()
         .filter(|paint| paint.visible)
         .filter_map(|paint| {
             if paint.kind != "SOLID" {
@@ -2276,20 +2750,34 @@ fn apply_layout(
         return;
     }
     let horizontal = mode == "HORIZONTAL";
-    let padding_h = node.stack_horizontal_padding.unwrap_or(0.0) as f64;
-    let padding_v = node.stack_vertical_padding.unwrap_or(0.0) as f64;
+    let padding_h = layout_number(
+        node.stack_horizontal_padding,
+        0.0,
+        "horizontal padding",
+        reasons,
+    );
+    let padding_v = layout_number(
+        node.stack_vertical_padding,
+        0.0,
+        "vertical padding",
+        reasons,
+    );
     let p1 = padding_v;
-    let p2 = node
-        .stack_padding_right
-        .map(|value| value as f64)
-        .unwrap_or(padding_h);
-    let p3 = node
-        .stack_padding_bottom
-        .map(|value| value as f64)
-        .unwrap_or(padding_v);
+    let p2 = layout_number(
+        node.stack_padding_right,
+        padding_h,
+        "right padding",
+        reasons,
+    );
+    let p3 = layout_number(
+        node.stack_padding_bottom,
+        padding_v,
+        "bottom padding",
+        reasons,
+    );
     let p4 = padding_h;
-    let primary = node.stack_spacing.unwrap_or(0.0) as f64;
-    let counter = node.stack_counter_spacing.unwrap_or(0.0) as f64;
+    let primary = layout_number(node.stack_spacing, 0.0, "main-axis gap", reasons);
+    let counter = layout_number(node.stack_counter_spacing, 0.0, "cross-axis gap", reasons);
     shape.layout = Some("flex".to_owned());
     shape.layout_flex_dir = Some(if horizontal { "row" } else { "column" }.to_owned());
     shape.layout_gap = Some(if horizontal {
@@ -2439,6 +2927,7 @@ fn map_fills(
             Some("Recreate this fill manually in Penpot.".to_owned()),
         );
     }
+    fills.reverse();
     (fills, modified)
 }
 
@@ -2698,6 +3187,7 @@ fn map_strokes(
             }
         }
     }
+    strokes.reverse();
     (strokes, modified)
 }
 
@@ -3006,6 +3496,7 @@ mod tests {
             corner_radius: None,
             corner_radii: None,
             resize_to_fit: None,
+            frame_mask_disabled: None,
             text: None,
             effects: Vec::new(),
             fill_geometry: Vec::new(),
@@ -3064,6 +3555,50 @@ mod tests {
             color_variable_key: None,
             blend_mode: None,
         }
+    }
+
+    #[test]
+    fn translating_instance_paths_moves_endpoints_and_control_points() {
+        let mut shape = Shape::new(
+            Uuid::from_u128(1),
+            "Path",
+            ShapeType::Path,
+            10.0,
+            20.0,
+            30.0,
+            40.0,
+            Uuid::nil(),
+            Uuid::nil(),
+            Uuid::from_u128(2),
+        );
+        shape.content = Some(Content::Path(vec![PathCommand {
+            command: "curve-to".to_owned(),
+            params: PathParams {
+                x: Some(40.0),
+                y: Some(60.0),
+                c1x: Some(15.0),
+                c1y: Some(25.0),
+                c2x: Some(30.0),
+                c2y: Some(50.0),
+            },
+        }]));
+        shift_shape(&mut shape, 100.0, -10.0);
+        let Some(Content::Path(commands)) = &shape.content else {
+            panic!("path content");
+        };
+        assert_eq!(
+            (commands[0].params.x, commands[0].params.y),
+            (Some(140.0), Some(50.0))
+        );
+        assert_eq!(
+            (commands[0].params.c1x, commands[0].params.c1y),
+            (Some(115.0), Some(15.0))
+        );
+        assert_eq!(
+            (commands[0].params.c2x, commands[0].params.c2y),
+            (Some(130.0), Some(40.0))
+        );
+        assert_eq!((shape.x, shape.y), (110.0, 10.0));
     }
 
     #[test]

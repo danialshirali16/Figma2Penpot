@@ -1,8 +1,8 @@
 use std::io::{Cursor, Write};
 
 use penpot_writer::{
-    build_archive, validate_archive, write_atomic, PenpotDocument, PenpotPage, Shape, ShapeType,
-    WriteError,
+    build_archive, validate_archive, validate_archive_with_limits, write_atomic, PenpotDocument,
+    PenpotPage, Shape, ShapeType, ValidationLimits, WriteError,
 };
 use uuid::Uuid;
 
@@ -42,6 +42,80 @@ fn builds_and_validates_minimal_document() {
     let bytes = build_archive(&sample()).expect("archive builds");
     let report = validate_archive(&bytes).expect("archive validates");
     assert!(report.checks >= 10);
+}
+
+#[test]
+fn validates_documents_with_more_than_ten_thousand_shapes() {
+    let mut document = sample();
+    let template = document.pages[0].shapes[0].clone();
+    let page = &mut document.pages[0];
+    for index in 0..10_001 {
+        let mut shape = template.clone();
+        shape.id = Uuid::from_u128(100 + index);
+        page.shapes.push(shape);
+    }
+    page.root_frame.shapes = Some(page.shapes.iter().map(|shape| shape.id).collect());
+    let bytes = build_archive(&document).expect("large document builds and validates");
+    assert!(validate_archive(&bytes).unwrap().checks > 10_000);
+}
+
+#[test]
+fn configurable_archive_limits_still_reject_excessive_resources() {
+    let bytes = build_archive(&sample()).unwrap();
+    for limits in [
+        ValidationLimits {
+            max_entries: 1,
+            ..ValidationLimits::default()
+        },
+        ValidationLimits {
+            max_entry_bytes: 1,
+            ..ValidationLimits::default()
+        },
+        ValidationLimits {
+            max_total_bytes: 1,
+            ..ValidationLimits::default()
+        },
+    ] {
+        assert!(validate_archive_with_limits(&bytes, &limits).is_err());
+    }
+}
+
+#[test]
+fn rejects_null_layout_numbers_and_invalid_token_names() {
+    let mut document = sample();
+    document.pages[0].shapes[0].layout_gap = Some(penpot_writer::LayoutGap {
+        row_gap: f64::NAN,
+        column_gap: 0.0,
+    });
+    assert!(matches!(
+        build_archive(&document),
+        Err(WriteError::Validation(_))
+    ));
+    let mut document = sample();
+    document.tokens = Some(serde_json::json!({
+        "$themes":[], "$metadata":{},
+        "Set":{"BG Context":{"$value":"Dim", "$type":"string"}}
+    }));
+    assert!(matches!(
+        build_archive(&document),
+        Err(WriteError::Validation(_))
+    ));
+    for name in ["brand.primary", "size-1", "BG_u20_Context", "set.$value"] {
+        assert!(penpot_writer::is_valid_token_name(name));
+    }
+    for name in ["BG Context", "", ".name", "name.", "a..b", "$name", "رنگ"] {
+        assert!(!penpot_writer::is_valid_token_name(name));
+    }
+}
+
+#[test]
+fn rejects_blend_modes_not_accepted_by_penpot() {
+    let mut document = sample();
+    document.pages[0].shapes[0].blend_mode = Some("linear-burn".to_owned());
+    assert!(matches!(
+        build_archive(&document),
+        Err(WriteError::Validation(_))
+    ));
 }
 
 #[test]

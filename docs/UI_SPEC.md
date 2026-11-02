@@ -337,6 +337,8 @@ codes:
 | `F2P-STYLE-GRID-LOST` | Grid style wasn’t kept | not_converted |
 | `F2P-INSTANCE-DETACHED` | Component copy was detached | attention |
 | `F2P-INSTANCE-OVERRIDE-LOST` | A component change was reset | review |
+| `F2P-INSTANCE-ATTRIBUTES-UNSUPPORTED` | Component settings need checking | review |
+| `F2P-TOKEN-NAME-NORMALIZED` | A token name was adjusted | review |
 | `F2P-TEXT-MIXED-STYLES-LOST` | Mixed text styles were flattened | review |
 | `F2P-VECTOR-EMPTY` | Empty vector skipped | not_converted |
 | `F2P-VECTOR-FAILED` | Vector couldn’t be converted | attention |
@@ -377,8 +379,10 @@ recorded check.
 - **No page-selection / page-splitting / report-format UI** until the engine supports them;
   do not present dead controls.
 - **Fidelity choice** maps to a real engine option: *Keeps tokens connected* preserves
-  token/style links; *Looks identical* keeps resolved values but removes those links. If
-  the option cannot be wired end-to-end, it is omitted rather than faked.
+  token/style links; *Looks identical* keeps resolved values but removes those links.
+  **Partial:** single-file conversion honors the option, but `conversion-queue::run_job`
+  still uses `ConvertOptions::default()`, ignoring `JobSpec.keep_token_bindings`. Batch
+  preference propagation needs a regression test and fix; it is not verified end to end.
 - **Concurrency** stays advanced and bounded; default 2.
 - **Jump-to-element** is a report breadcrumb plus *Copy layer name/ID* until a canvas viewer
   exists; no dead “jump” button.

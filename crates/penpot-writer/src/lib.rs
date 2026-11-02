@@ -18,4 +18,7 @@ pub use model::{
     TypographyStyle, VariantProperty, FEATURES, MIGRATIONS, PENPOT_FILE_VERSION,
     PENPOT_MANIFEST_VERSION, TARGET_PENPOT,
 };
-pub use validate::{validate_archive, ValidationError, ValidationReport};
+pub use validate::{
+    is_valid_blend_mode, is_valid_token_name, validate_archive, validate_archive_with_limits,
+    ValidationError, ValidationLimits, ValidationReport,
+};

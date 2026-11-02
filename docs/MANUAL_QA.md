@@ -333,3 +333,33 @@ Not started. To be filled when the desktop app exists:
 - Light/dark themes, HiDPI, long paths, keyboard shortcuts, screen reader.
 - Batch: pause, cancel, retry, crash isolation.
 - Offline: conversion with network disabled.
+
+## 14. Private-file compatibility — 2026-11-02
+
+Five user-supplied files were tested locally on Windows using the Rust CLI in an isolated
+Linux container and a separate local Penpot stack. Target image: 2.18.5; browser runtime:
+**2.18.5-RC1**. Telemetry was disabled; imports used loopback HTTP. Private designs, reports,
+and screenshots are not committed as fixtures.
+
+| Check | Result |
+|---|---|
+| Read all five source archives | **Verified** — versions 106/110 |
+| Generated archive structural validation | **Verified** — all passed |
+| Real Penpot imports | **Verified** — all five SSE streams ended successfully with no import error event |
+| Per-file conversion reports | **Verified** — event-based; all `completed_with_warnings`, zero failed elements |
+| Full lossless fidelity | **Partial** — unsupported concepts and approximations remain explicitly reported |
+| Navigation-file UI | **Verified** — opened, page list/layers and design visible; screenshot inspected inline |
+| Swiss Army UI | **Partial** — title and source/restored page list opened; full screenshot capture timed out |
+| Exhaustive visual comparison / every page | **Partial** — limited UI checks only; no pixel-fidelity percentage claimed |
+| Editing/reopen persistence | **Planned** — still pending |
+
+Private evidence is under
+`C:\Users\Danny\Downloads\Figma2Penpot-converted-2026-11-02\verification`:
+`source-manifest.json`, `delivery-summary.json`, per-file import SSE/JSON records, and the
+workspace test log. The delivery includes source-named `.penpot` files and JSON/HTML/CSV
+reports. Hash comparisons verify source immutability and that delivered archive copies
+match the imported bytes.
+
+Real imports first exposed null layout gaps, invalid token names, and unsupported blend
+identifiers that the old validator missed. Tests now assert these failure cases and the
+corresponding recorded conversions/fallbacks. See ADR-0011 for choices and remaining limits.

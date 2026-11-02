@@ -2,6 +2,10 @@
 
 Recorded: **2026-11-01** (session 1). Re-verify before trusting any number here.
 
+Current Windows environment: **2026-11-02**, recorded in §§9–10. Section 10 supersedes
+the initial Docker/toolchain availability checks in §9. Sections 1–8 retain earlier macOS
+environment and verification history; they do not describe the current machine.
+
 This file records what was actually detected on the development machine, not what the
 project wishes were available. Missing capability is listed as missing.
 
@@ -169,3 +173,49 @@ cargo fuzz run read_fig --sanitizer none -- -max_total_time=60
   tag and startup command, and keep it optional so ordinary builds stay offline.
 - Optional nightly toolchain for sanitizer-enabled fuzzing; the stable
   `--sanitizer none` run is the current evidence.
+
+## 9. Windows orientation — 2026-11-02 (session 15)
+
+| Item | Observed value | Evidence |
+|---|---|---|
+| OS | Microsoft Windows 11 Pro, 10.0.26300, 64-bit | `Get-CimInstance Win32_OperatingSystem` |
+| Shell | PowerShell 7.6.5 | `$PSVersionTable.PSVersion` |
+| Checkout | `C:\Users\Danny\Downloads\Figma2Penpot`, branch `main`, starting commit `824b098` | `Get-Location`, `git branch --show-current`, `git log -1` |
+| Git | 2.56.0.windows.3 | `git --version` |
+| Rust tools | `rustc`, `cargo`, and `rustup` not found on `PATH`; `%USERPROFILE%\.cargo\bin\cargo.exe` and `%USERPROFILE%\.rustup` absent | `Get-Command`, `Test-Path` |
+| Compliance tools | `cargo-deny` and `cargo-audit` not found on `PATH` | `Get-Command` |
+| Docker CLI | 29.8.1, build `4a63305` | `docker --version`; daemon and Penpot availability unverified |
+| Code index | Unavailable: `list_projects`, `index_repository`, and `check_index_coverage` returned `Transport closed` | Codebase-memory MCP; direct source reads and `rg` used as fallback |
+
+This session reviewed the repository and its main source entry points. No application
+behavior changed. Build, format, clippy, tests, license/advisory checks, desktop interaction,
+and real Penpot import remain **unverified in this environment**; prior results above are
+historical evidence only. To verify here, make a stable Rust toolchain available, then run
+the workspace gates in `AGENTS.md` and the Windows checks in `docs/MANUAL_QA.md`.
+
+## 10. Local container verification — 2026-11-02 (session 16)
+
+The Windows host still has no Rust toolchain on `PATH`. Docker Desktop was started for
+isolated development and local Penpot import checks; no design data was sent to a remote
+conversion service.
+
+| Item | Observed value |
+|---|---|
+| Docker daemon | 29.8.1 |
+| Rust / Cargo in containers | `rustc 1.99.1 (58cf8f9c3 2026-10-13)` / `cargo 1.99.1 (5f94df478 2026-08-27)` |
+| Workspace gate container | Debian 13/trixie, native GTK3/X11/Wayland/OpenGL development packages |
+| Initial development image | `penpotapp/devenv:latest`; its hardened-package mirror prevented installing matching GTK headers, so full gates used a separate Debian container |
+| Public package access | HTTPS with the existing trusted CA bundle explicitly configured for APT; signature/TLS validation retained |
+| Full workspace tests | 116 passed, including headless desktop tests |
+| Formatting / Clippy | Passed, workspace/all-targets, warnings denied |
+| `cargo-deny` / `cargo-audit` | Not installed; commands report `no such command`; scans unverified |
+| Local Penpot | Image tag 2.18.5; browser runtime reports `2.18.5-RC1`; isolated database/assets, loopback port 19001, telemetry disabled |
+| Private-file imports | Five accepted; SSE end events recorded; source/output hashes and reports remain local |
+| Visual checks | Navigation file viewed; Swiss page list opened; full screenshots/comparison and edit persistence remain partial/unverified |
+
+The codebase-memory service remained unavailable (`Transport closed`), including indexing
+and coverage requests. No graph completeness claim is made.
+
+The seven task-owned build/verification containers were stopped after verification; their
+volumes and private import evidence were retained. The isolated browser tab was closed.
+Other Docker containers were left running.

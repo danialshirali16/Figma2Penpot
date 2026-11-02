@@ -6,9 +6,26 @@ use uuid::Uuid;
 
 use crate::model::{PENPOT_FILE_VERSION, PENPOT_MANIFEST_VERSION};
 
-const MAX_ENTRIES: usize = 10_000;
-const MAX_ENTRY_BYTES: u64 = 64 * 1024 * 1024;
-const MAX_TOTAL_BYTES: u64 = 512 * 1024 * 1024;
+/// Resource ceilings for structural validation of a Penpot archive.
+#[derive(Debug, Clone, Copy)]
+pub struct ValidationLimits {
+    /// Maximum ZIP entries, including per-shape JSON and library assets.
+    pub max_entries: usize,
+    /// Maximum uncompressed bytes in one entry.
+    pub max_entry_bytes: u64,
+    /// Maximum uncompressed bytes across all entries.
+    pub max_total_bytes: u64,
+}
+
+impl Default for ValidationLimits {
+    fn default() -> Self {
+        Self {
+            max_entries: 300_000,
+            max_entry_bytes: 64 * 1024 * 1024,
+            max_total_bytes: 512 * 1024 * 1024,
+        }
+    }
+}
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidationError {
@@ -36,11 +53,20 @@ pub struct ValidationReport {
 /// This checks the rules we committed to in `docs/PENPOT_FORMAT.md`; it is not a
 /// substitute for importing into a real Penpot instance.
 pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationError> {
+    validate_archive_with_limits(bytes, &ValidationLimits::default())
+}
+
+/// Validate an archive with explicit resource ceilings, enforcing size limits before reading.
+pub fn validate_archive_with_limits(
+    bytes: &[u8],
+    limits: &ValidationLimits,
+) -> Result<ValidationReport, ValidationError> {
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes))?;
-    if archive.len() > MAX_ENTRIES {
+    if archive.len() > limits.max_entries {
         return Err(ValidationError::Invalid(format!(
-            "archive has {} entries, limit is {MAX_ENTRIES}",
-            archive.len()
+            "archive has {} entries, limit is {}",
+            archive.len(),
+            limits.max_entries
         )));
     }
 
@@ -56,17 +82,25 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
         if file.is_dir() {
             continue;
         }
-        if file.size() > MAX_ENTRY_BYTES {
+        if file.size() > limits.max_entry_bytes {
             return Err(ValidationError::Invalid(format!(
-                "entry {name:?} is larger than {MAX_ENTRY_BYTES} bytes"
+                "entry {name:?} is larger than {} bytes",
+                limits.max_entry_bytes
             )));
         }
+        let remaining = limits.max_total_bytes.saturating_sub(total);
+        if file.size() > remaining {
+            return Err(ValidationError::Invalid(
+                "archive exceeds the total size limit".into(),
+            ));
+        }
+        let read_limit = limits.max_entry_bytes.min(remaining);
         let mut data = Vec::new();
         file.by_ref()
-            .take(MAX_ENTRY_BYTES + 1)
+            .take(read_limit.saturating_add(1))
             .read_to_end(&mut data)
             .map_err(|error| ValidationError::Zip(format!("{name}: {error}")))?;
-        if data.len() as u64 > MAX_ENTRY_BYTES {
+        if data.len() as u64 > read_limit {
             return Err(ValidationError::Invalid(format!(
                 "entry {name:?} exceeds the size limit"
             )));
@@ -74,7 +108,7 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
         total = total
             .checked_add(data.len() as u64)
             .ok_or_else(|| ValidationError::Invalid("archive size overflow".into()))?;
-        if total > MAX_TOTAL_BYTES {
+        if total > limits.max_total_bytes {
             return Err(ValidationError::Invalid(
                 "archive exceeds the total size limit".into(),
             ));
@@ -328,6 +362,11 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
             let tokens = require_object(Some(&tokens), &tokens_path)?;
             require_array(tokens.get("$themes"), "tokens.$themes")?;
             require_object(tokens.get("$metadata"), "tokens.$metadata")?;
+            for (name, group) in tokens.iter().filter(|(name, _)| !name.starts_with('$')) {
+                validate_token_group(group, "", 0).map_err(|error| {
+                    ValidationError::Invalid(format!("token set {name:?}: {error}"))
+                })?;
+            }
             checks += 2;
         }
 
@@ -458,10 +497,40 @@ pub fn validate_archive(bytes: &[u8]) -> Result<ValidationReport, ValidationErro
                     let reference = require_uuid(Some(reference), "shape.shapeRef")?;
                     pending_shape_refs.push((*shape_id, reference));
                 }
+                if let Some(blend) = shape.get("blendMode") {
+                    let blend = require_str(Some(blend), "shape.blendMode")?;
+                    if !is_valid_blend_mode(blend) {
+                        return Err(ValidationError::Invalid(format!(
+                            "unsupported Penpot blend mode {blend:?}"
+                        )));
+                    }
+                }
                 if let Some(tokens) = shape.get("appliedTokens") {
                     let tokens = require_object(Some(tokens), "shape.appliedTokens")?;
                     for value in tokens.values() {
-                        require_str(Some(value), "appliedTokens value")?;
+                        let name = require_str(Some(value), "appliedTokens value")?;
+                        if !is_valid_token_name(name) {
+                            return Err(ValidationError::Invalid(format!(
+                                "invalid applied token name {name:?}"
+                            )));
+                        }
+                    }
+                }
+                for (field, keys) in [
+                    ("layoutGap", &["rowGap", "columnGap"][..]),
+                    ("layoutPadding", &["p1", "p2", "p3", "p4"][..]),
+                ] {
+                    if let Some(value) = shape.get(field) {
+                        let values = require_object(Some(value), field)?;
+                        for key in keys {
+                            let number =
+                                require_finite(values.get(*key), &format!("{field}.{key}"))?;
+                            if !(i32::MIN as f64..=i32::MAX as f64).contains(&number) {
+                                return Err(ValidationError::Invalid(format!(
+                                    "{field}.{key} is outside Penpot's numeric range"
+                                )));
+                            }
+                        }
                     }
                 }
                 if let Some(children) = shape.get("shapes") {
@@ -938,6 +1007,85 @@ fn require_uuid(value: Option<&Value>, context: &str) -> Result<Uuid, Validation
     let value = require_str(value, context)?;
     Uuid::parse_str(value)
         .map_err(|_| ValidationError::Invalid(format!("{context} is not a UUID: {value:?}")))
+}
+
+/// Whether a shape blend mode is accepted by the target Penpot schema.
+pub fn is_valid_blend_mode(mode: &str) -> bool {
+    matches!(
+        mode,
+        "normal"
+            | "darken"
+            | "multiply"
+            | "color-burn"
+            | "lighten"
+            | "screen"
+            | "color-dodge"
+            | "overlay"
+            | "soft-light"
+            | "hard-light"
+            | "difference"
+            | "exclusion"
+            | "hue"
+            | "saturation"
+            | "color"
+            | "luminosity"
+    )
+}
+
+/// Whether a name satisfies the target Penpot token identifier grammar.
+pub fn is_valid_token_name(name: &str) -> bool {
+    let bytes = name.as_bytes();
+    let Some(first) = bytes.first() else {
+        return false;
+    };
+    if !(first.is_ascii_alphanumeric() || matches!(first, b'_' | b'-')) {
+        return false;
+    }
+    if bytes.last() == Some(&b'.') {
+        return false;
+    }
+    let mut dot = false;
+    for byte in bytes.iter().skip(1) {
+        if *byte == b'.' {
+            if dot {
+                return false;
+            }
+            dot = true;
+        } else {
+            if !(byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'$')) {
+                return false;
+            }
+            dot = false;
+        }
+    }
+    true
+}
+
+fn validate_token_group(value: &Value, prefix: &str, depth: usize) -> Result<(), ValidationError> {
+    if depth > 128 {
+        return Err(ValidationError::Invalid(
+            "token nesting exceeds 128".to_owned(),
+        ));
+    }
+    let group = require_object(Some(value), "token group")?;
+    for (key, value) in group.iter().filter(|(key, _)| !key.starts_with('$')) {
+        let name = if prefix.is_empty() {
+            key.clone()
+        } else {
+            format!("{prefix}.{key}")
+        };
+        let object = require_object(Some(value), "token or group")?;
+        if object.contains_key("$value") || object.contains_key("value") {
+            if !is_valid_token_name(&name) {
+                return Err(ValidationError::Invalid(format!(
+                    "invalid token name {name:?}"
+                )));
+            }
+        } else {
+            validate_token_group(value, &name, depth + 1)?;
+        }
+    }
+    Ok(())
 }
 
 fn require_finite(value: Option<&Value>, context: &str) -> Result<f64, ValidationError> {

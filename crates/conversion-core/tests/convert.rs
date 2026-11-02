@@ -48,6 +48,466 @@ fn run_full(
 }
 
 #[test]
+fn sections_preserve_nested_designs_in_unclipped_boards() {
+    let mut document = read_fig(fixture("text-group.fig")).unwrap();
+    let section = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.kind == "FRAME")
+        .unwrap();
+    section.kind = "SECTION".to_owned();
+    let name = section.name.clone();
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    let board = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == name)
+        .unwrap();
+    assert_eq!(board.kind, penpot_writer::ShapeType::Frame);
+    assert_eq!(board.show_content, Some(true));
+    assert!(!board.shapes.as_ref().unwrap().is_empty());
+    assert!(penpot.pages[0]
+        .shapes
+        .iter()
+        .any(|shape| shape.name == "Title"));
+    assert!(collector.events().iter().any(|event| {
+        event.element.element_type == "SECTION"
+            && event.outcome == conversion_report::Outcome::ConvertedWithModification
+            && event
+                .reason
+                .as_deref()
+                .is_some_and(|reason| reason.contains("section"))
+    }));
+    build_archive(&penpot).expect("section board and descendants validate");
+}
+
+fn embed_button(document: &mut fig_reader::FigDocument) {
+    let source_page = document.pages[0].clone();
+    let mut canvas = document
+        .nodes
+        .iter()
+        .find(|node| node.guid == source_page.guid)
+        .unwrap()
+        .clone();
+    canvas.guid = fig_reader::Guid::new(900, 1);
+    canvas.name = "Embedded library".to_owned();
+    canvas.internal_only = true;
+    document
+        .nodes
+        .iter_mut()
+        .find(|node| node.kind == "SYMBOL" && node.name.ends_with("Button"))
+        .unwrap()
+        .parent = Some(canvas.guid);
+    let mut page = source_page;
+    page.guid = canvas.guid;
+    page.name = canvas.name.clone();
+    page.internal_only = true;
+    page.index = document.pages.len();
+    document.pages.push(page);
+    document.nodes.push(canvas);
+}
+
+#[test]
+fn embedded_components_are_restored_with_editable_instance_children() {
+    let mut document = read_fig(fixture("components.fig")).unwrap();
+    embed_button(&mut document);
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    let library = penpot
+        .pages
+        .iter()
+        .find(|page| page.name == "Imported components")
+        .unwrap();
+    let component = penpot
+        .components
+        .iter()
+        .find(|component| component.name == "Button")
+        .unwrap();
+    assert_eq!(component.main_instance_page, library.id);
+    assert!(library
+        .shapes
+        .iter()
+        .any(|shape| shape.id == component.main_instance_id));
+    let instance = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Button Instance")
+        .unwrap();
+    assert_eq!(instance.component_id, Some(component.id));
+    assert!(!instance.shapes.as_ref().unwrap().is_empty());
+    assert!(!collector
+        .events()
+        .iter()
+        .any(|event| event.code == "F2P-INSTANCE-DETACHED"));
+    build_archive(&penpot).unwrap();
+}
+
+#[test]
+fn nested_override_paths_target_the_correct_embedded_instance() {
+    use fig_reader::{Guid, SymbolOverride};
+    let mut document = read_fig(fixture("components.fig")).unwrap();
+    embed_button(&mut document);
+    let main = document
+        .nodes
+        .iter()
+        .find(|node| node.name.ends_with("Button") && node.kind == "SYMBOL")
+        .unwrap()
+        .clone();
+    let label = document
+        .nodes
+        .iter()
+        .find(|node| node.parent == Some(main.guid) && node.kind == "TEXT")
+        .unwrap()
+        .clone();
+    let mut inner = main.clone();
+    inner.guid = Guid::new(900, 2);
+    inner.name = "Inner".to_owned();
+    let mut inner_label = label.clone();
+    inner_label.guid = Guid::new(900, 3);
+    inner_label.parent = Some(inner.guid);
+    inner_label.override_key = Some(Guid::new(901, 3));
+    let mut first = label.clone();
+    first.kind = "INSTANCE".to_owned();
+    first.text = None;
+    first.symbol_id = Some(inner.guid);
+    first.override_key = Some(Guid::new(901, 4));
+    let mut second = first.clone();
+    second.guid = Guid::new(900, 5);
+    second.override_key = Some(Guid::new(901, 5));
+    *document
+        .nodes
+        .iter_mut()
+        .find(|node| node.guid == label.guid)
+        .unwrap() = first;
+    document.nodes.extend([inner, inner_label, second]);
+    document
+        .nodes
+        .iter_mut()
+        .find(|node| node.name == "Button Instance")
+        .unwrap()
+        .symbol_overrides = vec![SymbolOverride {
+        guid_path: vec![Guid::new(901, 4), Guid::new(901, 3)],
+        characters: Some("Nested override".to_owned()),
+        ..SymbolOverride::default()
+    }];
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    let texts: Vec<_> = penpot.pages[0]
+        .shapes
+        .iter()
+        .filter_map(|shape| {
+            if let Some(Content::Text(text)) = &shape.content {
+                Some(text.children[0].children[0].children[0].text.as_str())
+            } else {
+                None
+            }
+        })
+        .collect();
+    assert_eq!(
+        texts
+            .iter()
+            .filter(|text| **text == "Nested override")
+            .count(),
+        1
+    );
+    assert!(texts.iter().any(|text| *text != "Nested override"));
+    assert!(!collector
+        .events()
+        .iter()
+        .any(|event| event.code == "F2P-INSTANCE-OVERRIDE-LOST"));
+    build_archive(&penpot).unwrap();
+}
+
+#[test]
+fn unsupported_instance_attributes_emit_a_diagnostic() {
+    let mut document = read_fig(fixture("components.fig")).unwrap();
+    let instance = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.name == "Button Instance")
+        .unwrap();
+    instance.symbol_overrides[0]
+        .unmapped_fields
+        .push("layoutSizing".to_owned());
+    let mut collector = ReportCollector::new();
+    convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    assert!(collector.events().iter().any(|event| event.code
+        == "F2P-INSTANCE-ATTRIBUTES-UNSUPPORTED"
+        && event.outcome == conversion_report::Outcome::ConvertedWithModification
+        && event
+            .reason
+            .as_deref()
+            .is_some_and(|reason| reason.contains("layoutSizing"))));
+}
+
+#[test]
+fn cyclic_component_dependencies_are_contained_and_reported() {
+    let mut document = read_fig(fixture("components.fig")).unwrap();
+    embed_button(&mut document);
+    let main = document
+        .nodes
+        .iter()
+        .find(|node| node.kind == "SYMBOL" && node.name.ends_with("Button"))
+        .unwrap()
+        .guid;
+    let label = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.parent == Some(main) && node.kind == "TEXT")
+        .unwrap();
+    label.kind = "INSTANCE".to_owned();
+    label.text = None;
+    label.symbol_id = Some(main);
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    assert!(collector
+        .events()
+        .iter()
+        .any(|event| event.code == "F2P-INSTANCE-DETACHED"));
+    build_archive(&penpot).unwrap();
+}
+
+#[test]
+fn expanded_shape_limit_rejects_excessive_output() {
+    let document = read_fig(fixture("circle.fig")).unwrap();
+    let mut collector = ReportCollector::new();
+    let result = convert(
+        &document,
+        &ConvertOptions {
+            max_expanded_shapes: 1,
+            ..ConvertOptions::default()
+        },
+        &mut collector,
+    );
+    assert!(result.is_err());
+}
+
+#[test]
+fn unknown_container_size_is_recovered_from_real_children_and_reported() {
+    let mut document = read_fig(fixture("text-group.fig")).unwrap();
+    let frame = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.kind == "FRAME")
+        .unwrap();
+    let name = frame.name.clone();
+    frame.size = Some(fig_reader::Size {
+        width: f32::NAN,
+        height: f32::INFINITY,
+    });
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    let frame = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == name)
+        .unwrap();
+    assert!(frame.width.is_finite() && frame.width > 0.0);
+    assert!(frame.height.is_finite() && frame.height > 0.0);
+    assert_eq!(frame.show_content, Some(true));
+    assert!(penpot.pages[0]
+        .shapes
+        .iter()
+        .any(|shape| shape.name == "Title"));
+    assert!(collector
+        .events()
+        .iter()
+        .any(|event| event.element.name == name
+            && event.outcome == conversion_report::Outcome::ConvertedWithModification
+            && event
+                .reason
+                .as_deref()
+                .is_some_and(|reason| reason.contains("unknown"))));
+    assert!(!collector
+        .events()
+        .iter()
+        .any(|event| event.outcome == conversion_report::Outcome::Failed));
+    build_archive(&penpot).unwrap();
+}
+
+#[test]
+fn nonfinite_layout_metrics_are_reported_and_never_serialize_as_null() {
+    let mut document = read_fig(fixture("auto-layout.fig")).unwrap();
+    let node = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.stack_mode.is_some())
+        .unwrap();
+    let name = node.name.clone();
+    node.stack_spacing = Some(f32::NAN);
+    node.stack_counter_spacing = Some(f32::INFINITY);
+    node.stack_horizontal_padding = Some(f32::NAN);
+    node.stack_primary_align_items = Some("SPACE_BETWEEN".to_owned());
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    let frame = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == name)
+        .unwrap();
+    let gaps = frame.layout_gap.as_ref().unwrap();
+    assert_eq!((gaps.row_gap, gaps.column_gap), (0.0, 0.0));
+    assert_eq!(
+        frame.layout_justify_content.as_deref(),
+        Some("space-between")
+    );
+    assert!(collector.events().iter().any(|event| event
+        .reason
+        .as_deref()
+        .is_some_and(|reason| reason.contains("source main-axis gap is unknown"))));
+    build_archive(&penpot).unwrap();
+}
+
+#[test]
+fn token_names_are_escaped_and_converted_bindings_follow_the_new_name() {
+    let mut document = read_fig(fixture("tokens.fig")).unwrap();
+    let variable = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.kind == "VARIABLE" && node.name.contains("primary"))
+        .unwrap();
+    variable.name = "BG Context".to_owned();
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    let expected = "BG_u20_Context";
+    assert!(penpot
+        .pages
+        .iter()
+        .flat_map(|page| &page.shapes)
+        .any(|shape| shape
+            .applied_tokens
+            .as_ref()
+            .is_some_and(|tokens| tokens.values().any(|name| name == expected))));
+    assert!(collector
+        .events()
+        .iter()
+        .any(|event| event.code == "F2P-TOKEN-NAME-NORMALIZED"));
+    build_archive(&penpot).unwrap();
+}
+
+#[test]
+fn clipping_paint_order_and_unsupported_blends_map_to_valid_penpot_shapes() {
+    let mut document = read_fig(fixture("text-group.fig")).unwrap();
+    let frame = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.kind == "FRAME")
+        .unwrap();
+    let frame_name = frame.name.clone();
+    frame.frame_mask_disabled = Some(true);
+    let rectangle = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.kind == "ROUNDED_RECTANGLE" || node.kind == "RECTANGLE")
+        .unwrap();
+    let rectangle_name = rectangle.name.clone();
+    let mut bottom = rectangle.fills[0].clone();
+    bottom.color = Some(fig_reader::Color {
+        r: 1.0,
+        g: 0.0,
+        b: 0.0,
+        a: 1.0,
+    });
+    let mut top = bottom.clone();
+    top.color = Some(fig_reader::Color {
+        r: 0.0,
+        g: 0.0,
+        b: 1.0,
+        a: 1.0,
+    });
+    rectangle.fills = vec![bottom, top];
+    rectangle.blend_mode = Some("LINEAR_BURN".to_owned());
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    let frame = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == frame_name)
+        .unwrap();
+    assert_eq!(frame.show_content, Some(true));
+    let rectangle = penpot.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == rectangle_name)
+        .unwrap();
+    assert_eq!(rectangle.fills[0].fill_color.as_deref(), Some("#0000FF"));
+    assert_eq!(rectangle.fills[1].fill_color.as_deref(), Some("#FF0000"));
+    assert_eq!(rectangle.blend_mode.as_deref(), Some("multiply"));
+    assert!(collector
+        .events()
+        .iter()
+        .any(|event| event.code == "F2P-BLEND-MODE-LOST"));
+    build_archive(&penpot).unwrap();
+}
+
+#[test]
+fn resized_instance_constraints_are_reported_until_fully_supported() {
+    let mut document = read_fig(fixture("components.fig")).unwrap();
+    let main = document
+        .nodes
+        .iter()
+        .find(|node| node.kind == "SYMBOL" && node.name.ends_with("Button"))
+        .unwrap()
+        .clone();
+    document
+        .nodes
+        .iter_mut()
+        .find(|node| node.parent == Some(main.guid) && node.kind == "TEXT")
+        .unwrap()
+        .constraints_h = Some("MAX".to_owned());
+    let instance = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.name == "Button Instance")
+        .unwrap();
+    instance.size.as_mut().unwrap().width = main.size.unwrap().width + 100.0;
+    let mut collector = ReportCollector::new();
+    convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    assert!(collector
+        .events()
+        .iter()
+        .any(|event| event.element.name == "Button Instance"
+            && event.code == "F2P-NODE-APPROXIMATED"
+            && event
+                .reason
+                .as_deref()
+                .is_some_and(|reason| reason.contains("resized child constraints"))));
+}
+
+#[test]
+fn empty_fill_cache_uses_the_existing_stroke_outline() {
+    let mut document = read_fig(fixture("vector-network/straight-2-point-line.fig")).unwrap();
+    let empty_blob = document.blobs.iter().position(|blob| blob.len == 0);
+    let empty_blob = empty_blob.unwrap_or_else(|| {
+        document.blobs.push(fig_reader::Blob { offset: 0, len: 0 });
+        document.blobs.len() - 1
+    });
+    let vector = document
+        .nodes
+        .iter_mut()
+        .find(|node| node.kind == "VECTOR")
+        .unwrap();
+    assert!(!vector.stroke_geometry.is_empty());
+    vector.fill_geometry = vec![fig_reader::VectorGeometry {
+        commands_blob: empty_blob as u32,
+        winding_rule: "NONZERO".to_owned(),
+    }];
+    let mut collector = ReportCollector::new();
+    let penpot = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    assert!(!penpot.pages[0].shapes.is_empty());
+    assert!(collector
+        .events()
+        .iter()
+        .any(|event| event.code == "F2P-VECTOR-STROKE-OUTLINE"));
+    assert!(!collector
+        .events()
+        .iter()
+        .any(|event| event.outcome == conversion_report::Outcome::Failed));
+    build_archive(&penpot).unwrap();
+}
+
+#[test]
 fn circle_converts_with_correct_counts() {
     let (_bytes, report, shapes) = run("circle.fig");
     assert_eq!(report.counts.detected, 2);

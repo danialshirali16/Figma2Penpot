@@ -1,9 +1,11 @@
 # Figma `.fig` Format — What We Know
 
-Status: M0 research baseline; updated at M2. Container detection, bounded Kiwi decoding,
-core geometry, solid paints/strokes, and basic text attributes are implemented in
-`crates/fig-reader`; M2 converts a solid/basic subset. Vectors, components, variables, and
-full text fidelity are not implemented yet.
+Reviewed **2026-11-02** through ADR-0011. The bounded reader decodes containers, embedded
+Kiwi schemas, geometry, paints/effects, text metrics, component/override metadata, and
+variables used by the current converter. Five private version 106/110 files parsed and
+converted; this does not establish complete format or text fidelity. Sections, embedded
+masters, full nested override paths, and frame clipping have tested mappings. Remaining
+unknowns and source-value uncertainty are reported; see `SUPPORT_MATRIX.md` for status.
 
 Confidence labels:
 
@@ -256,8 +258,9 @@ transform: { m00, m01, m02, m10, m11, m12 }   // 2x3 affine
 - The official builder library stores `x/y` verbatim; passing relative coordinates yields
   a file whose shapes sit at the wrong place. The writer must do the accumulation.
 
-This is recorded as ADR-0005. It is **Confirmed from source + generated output**, but a
-real Penpot import of a nested fixture is still the final proof (M2).
+This is recorded as ADR-0005 and confirmed by source, generated output, and M2 nested
+fixture imports. Detailed inspector evidence is in `MANUAL_QA.md`; rotation/skew and
+resized instance children remain Partial.
 
 ## 7. Vector geometry
 
@@ -318,7 +321,8 @@ reported if it mattered.
 arrays. Filled vectors are imported and rendered (OpenFigs icon, 20 paths). Stroke-only
 vectors use the expanded stroke outline as a filled path and are reported as approximated.
 `vectorData` networks are not read; current builds emit `F2P-VECTOR-NETWORK-LOST` when the
-field is present. Booleans and editable handle-level networks remain Planned.
+field is present. Booleans use cached editable paths where available and emit a flattening
+diagnostic; the boolean operand tree and handle-level vector-network topology remain Partial.
 
 ## 8. Paints, effects, text
 
@@ -411,8 +415,9 @@ The reference converter's findings, **Reported** and worth testing:
 - Token names must match Penpot's path grammar; sanitize every segment **and** every
   reference identically or references dangle.
 
-We will implement tokens later than structure and appearance, and only claim **Partial**
-until a real Penpot import proves bindings survive.
+Current token sets/themes and paint bindings are implemented and the basic linkage was
+import-verified. Per-node modes and non-paint bindings remain **Partial**; compatible name
+escaping and binding updates are covered by ADR-0011 and runtime diagnostics.
 
 ## 11. Images
 
@@ -531,6 +536,21 @@ entry name, decompression bomb, schema with absurd counts, deep parent chain, da
 index, duplicate GUIDs.
 
 ## 16. Explicit unknowns
+
+Session 16 compatibility findings (2026-11-02; private inputs are not committed):
+
+- `frameMaskDisabled` is retained on nodes and symbol overrides; it maps directly to
+  Penpot `showContent`. Sections become unclipped boards with an explicit approximation.
+- Required component masters can live on an internal-only canvas. Restore referenced
+  definitions and dependencies separately while keeping that source canvas excluded.
+- Nested override addresses use the full `guidPath`; imported-library nodes can use
+  `overrideKey` aliases. Known but unmapped override field names are retained for diagnostics.
+- A cached fill stream can be empty while the stroke stream contains usable geometry.
+  An empty cache is distinct from a missing/corrupt blob.
+- Source size/gap values can be non-finite. Container recovery from converted child bounds
+  and finite layout fallbacks are reported; source values remain unknown.
+
+See ADR-0011 for bounded conversion behavior and remaining limitations.
 
 - Full node-type coverage across Figma versions; the list is empirical.
 - Whether raw `GROUP` still occurs, and whether `resizeToFit` is the only group
