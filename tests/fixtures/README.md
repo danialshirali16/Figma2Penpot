@@ -1,5 +1,10 @@
 # Test fixtures
 
+Reviewed **2026-11-02**. The committed corpus contains four MIT reference fixtures and
+nine project-owned synthetic fixtures. Private compatibility inputs/outputs are excluded.
+New regression cases adapt these fixtures in memory or construct synthetic models; no
+private design bytes, reports, names, or images were added as fixtures (ADR-0011).
+
 These files are external reference inputs, not output from this project. They are
 committed only because their upstream license permits redistribution.
 

@@ -1,5 +1,9 @@
 # M2–M8 QA evidence
 
+Reviewed **2026-11-02**. The images below are historical fixture evidence. New private-file
+import checks are recorded in `../MANUAL_QA.md` §14; no private screenshots or designs were
+added here. Successful import is distinct from verified visual fidelity and persistence.
+
 Screenshots from a local Penpot **2.18.5** stack (backend reports `2.18.5-RC1`) on
 2026-11-01. The stack used the official `docker/images/docker-compose.yaml` at tag 2.18.5,
 with telemetry disabled, and was stopped after verification.

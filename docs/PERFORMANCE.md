@@ -1,6 +1,10 @@
 # Performance and Reliability
 
-Recorded: **2026-11-02**. Re-measure before trusting these numbers on another machine.
+Recorded: **2026-11-02**. The timings/RSS below are historical macOS measurements.
+Session 16 compatibility validation used Windows-hosted Linux containers and did not
+remeasure these benchmarks. The existing correctness baseline still passes among the
+116 workspace tests; its counts and performance values were not changed. Re-measure before
+trusting these numbers on another machine.
 
 ## Environment
 
@@ -76,8 +80,15 @@ are documented with a 30% wall-time tolerance but are not asserted in CI.
 
 ## Known gaps
 
-- Scale coverage is two files: a committed 3,303-node synthetic fixture and one local
-  4,629-node real-world file; no broad large-file corpus.
+- Measured scale coverage remains the committed 3,303-node synthetic fixture and one
+  historical local 4,629-node file. Five additional private version 106/110 files now pass
+  conversion/import checks, but their expanded component working sets have not been
+  benchmarked for peak RSS. They are compatibility cases, not new timing baselines.
+- Expanded/cache shapes default to 250,000; validator defaults are 300,000 entries,
+  64 MiB per entry, and 512 MiB total uncompressed data. These bounds are tested but are
+  not a guarantee of acceptable memory use on every 8 GiB machine (ADR-0011).
+- Historical fuzz campaigns predate the new embedded-component and override mappings;
+  targeted fuzzing of those cases remains Planned.
 - Low-disk and cancellation-during-write paths are not exercised. A forced write failure
   (destination is a directory) is now covered and leaves no temporary files.
 - Benchmarks use one run each; noise is unquantified.

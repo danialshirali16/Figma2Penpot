@@ -1,5 +1,10 @@
 # Wireframes (low fidelity)
 
+Reviewed **2026-11-02**. These layouts record design intent. Current implementation gaps
+and the 30 issue-code copy mappings are maintained in `../UI_SPEC.md`; screenshots and
+their platform scope are in `screenshots/README.md`. No new native-platform screenshots
+were captured during the private-file compatibility work.
+
 Every screen has empty, loading, success, partial, and error states. The layouts below are
 the default 1180×760 window; the 900×620 window collapses the sidebar labels and stacks
 footer actions.

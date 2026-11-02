@@ -12,6 +12,11 @@ The full product brief lives in `docs/PROJECT_BRIEF.md`. This file is the short,
 
 Tagline: *"Move your designs from Figma to Penpot. Simply."*
 
+Current source baseline (2026-11-02): all seven crates exist, with 116 passing workspace
+tests in the Linux-container verification environment. Five private-file imports into
+Penpot 2.18.5-RC1 are Verified; full fidelity remains Partial. See ADR-0011, the support
+matrix, and `PROGRESS.md`. Published `v0.1.1` binaries predate these compatibility fixes.
+
 ## 2. Hard rules (never violate)
 
 1. **Pure Rust.** No Node.js, no JS/TS engine or runtime, no subprocess calls to the original converter, no Electron/webview/browser UI, no backend server, no cloud conversion.
@@ -34,7 +39,8 @@ crates/
   conversion-queue/    Batch jobs, bounded concurrency, progress events, cancellation, retry
   f2p-cli/             Thin headless CLI over the same APIs (inspect, convert, batch)
   desktop-app/         egui/eframe application
-tests/                 fixtures/, integration/, golden/
+tests/                 fixtures/, benchmarks/
+crates/*/tests/        integration tests, golden reports, fixture baselines
 docs/                  ARCHITECTURE, FIG_FORMAT, PENPOT_FORMAT, LICENSE_ASSESSMENT,
                        SUPPORT_MATRIX, ISSUE_CODES, DEV_ENVIRONMENT, MANUAL_QA, DECISIONS/
 PROGRESS.md            Living status file (update every session)
@@ -42,7 +48,8 @@ PROGRESS.md            Living status file (update every session)
 
 Dependency direction: `desktop-app` → `conversion-queue` → `conversion-core` → (`fig-reader`, `penpot-writer`, `conversion-report`). The core must never depend on the UI.
 
-> Not every crate may exist yet. Check `PROGRESS.md` for the current state before assuming a path exists.
+> Check `PROGRESS.md` and `docs/DOCUMENTATION_INDEX.md` for current implementation and
+> evidence. API resource limits are documented in ADR-0011; not every limit is exposed in UI.
 
 ## 4. Commands
 

@@ -1,5 +1,10 @@
 # Roadmap
 
+Reviewed **2026-11-02**. The source compatibility work is recorded in ADR-0011. All five
+private files import into Penpot 2.18.5-RC1, but overall fidelity remains **Partial**. The
+116-test Linux-container result does not replace native platform or exhaustive visual QA.
+Compatibility fixes are not included in the published `v0.1.1` artifacts.
+
 Sequencing for Figma 2 Penpot, from research to a signed-ish, installable v1.0.
 
 **Milestones are gates, not dates.** A milestone is done only when every acceptance item
@@ -29,21 +34,21 @@ Status vocabulary is fixed and defined in [`README.md`](README.md#support-status
 
 | ID | Milestone | Ends when | Status |
 |---|---|---|---|
-| M0 | Research and legal baseline | Format, architecture, and license documents exist with citations and explicit unknowns | **Done** — see `PROGRESS.md` |
-| M1 | Workspace and `.fig` reading | `f2p-cli inspect` prints verified metadata for ≥3 fixtures; malformed inputs error without panicking | **Done** — see `PROGRESS.md` |
-| M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Done** — verified in Penpot |
-| M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Done with Partial items** — all eight waves implemented; see `PROGRESS.md` |
-| M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **In progress** — M4.1 shell and worker |
-| M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **In progress** — queue core, CLI batch, desktop Convert all |
-| M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **In progress** — exporters, CLI report, desktop export buttons |
-| M7 | Reliability and performance | Fuzz campaign, large-file corpus, recorded time and peak-memory benchmarks | **In progress** — fuzz, benchmarks, baseline; corpus/error drills pending |
-| M8 | Release engineering | Windows and macOS artifacts built in CI, docs and notices complete | **Partial** — v0.1.0 artifacts published; signing/installers pending |
+| M0 | Research and legal baseline | Format, architecture, and license documents exist with citations and explicit unknowns | **Verified** — see `PROGRESS.md` |
+| M1 | Workspace and `.fig` reading | `f2p-cli inspect` prints verified metadata for ≥3 fixtures; malformed inputs error without panicking | **Verified** — see `PROGRESS.md` |
+| M2 | Minimal end-to-end conversion | Simple fixture converts to a validator-passing `.penpot` with correct report counts | **Verified** — verified in Penpot |
+| M3 | Fidelity expansion | Each feature ships with tests, golden output, diagnostics, and a support-matrix row | **Partial** — all eight waves implemented; fidelity gaps remain |
+| M4 | Desktop application | Eight screens working headlessly-testable, non-blocking queue, light/dark | **Partial** — eight-screen designer UI, worker and headless tests; native interaction QA pending |
+| M5 | Batch conversion | Mixed batch test shows isolation, bounded memory, clean cancellation | **Partial** — bounded queue, CLI batch, desktop retry/remove; mid-write cancellation and token preference propagation pending |
+| M6 | Reports UI and exports | Filterable report UI; JSON/HTML/CSV exporters snapshot-tested | **Partial** — JSON/HTML/CSV exports, grouping/filters and designer copy; full interaction QA pending |
+| M7 | Reliability and performance | Fuzz campaign, large-file corpus, recorded time and peak-memory benchmarks | **Partial** — historical fuzz/benchmarks, unchanged fixture baseline; new component fuzz/scale coverage pending |
+| M8 | Release engineering | Windows and macOS artifacts built in CI, docs and notices complete | **Partial** — v0.1.1 app/DMG/zip/tarball artifacts; signing/MSI and native install QA pending |
 
 ---
 
 ## M0 — Research and legal baseline
 
-**Status: Done (2026-11-01).** Evidence is recorded in `PROGRESS.md`. The deliverables are
+**Status: Verified (2026-11-01 evidence).** Evidence is recorded in `PROGRESS.md`. The deliverables are
 `docs/ARCHITECTURE.md`, `docs/FIG_FORMAT.md`, `docs/PENPOT_FORMAT.md`,
 `docs/LICENSE_ASSESSMENT.md`, `docs/RISKS.md`, `docs/DEV_ENVIRONMENT.md`,
 `docs/RESEARCH_SOURCES.md`, and ADRs 0001–0008. Real Penpot import was pending at M0;
@@ -77,7 +82,7 @@ whole project under an incompatible license.
 
 ## M1 — Workspace and `.fig` reading
 
-**Status: Done (2026-11-01).** The workspace builds; the reader parses four fixtures
+**Status: Verified (2026-11-01 evidence).** The workspace builds; the reader parses four fixtures
 (550/627-definition schemas, ZIP and raw forms); 29 unit/integration tests and a doctest
 pass; hostile inputs return typed errors; the fuzz target ran 829,577 executions without a
 crash; CI is green on Linux, macOS, and Windows. Evidence is in `PROGRESS.md`. Conversion
@@ -115,7 +120,7 @@ was out of scope for M1 and is now implemented through M3.
 
 ## M2 — Minimal end-to-end conversion
 
-**Status: Done (2026-11-01); real import verified.**
+**Status: Verified (2026-11-01); real import verified.**
 `circle.fig` and the synthetic `text-group.fig` convert through the CLI, pass the structural
 validator, and produce event-based JSON reports. Both archives imported into a local Penpot
 2.18.5 stack (`2.18.5-RC1`); frames, groups, rect/ellipse geometry, fills, strokes, corner
@@ -149,7 +154,7 @@ and move/edit persistence were not tested and are marked untested in `docs/MANUA
 
 ## M3 — Fidelity expansion
 
-**Status: Complete (2026-11-01), with documented Partial sub-features.** All eight waves
+**Status: Partial (reviewed 2026-11-02).** All eight waves
 are implemented. M3.1–M3.3 and M3.5–M3.8 are import-verified in Penpot 2.18.5; M3.4 metrics
 are unit-tested and carried through a verified typography style. Partial: stroke-only
 vectors, editable network handles, boolean operands, mask mode, Auto Layout child sizing,
@@ -184,10 +189,11 @@ treated as complete.
 
 ## M4 — Desktop application
 
-**Status: In progress (M4.1, 2026-11-01).** The native shell, eight screens, headless state
+**Status: Partial (reviewed 2026-11-02; M4.2 designer UI implemented).** The native shell, eight screens, headless state
 tests, native dialogs, settings persistence, and background conversion worker exist.
-Drag/drop and dialogs still need manual QA; packaging and the full acceptance checklist are
-pending.
+The designer UI has light/dark screenshots at two sizes and plain-language reports.
+Drag/drop, dialogs, keyboard-only, and accessibility still need complete platform QA;
+packaging exists as a separate Partial release-engineering milestone.
 
 **Goal.** A finished-feeling native utility, not a web dashboard in a window.
 
@@ -215,9 +221,11 @@ pending.
 
 ## M5 — Batch conversion
 
-**Status: In progress (2026-11-01).** The headless queue, CLI `batch`, and desktop
+**Status: Partial (reviewed 2026-11-02).** The headless queue, CLI `batch`, and desktop
 “Convert all” path exist with bounded workers, stage events, pause/cancel, and per-job
-isolation. Retry/remove controls, cancellation mid-write, and memory benchmarks are pending.
+isolation. Retry/remove controls and historical memory benchmarks are implemented.
+Mid-write cancellation, expanded-component peak RSS, and batch token-preference propagation
+remain pending. Default concurrency is 2; automatic CPU/memory tuning is Planned.
 
 **Goal.** Many files, one bad apple.
 
@@ -244,9 +252,10 @@ isolation. Retry/remove controls, cancellation mid-write, and memory benchmarks 
 
 ## M6 — Report UI and exports
 
-**Status: In progress (2026-11-02).** Self-contained HTML and CSV exporters, CLI `report`,
-batch aggregate exports, and desktop export buttons exist. The report screen has search and
-severity/outcome filters; richer grouping and jump-to-element remain.
+**Status: Partial (2026-11-02).** Self-contained HTML and CSV exporters, CLI `report`,
+batch aggregate exports, and desktop export buttons exist. The report screen has search,
+severity/outcome filters, grouping by what to do/page/none, and 30 designer issue-code
+mappings. Component grouping, jump-to-element, and full platform interaction QA remain.
 
 **Goal.** The differentiator, finished.
 
@@ -271,7 +280,7 @@ severity/outcome filters; richer grouping and jump-to-element remain.
 
 ## M7 — Reliability and performance
 
-**Status: In progress (2026-11-02).** A 60-second fuzz campaign (818,204 executions, no
+**Status: Partial (2026-11-02).** A 60-second fuzz campaign (818,204 executions, no
 artifacts), per-fixture release benchmarks, batch memory measurements, one 4,629-node real
 file, and a checked-in conversion baseline are recorded. A large corpus and remaining
 error-recovery drills are pending.
@@ -294,10 +303,11 @@ error-recovery drills are pending.
 
 ## M8 — Release engineering
 
-**Status: Partial (2026-11-02).** `v0.1.0` was published with macOS `.app`, Windows zip,
-and Linux tarball artifacts plus SHA-256 files. The macOS bundle launched locally;
-Windows/Linux install-and-launch, MSI/DMG installers, and signing/notarization remain
-unverified.
+**Status: Partial (2026-11-02).** `v0.1.1` was published with macOS `.app`/DMG/CLI, Windows zip,
+and Linux tarball artifacts plus SHA-256 files. The macOS bundle launched locally and a
+DMG was built. Windows/Linux install-and-launch, the Windows MSI installer, and
+signing/notarization remain pending. This is release evidence, not proof that the published
+binaries include subsequent source fixes.
 
 **Work**
 
@@ -322,7 +332,7 @@ No dates. Releases are cut when their gate is green.
 
 | Version | Gate | Promise |
 |---|---|---|
-| `0.1.0` | M2 | One simple file converts correctly, with an honest report. CLI only. |
+| `0.1.0` / `0.1.1` | Pre-alpha checkpoints, published | Desktop and CLI artifacts exist; full v1.0 acceptance remains open. |
 | `0.3.0` | M3 (partial) | Useful fidelity on common files; support matrix documents the rest. |
 | `0.5.0` | M4 + M5 | The desktop app people can actually use, including batches. |
 | `0.8.0` | M6 + M7 | Reports complete, reliability measured. |
@@ -340,7 +350,7 @@ and checked in a real Penpot instance, and complete tests, docs, and license com
 | `.fig` schema drift across Figma versions | Reader breaks on new files | Version-tolerant decoding, unknown-field diagnostics, fixture corpus per version |
 | Penpot import strictness changes between releases | Valid-looking output rejected | Pin target versions; structural validator; optional real-import checks in CI |
 | Penpot model gaps (tokens, variants, layout) | Fidelity cap on M3 waves | Documented fallbacks; report events; no pretending parity |
-| No license on the reference project | Cannot reuse its fixes | Clean-room from behavior and public docs; MPL upstream studied, not copied |
+| No license on the reference project | Cannot reuse its fixes | Reimplement from behavior and format facts without code reuse (ADR-0002); not a formal clean-room |
 | GPU/egui rendering differences across platforms | UI defects only visible on real hardware | CI smoke builds; manual QA matrix; screenshot tests where possible |
 | Very large files | Memory or time blowups | Streaming, page splitting, bounded concurrency, measured benchmarks |
 

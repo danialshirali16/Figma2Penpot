@@ -3,8 +3,14 @@
 Status: M0 baseline. **Not legal advice.** This is an engineering compliance assessment;
 before a 1.0 release, have counsel review the conclusion and the attribution files.
 
-Snapshot: **2026-11-01**. Licenses were read from repository metadata, license files, npm
-metadata, and crates.io metadata. They can change upstream; re-check before release.
+M0 snapshot: **2026-11-01**; reviewed **2026-11-02**. Licenses were read from repository
+metadata, license files, npm metadata, and crates.io metadata. The reference converter was
+rechecked on 2026-11-02 and still declares no repository license. ADR-0011 uses documented
+format facts without upstream code reuse. No dependencies or lockfile entries changed in
+that work. The current Linux dependency metadata inventory is in `THIRD_PARTY_LICENSES.md`;
+full cross-platform license-text generation and `cargo-deny`/`cargo-audit` scans remain
+unverified because the scan tools were unavailable. This is a documented pre-alpha gate
+exception, not a clean compliance result. Re-check before release.
 
 ---
 
@@ -99,7 +105,7 @@ MIT notice with attribution when using the fixtures.
 MIT permits use, copy, modification, and distribution, provided the copyright notice and
 permission notice are included. It disclaims warranty. There is no copyleft.
 
-Planned use: copy a small number of **fixtures** into `tests/fixtures/` with the upstream
+Implemented use: four **reference fixtures** are in `tests/fixtures/` with the upstream
 commit and MIT notice recorded. No JavaScript code is used.
 
 ### 2.6 `kiwi` / `kiwi-schema` (JavaScript and Rust) — MIT
@@ -112,7 +118,11 @@ Evidence:
 The Rust crate is a candidate runtime dependency (ADR-0004). MIT is compatible with the
 project license. Attribution goes in `THIRD_PARTY_LICENSES`.
 
-## 3. Planned Rust dependencies
+## 3. M0 dependency evaluation (historical)
+
+The table below records the original evaluation, not the current resolved build graph.
+Use crate manifests/`Cargo.lock` and `THIRD_PARTY_LICENSES.md` for the current target-scoped
+inventory. Some evaluated crates were never added; this table is not a passed dependency scan.
 
 All licenses were checked against crates.io metadata on 2026-11-01. The list is a plan, not
 a lockfile; `cargo-deny` will enforce it once the workspace exists.

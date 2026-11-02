@@ -9,7 +9,7 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — `v0.1.1` artifacts published; M5/M7 still have open items
+> ## Status: pre-alpha — source compatibility fixes; published binaries are `v0.1.1`
 >
 > The Rust workspace reads real `.fig` files and converts the M2 slice plus vectors, masks,
 > boolean fallbacks, gradients, shadows, blur, image fills, text metrics, flex containers,
@@ -27,6 +27,17 @@ A native, offline, open-source desktop application for Windows and macOS that co
 > bindings are documented Partial items with runtime diagnostics. See
 > [`PROGRESS.md`](PROGRESS.md) and [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md).
 
+As of **2026-11-02**, five privately supplied version 106/110 Figma files convert and
+import into local **Penpot 2.18.5-RC1**, with zero failed elements and explicit warnings.
+Import compatibility is **Verified**; overall fidelity is **Partial**. These fixes restore
+section contents and referenced embedded components, resolve nested override paths, and
+handle target layout, token-name, paint-order, and blend constraints. Full visual comparison
+and edit/reopen persistence remain pending. Private files and reports are not distributed.
+See [ADR-0011](docs/DECISIONS/0011-private-file-compatibility.md).
+
+The compatibility changes are in source and are **not included in the existing `v0.1.1`
+downloads**. Build this revision to use them; no new release has been published for them.
+
 ---
 
 ## Why this exists
@@ -43,14 +54,14 @@ Figma 2 Penpot is built around three beliefs:
 3. **Native software should be small, fast, and private.** One Rust binary, no embedded
    browser, no JavaScript runtime, no network calls during conversion.
 
-## What it will do
+## Current workflow
 
 | Step | What you get |
 |---|---|
-| **Import** | Drag and drop, multi-file and folder pickers (optionally recursive), a reorderable queue, and per-file validation before anything is converted. |
+| **Import** | Drag and drop, multi-file and folder pickers, recursive folder scan, and a file queue; native interactions still need platform QA. |
 | **Analyze** | Pages, frames, layers, components, instances, variants, variables, styles, images, and likely compatibility problems — with `Unknown` shown honestly instead of guessed. |
-| **Configure** | Sane defaults, advanced options behind progressive disclosure: page selection, fidelity-vs-token-binding preference, page splitting, concurrency, overwrite policy, validation. |
-| **Convert** | Real stage-based progress (`Reading → Decoding → Mapping → Writing → Validating`). No invented percentages. |
+| **Configure** | Output location, overwrite behavior, and bounded concurrency. The token preference works for single-file conversion; batch propagation remains a known gap. Page selection and splitting are Planned. |
+| **Convert** | Real stages (`Reading → Converting → Writing → Validating → Saving`). No invented percentages. |
 | **Review** | Per-file results, a combined batch summary, and a report that links every issue to a node, page, and layer path. |
 | **Export** | Reports as JSON, standalone HTML, or CSV. Open the output folder. |
 
@@ -63,13 +74,13 @@ The report is generated from events emitted **during** conversion, not reconstru
 the output afterwards. Every transformation decision — converted, approximated,
 substituted, skipped, failed — is recorded at the point where it happens.
 
-Illustrative entry (format only; this is not output from a working converter):
+Illustrative entry using a supported issue code (not a private-file report):
 
-> **F2P-VAR-001 · Unsupported variable binding** — *Warning*, converted with modification
+> **F2P-INSTANCE-ATTRIBUTES-UNSUPPORTED · Component settings need checking** — *Warning*, converted with modification
 > **Element:** Primary Button (`12:340`) · **Page:** Components · **Path:** Components / Buttons / Primary
-> **Problem:** This variable binding has no Penpot equivalent.
-> **Result:** The resolved value was preserved as a static value; the dynamic binding was lost.
-> **Suggested action:** Reconnect the matching design token in Penpot.
+> **Problem:** Some instance attributes have no mapping yet.
+> **Result:** Supported attributes were applied; other attributes retain component defaults.
+> **Suggested action:** Review the listed settings against the original design.
 
 Repeated issues may be grouped for readability, but element-level traceability is always
 preserved. If output could not be validated, the report says so.
@@ -100,24 +111,24 @@ status words.
 | **Not supported** | Out of reach or out of scope, and reported as such at runtime. |
 
 The authoritative per-feature list is [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md).
-Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Implemented
-(unverified)**, or **Partial**; the rest remain **Planned** until they exist.
+It covers all implemented reader, converter, queue, report, and desktop features, including
+the remaining Partial behavior. Import acceptance alone never establishes lossless fidelity.
 
 ## Project status at a glance
 
 | Milestone | Scope | Status |
 |---|---|---|
-| M0 | Research, format findings, license assessment, architecture | **Done** — evidence in `PROGRESS.md` |
-| M1 | Cargo workspace, `.fig` container/decode, `f2p-cli inspect` | **Done** — evidence in `PROGRESS.md` |
-| M2 | Minimal end-to-end conversion + validator + JSON report | **Done** — imported and inspected in Penpot 2.18.5-RC1 |
-| M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **Done with Partial items** — import-verified in Penpot 2.18.5-RC1 |
-| M4 | Native desktop application (eight screens) | **Done** — designer UI; native dialog/drag-drop/keyboard/manual checks unverified |
+| M0 | Research, format findings, license assessment, architecture | **Verified** — recorded baseline and decisions; release compliance review pending |
+| M1 | Cargo workspace, `.fig` container/decode, `f2p-cli inspect` | **Verified** — fixture, hostile-input, fuzz, and historical CI evidence in `PROGRESS.md` |
+| M2 | Minimal end-to-end conversion + validator + JSON report | **Verified** — imported and inspected in Penpot 2.18.5-RC1 |
+| M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **Partial** — all eight waves implemented; sub-feature losses remain reported |
+| M4 | Native desktop application (eight screens) | **Partial** — designer UI; native dialog/drag-drop/keyboard/manual checks pending |
 | M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **Partial** — queue core, CLI batch, desktop Convert all; mid-write cancel pending |
-| M6 | Report UI and JSON/HTML/CSV exports | **Done** — event-based report, designer grouping/filters, JSON/HTML/CSV |
-| M7 | Reliability, fuzzing, performance benchmarks | **In progress** — fuzz, benchmarks, checked-in baseline |
+| M6 | Report UI and JSON/HTML/CSV exports | **Partial** — exports verified; full report interaction/platform QA pending |
+| M7 | Reliability, fuzzing, performance benchmarks | **Partial** — fuzz, benchmarks, checked-in baseline; new component cases need broader fuzz/scale coverage |
 | M8 | Release engineering and installers | **Partial** — v0.1.1 artifacts and macOS DMG; signing/MSI pending |
 
-## Intended architecture
+## Architecture
 
 ```text
 .fig
@@ -126,7 +137,7 @@ Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Impleme
   → penpot-writer       Penpot document model → .penpot archive   [implemented]
   → validation          structural checks against derived Penpot rules   [implemented]
   → atomic write        temp file in destination volume → validate → rename   [implemented]
-  → report              per-file and batch reports (JSON / HTML / CSV)   [per-file JSON implemented]
+  → report              per-file and batch reports (JSON / HTML / CSV)   [implemented]
 ```
 
 A thin headless CLI (`f2p-cli`) wraps the same API as the desktop app so conversion stays
@@ -179,6 +190,11 @@ contains macOS app/CLI, Windows zip, and Linux tarball artifacts with SHA-256 ch
 Builds are currently unsigned; see [`docs/RELEASE.md`](docs/RELEASE.md) and
 [`PRIVACY.md`](PRIVACY.md).
 
+The current source passed **116 workspace tests**, formatting, and Clippy with warnings
+denied in a Linux container on Windows. `cargo-deny` and `cargo-audit` were unavailable;
+their scans remain unverified. Platform evidence and exact checks are in
+[`docs/DEV_ENVIRONMENT.md`](docs/DEV_ENVIRONMENT.md).
+
 Optional fuzzing (the harness is in `fuzz/`):
 
 ```bash
@@ -196,20 +212,21 @@ result.
 | [`README.md`](README.md) | Product overview | This file |
 | [`PROGRESS.md`](PROGRESS.md) | Living status, evidence, and next steps | Exists |
 | [`Roadmap.md`](Roadmap.md) | Milestones, gates, and acceptance criteria | Exists |
-| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | System design, crates, passes, reporting | Exists (M0) |
+| [`docs/DOCUMENTATION_INDEX.md`](docs/DOCUMENTATION_INDEX.md) | Complete document map and current/historical evidence scope | Updated 2026-11-02 |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Current crates, conversion bounds, reporting, queue | Updated 2026-11-02 |
 | [`docs/PROJECT_BRIEF.md`](docs/PROJECT_BRIEF.md) | Working restatement of the requirements | Exists (M0) |
-| [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md) | Per-feature support status | Exists (M2 reader + conversion) |
-| [`docs/ISSUE_CODES.md`](docs/ISSUE_CODES.md) | Stable diagnostic codes | Exists (reader + M2 conversion) |
-| [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md) | Platform test checklist | Exists (import checklist pending) |
+| [`docs/SUPPORT_MATRIX.md`](docs/SUPPORT_MATRIX.md) | Per-feature support status and remaining limits | Updated 2026-11-02 |
+| [`docs/ISSUE_CODES.md`](docs/ISSUE_CODES.md) | Reader warnings and 30 converter issue codes | Updated 2026-11-02 |
+| [`docs/MANUAL_QA.md`](docs/MANUAL_QA.md) | Recorded imports, platform checks, pending visual/persistence QA | Updated 2026-11-02 |
 | [`docs/FIG_FORMAT.md`](docs/FIG_FORMAT.md) | `.fig` container, Kiwi, nodes, vectors, unknowns | Exists (M0) |
 | [`docs/PENPOT_FORMAT.md`](docs/PENPOT_FORMAT.md) | `.penpot` v3 archive, schema, import limits | Exists (M0) |
 | [`docs/LICENSE_ASSESSMENT.md`](docs/LICENSE_ASSESSMENT.md) | Upstream licenses and reuse decisions | Exists (M0) |
 | [`docs/RISKS.md`](docs/RISKS.md) | Technical risk register | Exists (M0) |
 | [`docs/DEV_ENVIRONMENT.md`](docs/DEV_ENVIRONMENT.md) | Verified toolchain and platform facts | Exists (M0) |
 | [`docs/RESEARCH_SOURCES.md`](docs/RESEARCH_SOURCES.md) | Pinned upstream commits and provenance | Exists (M0) |
-| [`docs/DECISIONS/`](docs/DECISIONS/) | Architecture decision records | 8 accepted/superseding |
-| `docs/ISSUE_CODES.md` | Stable diagnostic codes | Exists (M1 reader warnings) |
-| `docs/MANUAL_QA.md` | Platform test checklist | Planned (M4) |
+| [`docs/DECISIONS/`](docs/DECISIONS/) | Architecture decision records | 0001–0011 |
+| [`docs/RELEASE.md`](docs/RELEASE.md) | Published artifacts, source-only fixes, release checklist | Updated 2026-11-02 |
+| [`docs/UI_SPEC.md`](docs/UI_SPEC.md) | Desktop design contract, copy, and implementation gaps | Updated 2026-11-02 |
 
 ## Non-goals for v1
 
@@ -234,7 +251,8 @@ The project is dual-licensed as **MIT OR Apache-2.0** (ADR-0001). The full asses
 code may be copied or ported: the reference converter is unlicensed, and the official
 exporter and Penpot are MPL-2.0.
 
-Facts established during M0 (checked 2026-11-01):
+M0 facts were checked on 2026-11-01; the reference converter's license metadata was
+rechecked on 2026-11-02 (still no declared license):
 
 - The reference community project [`girafic/penpot-converter`](https://github.com/girafic/penpot-converter)
   declares **no license** in its GitHub metadata. No permission to copy, modify, or
@@ -254,6 +272,7 @@ and `docs/DECISIONS/0002-no-code-reuse.md` says so plainly.
 
 ## Contributing
 
-Contribution guidelines, a code of conduct, and issue templates will arrive with M1.
-Until then, please open an issue rather than a pull request. Do not paste code from the
+Use [`AGENTS.md`](AGENTS.md) for build, testing, reporting, and fixture rules. Changes need
+appropriate tests and accurate support/issue documentation. Dedicated contributor templates
+remain Planned. Keep private designs and reports out of commits. Do not paste code from the
 reference converter or the Penpot exporter; see `docs/LICENSE_ASSESSMENT.md`.
