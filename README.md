@@ -9,17 +9,18 @@ A native, offline, open-source desktop application for Windows and macOS that co
 
 ---
 
-> ## Status: pre-alpha — `v0.1.0` artifacts published; M4–M7 still have open items
+> ## Status: pre-alpha — `v0.1.1` artifacts published; M5/M7 still have open items
 >
 > The Rust workspace reads real `.fig` files and converts the M2 slice plus vectors, masks,
 > boolean fallbacks, gradients, shadows, blur, image fills, text metrics, flex containers,
 > styles, components/variants, and design tokens to `.penpot`. It validates the archive and
 > writes an event-based JSON report. M2–M3.8 outputs imported into a local **Penpot 2.18.5**
-> stack and were inspected. The native desktop shell now exists with eight screens, native
-> file dialogs, background conversion, headless UI tests, and a batch queue core exposed
-> through CLI `batch` and the desktop “Convert all” button. Batch retry/remove controls and
-> memory benchmarks are done; release packaging is not. Self-contained HTML/CSV report
-> exports and a CLI `report` command are implemented. Fuzz and release benchmark evidence
+> stack and were inspected. The native desktop app now has a designer-first UI: eight
+> screens, plain-language conversion report, light/dark themes, native file dialogs,
+> background conversion, pause/cancel, and headless UI tests. Batch retry/remove controls,
+> memory benchmarks, macOS DMG packaging, and self-contained HTML/CSV/JSON report exports
+> are implemented. Native dialog, drag-drop, keyboard-only, screen-reader, and
+> Windows/Linux visual checks remain unverified. Fuzz and release benchmark evidence
 > is recorded in [`docs/PERFORMANCE.md`](docs/PERFORMANCE.md), with a checked-in fixture
 > baseline under `tests/benchmarks/`. Stroke-only vectors, editable network handles, fixed constraints, Auto Layout child
 > sizing, effect style linkage, instance swaps, mixed text runs, and non-paint variable
@@ -110,11 +111,11 @@ Reader, M2 conversion, and M3.1 vector-path features are **Verified**, **Impleme
 | M1 | Cargo workspace, `.fig` container/decode, `f2p-cli inspect` | **Done** — evidence in `PROGRESS.md` |
 | M2 | Minimal end-to-end conversion + validator + JSON report | **Done** — imported and inspected in Penpot 2.18.5-RC1 |
 | M3 | Fidelity expansion (vectors → effects → images → text → layout → styles → components → tokens) | **Done with Partial items** — import-verified in Penpot 2.18.5-RC1 |
-| M4 | Native desktop application (eight screens) | **In progress** — M4.1 shell and worker |
-| M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **In progress** — queue core, CLI batch, desktop Convert all |
-| M6 | Report UI and JSON/HTML/CSV exports | **Planned** |
+| M4 | Native desktop application (eight screens) | **Done** — designer UI; native dialog/drag-drop/keyboard/manual checks unverified |
+| M5 | Batch conversion (bounded concurrency, pause, cancel, retry) | **Partial** — queue core, CLI batch, desktop Convert all; mid-write cancel pending |
+| M6 | Report UI and JSON/HTML/CSV exports | **Done** — event-based report, designer grouping/filters, JSON/HTML/CSV |
 | M7 | Reliability, fuzzing, performance benchmarks | **In progress** — fuzz, benchmarks, checked-in baseline |
-| M8 | Release engineering and installers | **Planned** |
+| M8 | Release engineering and installers | **Partial** — v0.1.1 artifacts and macOS DMG; signing/MSI pending |
 
 ## Intended architecture
 

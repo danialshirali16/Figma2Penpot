@@ -7,6 +7,22 @@ license texts.
 No upstream Figma or Penpot source code is bundled. Research-only projects are listed in
 `docs/LICENSE_ASSESSMENT.md`.
 
+## Bundled assets
+
+### Inter
+
+- File: `crates/desktop-app/assets/fonts/Inter-VariableFont_opsz,wght.ttf`
+- Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+- License: SIL Open Font License, Version 1.1
+- Full license: `crates/desktop-app/assets/fonts/OFL.txt`
+
+The font is bundled for UI typography. It is not modified.
+
+### UI icons
+
+UI icons are project-owned line drawings rendered by `desktop-app/src/components.rs`.
+No third-party icon font or icon set is bundled.
+
 ## Rust dependencies
 
 All packages below are used under the license expression shown. The project's dual

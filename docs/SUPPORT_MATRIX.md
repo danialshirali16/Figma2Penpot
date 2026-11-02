@@ -1,6 +1,6 @@
 # Support Matrix
 
-Last updated: **2026-11-01** (M4.1). M2 features, vectors, masks, boolean fallbacks,
+Last updated: **2026-11-02** (M4.2/M6.2). M2 features, vectors, masks, boolean fallbacks,
 gradients, shadows, blur, images, text metrics, flex containers, styles, components,
 variants, and tokens imported successfully into a local Penpot 2.18.5 stack
 (`2.18.5-RC1`) and were inspected in the UI. Stroke-only vectors, Auto Layout child sizing,
@@ -113,20 +113,24 @@ Status vocabulary (no other labels are used):
 | HTML report export | **Verified** | Self-contained offline HTML rendered in a browser; no external assets |
 | CSV report export | **Verified** | RFC 4180 escaping tested; per-file and batch aggregate output |
 | CLI `report`/batch export | **Verified** | JSON report → HTML/CSV; batch HTML/CSV/JSON smoke-tested |
-| Report screen filters | **Partial** | Search, severity/outcome, grouping by issue/page, copy issue/node; canvas jump-to-element pending |
+| Report screen filters | **Implemented (unverified)** | Search, severity/result, grouping by what-to-do/page/none, copy advice/layer, JSON/HTML/CSV export; canvas jump-to-element pending |
 | Headless CLI | **Verified** | `inspect` + `convert` used for the import |
-| Native desktop UI | **Partial** | Eight-screen eframe shell, native dialogs, background conversion, settings persistence; A/V/QA and packaging polish pending |
+| Native desktop UI | **Partial** | Designer-first eight-screen eframe shell; light/dark screenshots at large/compact on macOS 27.2; native dialogs, drag-drop, keyboard-only, and screen-reader checks unverified; Windows/Linux visuals untested |
+| Designer status/issue copy | **Verified** | Every file status, queue state, stage, outcome, severity, validation state, and known issue code maps to designer text; 28 codes tested |
+| Single-file pause/cancel | **Implemented (unverified)** | Cooperative checkpoints between stages; cancellation before saving leaves no output; UI screenshots checked |
+| Desktop report export | **Implemented (unverified)** | HTML/CSV/JSON through native save dialogs; exporters tested, dialog interaction not automated |
+| Accessibility | **Partial** | WCAG AA contrast calculated for both palettes; text+icon+colour statuses; keyboard-only and AccessKit/VoiceOver verification pending |
 | Desktop drag-and-drop / file picker | **Implemented (unverified)** | M4.1; code path exists; OS interaction not automated |
 | Desktop folder scan | **Verified** | Recursive `.fig` scan, hidden folders skipped, bounded to 512 files; unit-tested |
 | Desktop keyboard shortcuts | **Implemented (unverified)** | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; headless key-event test only |
 | Release artifacts | **Verified (v0.1.1)** | macOS app/CLI + DMG packaging, Windows zip, Linux tarball, all with SHA-256 |
 | Installers / signing | **Partial** | macOS DMG published; Windows MSI and signing/notarization pending |
-| Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 20 desktop tests |
-| Batch queue | **Partial** | Bounded queue, CLI batch, desktop Convert all, retry/remove; mid-write cancellation pending |
+| Desktop headless UI tests | **Verified** | All eight screens render through `egui::Context`; 22 desktop tests |
+| Batch queue | **Partial** | Bounded queue, CLI batch, desktop Convert all, retry/remove, cooperative pause/cancel; mid-write cancellation pending |
 | CLI batch command | **Verified** | Ran 2 valid + 1 corrupt fixture: 2 completed, 1 failed, outputs/reports written |
 | Batch retry/remove controls | **Implemented (unverified)** | Retry failed, retry selected, remove completed; UI manual check pending |
 | Batch memory | **Verified** | 1/4/16 files at 2 workers: 5.2/6.8/7.0 MB peak RSS |
-| Batch cancel mid-write | Planned | Atomic writer is used; the race is not exercised yet |
+| Batch cancel mid-write | Planned | Cancellation is checked between stages and before saving; an in-flight atomic write is not interrupted, and that race is not exercised |
 | Real Penpot import verification | **Verified (M2–M3.8 subset)** | Penpot 2.18.5-RC1; see `MANUAL_QA.md` |
 
 ## 8. Reliability and performance

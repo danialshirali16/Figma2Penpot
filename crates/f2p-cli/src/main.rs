@@ -42,6 +42,9 @@ enum Command {
         /// Maximum concurrent conversions.
         #[arg(long, default_value_t = conversion_queue::DEFAULT_MAX_WORKERS)]
         jobs: usize,
+        /// Keep resolved token/style values but remove token links.
+        #[arg(long)]
+        inline_tokens: bool,
         /// Write a self-contained HTML batch report here.
         #[arg(long)]
         html: Option<PathBuf>,
@@ -78,6 +81,9 @@ enum Command {
         /// Override the report path.
         #[arg(long)]
         report: Option<PathBuf>,
+        /// Keep resolved token/style values but remove token links.
+        #[arg(long)]
+        inline_tokens: bool,
     },
 }
 
@@ -100,12 +106,14 @@ fn run(cli: Cli) -> Result<()> {
             out,
             force,
             report,
-        } => convert(&file, &out, force, report.as_deref()),
+            inline_tokens,
+        } => convert(&file, &out, force, report.as_deref(), !inline_tokens),
         Command::Batch {
             files,
             out,
             force,
             jobs,
+            inline_tokens,
             html,
             csv,
             json,
@@ -114,6 +122,7 @@ fn run(cli: Cli) -> Result<()> {
             &out,
             force,
             jobs,
+            !inline_tokens,
             html.as_deref(),
             csv.as_deref(),
             json.as_deref(),
@@ -124,11 +133,13 @@ fn run(cli: Cli) -> Result<()> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn batch(
     files: Vec<PathBuf>,
     out_dir: &Path,
     force: bool,
     jobs: usize,
+    keep_token_bindings: bool,
     html: Option<&Path>,
     csv: Option<&Path>,
     json: Option<&Path>,
@@ -137,7 +148,7 @@ fn batch(
 
     let mut runner = BatchRunner::new(QueueConfig::bounded(jobs));
     for file in files {
-        runner.add_job(file, out_dir.to_path_buf(), force);
+        runner.add_job(file, out_dir.to_path_buf(), force, keep_token_bindings);
     }
     let (receiver, handle) = runner.spawn();
     for event in receiver {
@@ -221,7 +232,14 @@ fn export_report(report_path: &Path, html: Option<&Path>, csv: Option<&Path>) ->
     Ok(())
 }
 
-fn convert(path: &Path, out_dir: &Path, force: bool, report_override: Option<&Path>) -> Result<()> {
+#[allow(clippy::too_many_arguments)]
+fn convert(
+    path: &Path,
+    out_dir: &Path,
+    force: bool,
+    report_override: Option<&Path>,
+    keep_token_bindings: bool,
+) -> Result<()> {
     let stem = path
         .file_stem()
         .map(|value| value.to_string_lossy().into_owned())
@@ -253,7 +271,11 @@ fn convert(path: &Path, out_dir: &Path, force: bool, report_override: Option<&Pa
         fig_reader::read_fig(path).with_context(|| format!("reading {}", path.display()))?;
     let started = Instant::now();
     let mut collector = ReportCollector::new();
-    let penpot = conversion_core::convert(&document, &ConvertOptions::default(), &mut collector)
+    let options = ConvertOptions {
+        keep_token_bindings,
+        ..ConvertOptions::default()
+    };
+    let penpot = conversion_core::convert(&document, &options, &mut collector)
         .with_context(|| format!("converting {}", path.display()))?;
 
     let bytes = match penpot_writer::build_archive(&penpot) {

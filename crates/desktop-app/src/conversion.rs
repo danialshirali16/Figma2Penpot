@@ -2,9 +2,11 @@
 //! never performs file parsing or archive work on the render thread.
 
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
+use std::sync::Arc;
 use std::thread;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 use conversion_core::ConvertOptions;
@@ -13,11 +15,51 @@ use fig_reader::FigDocument;
 
 use crate::model::{AnalysisSummary, ConversionFailure, ConversionOutcome, Stage};
 
+/// Cooperative control for one conversion. The worker checks it between stages;
+/// it never interrupts file IO mid-write, so no partial output can survive.
+#[derive(Debug, Clone, Default)]
+pub struct ConversionControl {
+    pub cancel: Arc<AtomicBool>,
+    pub pause: Arc<AtomicBool>,
+}
+
+impl ConversionControl {
+    pub fn cancel(&self) {
+        self.cancel.store(true, Ordering::SeqCst);
+        self.pause.store(false, Ordering::SeqCst);
+    }
+
+    pub fn set_paused(&self, paused: bool) {
+        self.pause.store(paused, Ordering::SeqCst);
+    }
+
+    pub fn is_paused(&self) -> bool {
+        self.pause.load(Ordering::SeqCst)
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancel.load(Ordering::SeqCst)
+    }
+
+    /// Returns false when the user cancelled while the job was paused.
+    fn wait_if_paused(&self) -> bool {
+        while self.is_paused() {
+            if self.is_cancelled() {
+                return false;
+            }
+            thread::sleep(Duration::from_millis(50));
+        }
+        !self.is_cancelled()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ConversionRequest {
     pub input: PathBuf,
     pub output_dir: PathBuf,
     pub force: bool,
+    pub keep_token_bindings: bool,
+    pub control: ConversionControl,
 }
 
 #[derive(Debug)]
@@ -27,6 +69,11 @@ pub enum WorkerEvent {
         stage: Stage,
     },
     Finished(ConversionOutcome),
+    Cancelled {
+        input: PathBuf,
+        output: PathBuf,
+        report_path: PathBuf,
+    },
     Failed(ConversionFailure),
     AnalysisFinished {
         path: PathBuf,
@@ -69,6 +116,14 @@ pub fn run_conversion(request: ConversionRequest, sender: &Sender<WorkerEvent>) 
         .unwrap_or_else(|| "output".to_owned());
     let output = request.output_dir.join(format!("{stem}.penpot"));
     let report_path = request.output_dir.join(format!("{stem}.report.json"));
+
+    let cancelled = || {
+        let _ = sender.send(WorkerEvent::Cancelled {
+            input: input.clone(),
+            output: output.clone(),
+            report_path: report_path.clone(),
+        });
+    };
 
     let fail = |message: String, report: Option<conversion_report::FileReport>| {
         let _ = sender.send(WorkerEvent::Failed(ConversionFailure {
@@ -120,6 +175,10 @@ pub fn run_conversion(request: ConversionRequest, sender: &Sender<WorkerEvent>) 
         });
     };
 
+    if !request.control.wait_if_paused() {
+        cancelled();
+        return;
+    }
     stage(Stage::Reading);
     let document = match fig_reader::read_fig(&input) {
         Ok(document) => document,
@@ -132,21 +191,32 @@ pub fn run_conversion(request: ConversionRequest, sender: &Sender<WorkerEvent>) 
         }
     };
 
+    if !request.control.wait_if_paused() {
+        cancelled();
+        return;
+    }
     stage(Stage::Converting);
     let started = Instant::now();
     let mut collector = ReportCollector::new();
-    let penpot =
-        match conversion_core::convert(&document, &ConvertOptions::default(), &mut collector) {
-            Ok(penpot) => penpot,
-            Err(error) => {
-                fail(
-                    format!("Converting {} failed: {error:#}", input.display()),
-                    None,
-                );
-                return;
-            }
-        };
+    let options = ConvertOptions {
+        keep_token_bindings: request.keep_token_bindings,
+        ..ConvertOptions::default()
+    };
+    let penpot = match conversion_core::convert(&document, &options, &mut collector) {
+        Ok(penpot) => penpot,
+        Err(error) => {
+            fail(
+                format!("Converting {} failed: {error:#}", input.display()),
+                None,
+            );
+            return;
+        }
+    };
 
+    if !request.control.wait_if_paused() {
+        cancelled();
+        return;
+    }
     stage(Stage::Writing);
     let bytes = match penpot_writer::build_archive(&penpot) {
         Ok(bytes) => bytes,
@@ -169,6 +239,10 @@ pub fn run_conversion(request: ConversionRequest, sender: &Sender<WorkerEvent>) 
         }
     };
 
+    if !request.control.wait_if_paused() {
+        cancelled();
+        return;
+    }
     stage(Stage::Validating);
     let validation = match penpot_writer::validate_archive(&bytes) {
         Ok(validation) => validation,
@@ -191,6 +265,10 @@ pub fn run_conversion(request: ConversionRequest, sender: &Sender<WorkerEvent>) 
         }
     };
 
+    if !request.control.wait_if_paused() {
+        cancelled();
+        return;
+    }
     stage(Stage::Saving);
     let write_result = penpot_writer::write_atomic(&output, &bytes);
     let mut report = collector.finish(
@@ -263,6 +341,8 @@ mod tests {
                 input: fixture("circle.fig"),
                 output_dir: dir.path().to_path_buf(),
                 force: false,
+                keep_token_bindings: true,
+                control: ConversionControl::default(),
             },
             &tx,
         );
@@ -301,12 +381,44 @@ mod tests {
                 input: fixture("circle.fig"),
                 output_dir: dir.path().to_path_buf(),
                 force: false,
+                keep_token_bindings: true,
+                control: ConversionControl::default(),
             },
             &tx,
         );
         let events = drain(rx);
         assert!(matches!(events.last(), Some(WorkerEvent::Failed(_))));
         assert_eq!(std::fs::read(&output).unwrap(), b"existing");
+    }
+
+    #[test]
+    fn cancellation_before_saving_leaves_no_output() {
+        let dir = tempfile::tempdir().unwrap();
+        let control = ConversionControl::default();
+        control.pause.store(true, Ordering::SeqCst);
+        let thread_control = control.clone();
+        let handle = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(80));
+            thread_control.cancel();
+        });
+        let (tx, rx) = mpsc::channel();
+        run_conversion(
+            ConversionRequest {
+                input: fixture("circle.fig"),
+                output_dir: dir.path().to_path_buf(),
+                force: false,
+                keep_token_bindings: true,
+                control,
+            },
+            &tx,
+        );
+        let _ = handle.join();
+        let events = drain(rx);
+        assert!(events
+            .iter()
+            .any(|event| matches!(event, WorkerEvent::Cancelled { .. })));
+        assert!(!dir.path().join("circle.penpot").exists());
+        assert!(!dir.path().join("circle.report.json").exists());
     }
 
     #[test]

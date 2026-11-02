@@ -30,11 +30,23 @@ pub enum ConvertError {
     Invalid(String),
 }
 
-/// Options for the M2 slice. Kept small until the settings UI lands.
-#[derive(Debug, Clone, Default)]
+/// Conversion options exposed by the desktop settings.
+#[derive(Debug, Clone)]
 pub struct ConvertOptions {
     /// Override the Penpot file name. Defaults to `meta.json`'s name or the input stem.
     pub file_name: Option<String>,
+    /// Preserve token/style references. When false, resolved values are kept but links are
+    /// removed ("Looks identical" in the desktop settings).
+    pub keep_token_bindings: bool,
+}
+
+impl Default for ConvertOptions {
+    fn default() -> Self {
+        Self {
+            file_name: None,
+            keep_token_bindings: true,
+        }
+    }
 }
 
 /// Convert a decoded Figma document into a Penpot document.
@@ -117,6 +129,9 @@ pub fn convert(
     penpot.components = components.entries;
     penpot.tokens = tokens.document;
     detach_broken_component_refs(&mut penpot, sink);
+    if !options.keep_token_bindings {
+        inline_token_links(&mut penpot);
+    }
 
     Ok(penpot)
 }
@@ -521,6 +536,28 @@ fn apply_paint_tokens(shape: &mut Shape, paints: &[Paint], tokens: &TokenLibrary
             .applied_tokens
             .get_or_insert_with(std::collections::BTreeMap::new)
             .insert("fill".to_owned(), name.to_owned());
+    }
+}
+
+fn inline_token_links(penpot: &mut PenpotDocument) {
+    for page in &mut penpot.pages {
+        for shape in &mut page.shapes {
+            shape.applied_tokens = None;
+            for fill in &mut shape.fills {
+                fill.fill_color_ref_id = None;
+                fill.fill_color_ref_file = None;
+            }
+            if let Some(Content::Text(content)) = shape.content.as_mut() {
+                for set in &mut content.children {
+                    for paragraph in &mut set.children {
+                        for run in &mut paragraph.children {
+                            run.typography_ref_id = None;
+                            run.typography_ref_file = None;
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

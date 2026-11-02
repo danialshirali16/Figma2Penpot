@@ -350,6 +350,60 @@ fn masks_and_booleans_are_reported_and_rendered() {
 }
 
 #[test]
+fn inline_token_option_keeps_values_but_removes_links() {
+    let document = read_fig(fixture("styles.fig")).expect("styles fixture");
+    let mut collector = ReportCollector::new();
+    let linked = convert(&document, &ConvertOptions::default(), &mut collector).unwrap();
+    let linked_rect = linked.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Styled Rect")
+        .unwrap();
+    assert!(linked_rect.fills[0].fill_color_ref_id.is_some());
+    let linked_text = linked.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Styled Text")
+        .unwrap();
+    let Some(Content::Text(content)) = &linked_text.content else {
+        panic!("text content");
+    };
+    assert!(content.children[0].children[0].children[0]
+        .typography_ref_id
+        .is_some());
+
+    let mut collector = ReportCollector::new();
+    let inlined = convert(
+        &document,
+        &ConvertOptions {
+            keep_token_bindings: false,
+            ..ConvertOptions::default()
+        },
+        &mut collector,
+    )
+    .unwrap();
+    let rect = inlined.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Styled Rect")
+        .unwrap();
+    assert_eq!(rect.fills[0].fill_color.as_deref(), Some("#FF0040"));
+    assert!(rect.fills[0].fill_color_ref_id.is_none());
+    let text = inlined.pages[0]
+        .shapes
+        .iter()
+        .find(|shape| shape.name == "Styled Text")
+        .unwrap();
+    let Some(Content::Text(content)) = &text.content else {
+        panic!("text content");
+    };
+    assert!(content.children[0].children[0].children[0]
+        .typography_ref_id
+        .is_none());
+    assert_eq!(content.children[0].children[0].children[0].text, "Heading");
+}
+
+#[test]
 fn vector_report_snapshot() {
     let (_bytes, report, _shapes) = run("OpenFigs.fig");
     let mut value = serde_json::to_value(report).unwrap();

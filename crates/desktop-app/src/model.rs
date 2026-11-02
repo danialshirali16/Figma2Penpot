@@ -73,6 +73,16 @@ pub struct AnalysisSummary {
     pub pages: usize,
     pub internal_pages: usize,
     pub nodes: usize,
+    pub frames: usize,
+    pub components: usize,
+    pub styles: usize,
+    pub variables: usize,
+    pub text_layers: usize,
+    pub mixed_text_layers: usize,
+    pub boolean_layers: usize,
+    pub mask_layers: usize,
+    pub vector_networks: usize,
+    pub auto_layouts: usize,
     pub images: usize,
     pub image_bytes: u64,
     pub warnings: usize,
@@ -97,6 +107,61 @@ impl AnalysisSummary {
                 .filter(|page| page.internal_only)
                 .count(),
             nodes: document.stats.active_nodes,
+            frames: document
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "FRAME")
+                .count(),
+            components: document
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "SYMBOL")
+                .count(),
+            styles: document
+                .nodes
+                .iter()
+                .filter(|node| node.style_type.is_some())
+                .count(),
+            variables: document
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "VARIABLE")
+                .count(),
+            text_layers: document
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "TEXT")
+                .count(),
+            mixed_text_layers: document
+                .nodes
+                .iter()
+                .filter(|node| node.text.as_ref().is_some_and(|text| text.mixed_styles))
+                .count(),
+            boolean_layers: document
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "BOOLEAN_OPERATION")
+                .count(),
+            mask_layers: document
+                .nodes
+                .iter()
+                .filter(|node| node.mask == Some(true))
+                .count(),
+            vector_networks: document
+                .nodes
+                .iter()
+                .filter(|node| node.has_vector_network)
+                .count(),
+            auto_layouts: document
+                .nodes
+                .iter()
+                .filter(|node| {
+                    matches!(
+                        node.stack_mode.as_deref(),
+                        Some("HORIZONTAL") | Some("VERTICAL")
+                    )
+                })
+                .count(),
             images: document.stats.image_count,
             image_bytes: document.stats.image_bytes,
             warnings: document.warnings.len(),
@@ -172,6 +237,7 @@ pub struct ActiveJob {
     pub input: PathBuf,
     pub output: PathBuf,
     pub stage: Stage,
+    pub paused: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -222,9 +288,9 @@ pub struct ConversionFailure {
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum ReportGrouping {
     #[default]
-    None,
-    Code,
+    Category,
     Page,
+    None,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -329,6 +395,9 @@ pub struct AppState {
     pub notice: Option<Notice>,
     pub filter: ReportFilter,
     pub settings_path: PathBuf,
+    pub pending_clear: bool,
+    pub show_licenses: bool,
+    pub pending_reset: bool,
 }
 
 impl AppState {
@@ -344,6 +413,9 @@ impl AppState {
             notice: None,
             filter: ReportFilter::default(),
             settings_path,
+            pending_clear: false,
+            show_licenses: false,
+            pending_reset: false,
         }
     }
 
@@ -441,6 +513,7 @@ impl AppState {
     pub fn clear_queue(&mut self) {
         self.files.clear();
         self.selected = None;
+        self.pending_clear = false;
     }
 
     pub fn remove_completed(&mut self) {
@@ -506,9 +579,24 @@ impl AppState {
             input,
             output,
             stage: Stage::Reading,
+            paused: false,
         });
         self.screen = Screen::Progress;
         self.notice = None;
+    }
+
+    pub fn set_active_paused(&mut self, paused: bool) {
+        if let Some(active) = self.active.as_mut() {
+            active.paused = paused;
+        }
+    }
+
+    pub fn cancel_job(&mut self, input: &Path) {
+        if let Some(item) = self.files.iter_mut().find(|item| item.path == input) {
+            item.state = QueueState::Cancelled;
+        }
+        self.active = None;
+        self.screen = Screen::Queue;
     }
 
     pub fn job_stage(&mut self, input: &Path, stage: Stage) {
@@ -527,7 +615,7 @@ impl AppState {
         {
             item.state = match outcome.report.status {
                 FileStatus::Failed => QueueState::Failed("Conversion failed".to_owned()),
-                FileStatus::Cancelled => QueueState::Failed("Conversion cancelled".to_owned()),
+                FileStatus::Cancelled => QueueState::Cancelled,
                 FileStatus::Completed | FileStatus::CompletedWithWarnings => QueueState::Converted,
             };
         }
@@ -634,19 +722,6 @@ impl AppState {
     pub fn finish_batch(&mut self) {
         if let Some(batch) = self.batch.as_mut() {
             batch.done = true;
-            let summary = format!(
-                "Batch finished: {} completed, {} failed, {} cancelled.",
-                batch.completed, batch.failed, batch.cancelled
-            );
-            let kind = if batch.failed > 0 {
-                NoticeKind::Warning
-            } else {
-                NoticeKind::Success
-            };
-            self.notice = Some(Notice {
-                kind,
-                text: summary,
-            });
         }
         self.screen = Screen::Results;
     }

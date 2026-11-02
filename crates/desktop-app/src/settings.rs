@@ -24,6 +24,7 @@ pub struct Settings {
     pub output_dir: Option<PathBuf>,
     pub overwrite: bool,
     pub open_folder_after_conversion: bool,
+    pub keep_token_bindings: bool,
     pub theme: ThemeChoice,
 }
 
@@ -33,6 +34,7 @@ impl Default for Settings {
             output_dir: None,
             overwrite: false,
             open_folder_after_conversion: true,
+            keep_token_bindings: true,
             theme: ThemeChoice::System,
         }
     }
@@ -99,6 +101,7 @@ mod tests {
             output_dir: Some(PathBuf::from("/tmp/out")),
             overwrite: true,
             open_folder_after_conversion: false,
+            keep_token_bindings: true,
             theme: ThemeChoice::Dark,
         };
         settings.save(&path).unwrap();

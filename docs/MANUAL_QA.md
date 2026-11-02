@@ -1,9 +1,11 @@
 # Manual QA
 
 Status: **M2 and M3.1–M3.8 imports PASSED** on a local Penpot 2.18.5 stack (backend
-reports `2.18.5-RC1`), 2026-11-01. **M4.1 desktop shell partially checked** on macOS;
-native dialog/drag-drop interaction remains manual. The converter outputs imported without errors and the
-features below were inspected in the Penpot UI. Reopen/edit persistence was not tested.
+reports `2.18.5-RC1`), 2026-11-01. **M4.2/M6.2 designer UI reviewed on macOS 27.2**
+(light/dark, large/compact) on 2026-11-02; native dialog, drag-drop, keyboard-only, and
+screen-reader checks remain manual/unverified. The converter outputs imported without
+errors and the features below were inspected in the Penpot UI. Reopen/edit persistence was
+not tested.
 Text line-height/letter-spacing values are unit-tested and carried through the imported
 typography style, but were not independently read from the form fields.
 
@@ -264,7 +266,65 @@ Observed harness limitation: this terminal lacks Screen Recording permission, so
 was captured with `screencapture -x -l <window-id>` after locating the window via
 CoreGraphics. That does not affect the app.
 
-## 12. Future platform checklist (M4/M8)
+## 12. M4.2 / M6.2 — Designer UI review
+
+Reviewed on **macOS 27.2 (arm64, Apple M1)**, 2026-11-02. The app was built with
+`cargo build --offline -p desktop-app` and launched against real `.fig` fixtures. Window
+captures used `screencapture -x -l <window-id>` (the terminal lacks Screen Recording
+permission for full-screen capture). This is an internal visual review; no external
+participants were involved.
+
+Evidence: [`docs/ui/screenshots/`](ui/screenshots/), with all eight screens in light and
+dark at large and compact sizes, plus the gallery, empty Files, error Results, license
+modal, and clear-all confirmation. Findings are in [`docs/ui/REVIEW.md`](ui/REVIEW.md).
+
+| # | Check | Expected | Result |
+|---|---|---|---|
+| 1 | Launch and Home | One obvious import action; privacy visible | **Pass** — light/dark, both sizes |
+| 2 | Files queue | Names, sizes, statuses, destination, Convert | **Pass** — four real files; rows fit at 900 px |
+| 3 | Empty Files | One centered add choice, no duplicate toolbar | **Pass** — `files-empty-light-large.png` |
+| 4 | File details | Real counts, warnings, collapsed technical details | **Pass** — `components.fig` parsed; counts shown |
+| 5 | Settings | Output folder; one two-way fidelity choice | **Pass** — choice wired to `keep_token_bindings`; unit test |
+| 6 | Single-file Converting | Named stages, Pause and Cancel, no invented % | **Pass** — `converting-*-*.png` |
+| 7 | Batch Results | Real conversions, review count, retry, import guide | **Pass** — four fixtures; title changes on failure |
+| 8 | Error Results | Friendly first message, raw details available | **Pass** — `results-error-light-large.png`; unit mapping |
+| 9 | Report | What-to-do groups, advice text, filters, export menu | **Pass** — real report; compact toolbar wraps |
+| 10 | Preferences | Theme, output, privacy, licenses, reset | **Pass** — license modal captured |
+| 11 | Component gallery | Every component in both themes and long text | **Pass** — gallery light/dark |
+| 12 | Clear all | Confirmation before removing the queue | **Pass** — modal captured; Esc path in code |
+| 13 | Light/dark consistency | No unstyled default widgets | **Pass** — both themes at both sizes |
+| 14 | Conversion report honesty | Event-based counts; no hidden Not converted/Approximated | **Pass (unit + report sample)** — unchanged engine/report model |
+| 15 | Internal status mappings | Every value has designer copy | **Pass (unit)** — `copy::tests` |
+| 16 | Keyboard-only flow | Tab/Enter through import → convert → report | **Untested** — headless Cmd+2 test only |
+| 17 | Screen reader | VoiceOver labels and reading order | **Untested** — eframe build has no AccessKit feature |
+| 18 | Native file picker | Choose files/folder on macOS | **Untested** — requires OS interaction |
+| 19 | Drag and drop | Dropped files/folder enter queue | **Untested** — requires OS interaction |
+| 20 | Windows/Linux visuals | Same screens and themes | **Untested** — no Windows/Linux machine run |
+| 21 | Penpot import of UI-produced files | New outputs import | **Not re-run** — UI does not change the writer; converter imports are recorded in §1–10 |
+
+Quality gates at review time: `cargo fmt --all -- --check` **pass**;
+`cargo clippy --offline --workspace --all-targets -- -D warnings` **pass**;
+`cargo test --offline --workspace` **98 tests pass**. `cargo deny` and `cargo audit` are
+not installed in this environment, so license/advisory checks remain **pending**.
+
+### Manual steps still needed
+
+1. **Native dialogs:** launch the app, press **Choose files…**, pick a `.fig`, confirm it
+   appears in Files; repeat with **Choose a folder…** on a nested folder.
+2. **Drag and drop:** drag one `.fig` and then a folder onto Home; confirm the hover state
+   says “Release to add these files” and the queue receives the files.
+3. **Keyboard only:** unplug the pointer, use Tab/Shift+Tab, Enter/Space, Esc, and
+   Cmd/Ctrl+1–8 to reach Home → Files → Convert → Results → Report; record the focus ring.
+4. **Screen reader:** build with an AccessKit-enabled eframe feature set, then run VoiceOver
+   (macOS) or NVDA (Windows) through the same flow. Record labels, roles, and reading order.
+5. **Windows/Linux:** repeat the screenshot matrix and native dialog/drag-drop checks on
+   each OS; Windows High Contrast and Linux dark themes are not covered by this review.
+6. **Penpot import:** import one UI-produced `.penpot` into Penpot 2.18.5 and confirm the
+   import guide path (`Drafts → Options → Import Penpot files`) is still current.
+
+---
+
+## 13. Future platform checklist (M4/M8)
 
 Not started. To be filled when the desktop app exists:
 

@@ -58,6 +58,7 @@ pub struct JobSpec {
     pub input: PathBuf,
     pub output_dir: PathBuf,
     pub force: bool,
+    pub keep_token_bindings: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -141,7 +142,13 @@ impl BatchRunner {
         self.control.clone()
     }
 
-    pub fn add_job(&mut self, input: PathBuf, output_dir: PathBuf, force: bool) -> u64 {
+    pub fn add_job(
+        &mut self,
+        input: PathBuf,
+        output_dir: PathBuf,
+        force: bool,
+        keep_token_bindings: bool,
+    ) -> u64 {
         let id = self.next_id;
         self.next_id += 1;
         self.jobs.push(JobSpec {
@@ -149,6 +156,7 @@ impl BatchRunner {
             input,
             output_dir,
             force,
+            keep_token_bindings,
         });
         id
     }
@@ -532,9 +540,14 @@ mod tests {
         let bad = dir.path().join("bad.fig");
         std::fs::write(&bad, b"not a fig").unwrap();
         let mut runner = BatchRunner::new(QueueConfig::bounded(2));
-        runner.add_job(fixture("circle.fig"), dir.path().to_path_buf(), false);
-        runner.add_job(bad.clone(), dir.path().to_path_buf(), false);
-        runner.add_job(fixture("text-group.fig"), dir.path().to_path_buf(), false);
+        runner.add_job(fixture("circle.fig"), dir.path().to_path_buf(), false, true);
+        runner.add_job(bad.clone(), dir.path().to_path_buf(), false, true);
+        runner.add_job(
+            fixture("text-group.fig"),
+            dir.path().to_path_buf(),
+            false,
+            true,
+        );
         let (rx, handle) = runner.spawn();
         let (mut events, finished) = collect(rx);
         let results = handle.join().unwrap();
@@ -561,7 +574,7 @@ mod tests {
         let control = runner.control();
         control.pause(true);
         for _ in 0..4 {
-            runner.add_job(fixture("circle.fig"), dir.path().to_path_buf(), false);
+            runner.add_job(fixture("circle.fig"), dir.path().to_path_buf(), false, true);
         }
         let (rx, handle) = runner.spawn();
         control.cancel();
@@ -588,7 +601,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         std::fs::write(dir.path().join("circle.penpot"), b"keep me").unwrap();
         let mut runner = BatchRunner::new(QueueConfig::bounded(1));
-        runner.add_job(fixture("circle.fig"), dir.path().to_path_buf(), false);
+        runner.add_job(fixture("circle.fig"), dir.path().to_path_buf(), false, true);
         let (rx, handle) = runner.spawn();
         let (_, _) = collect(rx);
         let results = handle.join().unwrap();

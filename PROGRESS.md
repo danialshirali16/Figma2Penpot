@@ -2,15 +2,16 @@
 
 Living status file for Figma 2 Penpot. Canonical place to resume from.
 
-Last updated: **2026-11-02** (session 13, scale + DMG).
+Last updated: **2026-11-02** (session 14, designer UI + report).
 
 ---
 
 ## 1. Where we are
 
-**Milestone: all M3 waves are implemented. M3.1–M3.3 and M3.5–M3.8 are import-verified;
-M3.4 metrics are unit-tested and carried through a verified typography style. Several
-sub-features remain Partial and are reported at runtime.**
+**Milestone: all M3 waves are implemented and the M4/M6 desktop UI has been redesigned for
+product designers. M3.1–M3.3 and M3.5–M3.8 are import-verified; M3.4 metrics are
+unit-tested and carried through a verified typography style. Several sub-features remain
+Partial and are reported at runtime.**
 
 The workspace reads real `.fig` files, converts the M2 subset plus vectors, masks, boolean
 fallbacks, gradients, shadows, blur, images, text metrics, flex containers, styles,
@@ -77,9 +78,9 @@ M4.1 acceptance so far:
 | Keyboard shortcuts | Done (headless) | Cmd/Ctrl+O, Shift+O, Shift+A, Enter, comma, 1–8; shortcut key event tested |
 | Light/dark/system theme | Done | Settings + `egui::ThemePreference`; dark and light captured |
 | Settings persistence | Done (unit) | JSON round-trip and malformed-file fallback tests |
-| Headless UI tests | Done | all eight screens drawn through `egui::Context` |
+| Headless UI tests | Done | all eight screens drawn through `egui::Context`; 22 desktop tests |
 | End-to-end desktop worker test | Done | fixture converts, result lands in Results/Report screens |
-| Manual desktop QA | Partial | Home, Queue, and Light theme captured; Analysis/Progress/Results/Report manual clicks pending |
+| Manual desktop QA | Partial | All eight screens captured in light/dark at two sizes; native dialogs, drag-drop, keyboard-only, and screen reader still manual |
 | Installers | Planned | M8 |
 
 M5.1 acceptance so far:
@@ -108,6 +109,24 @@ M6.1 acceptance so far:
 | Desktop export buttons | Done (unverified UI) | Results/Report actions; native save dialog not automated |
 | Report screen grouping/copy | Done (headless) | Search + severity/outcome + code/page grouping; copy issue/node ID |
 | Exporter snapshot tests | Done | 4 exporter tests with escaping, batch HTML/CSV, and batch JSON |
+
+M4.2 / M6.2 acceptance so far:
+
+| Requirement | Status | Evidence |
+|---|---|---|
+| Design contract before code | Done | `docs/UI_SPEC.md` + `docs/ui/WIREFRAMES.md`, committed as `914daee` |
+| Tokenized theme, bundled font | Done | `theme.rs`, Inter OFL 1.1 under `desktop-app/assets/fonts/`, recorded in `THIRD_PARTY_LICENSES.md` |
+| Reusable components + gallery | Done | Buttons, chips, banners, file rows, search, segmented control, empty states; `F2P_GALLERY` |
+| Designer copy + tested mappings | Done | `copy.rs`; 28 issue codes and every status/outcome/stage/queue state/validation state |
+| Honest report grouping | Done | Default Needs your attention / Not converted / Slightly different / All good; raw details collapsed |
+| Real fidelity choice | Done | `keep_token_bindings` through core, queue, desktop, CLI `--inline-tokens`; integration test |
+| Single-file + batch pause/cancel | Partial | Cooperative checkpoints between stages; cancellation before saving leaves no output; mid-write not interruptible |
+| Error copy | Done | Friendly first message; raw worker text under Show details; tested mapping |
+| Light/dark + large/compact evidence | Done | 32 core screenshots + gallery/empty/error/license/clear extras in `docs/ui/screenshots/` |
+| Heuristic / 5-second review | Done | `docs/ui/REVIEW.md` (internal review, no external participants) |
+| Native dialogs / drag-drop / keyboard-only | Unverified | Manual OS checks listed in `docs/MANUAL_QA.md` |
+| Windows/Linux visuals, screen reader | Unverified | Not run; AccessKit is not enabled in the current eframe features |
+| `cargo deny` / `cargo audit` | Pending | Tools absent in this environment |
 
 M7.1 acceptance so far:
 
@@ -162,12 +181,14 @@ Figma 2 Penpot/
 │   ├── conversion-core/     tree → Penpot shapes, diagnostics, absolute coordinates
 │   ├── conversion-report/   ReportEvent, DiagnosticSink, counts, JSON
 │   ├── penpot-writer/       document model, v3 archive, structural validator, atomic write
-│   └── f2p-cli/             inspect, convert
+│   ├── desktop-app/         eframe shell, theme, components, copy, screens
+│   ├── conversion-queue/    bounded batch workers, pause/cancel, stage events
+│   └── f2p-cli/             inspect, convert, batch, report
 ├── fuzz/                    libFuzzer harness `read_fig`
 ├── tests/fixtures/          5 fixtures (4 upstream MIT + 1 synthetic) + provenance
 ├── docs/qa/                 real-import screenshots (Penpot 2.18.5-RC1)
 ├── .github/workflows/       CI (Linux/macOS/Windows)
-└── docs/                    M0–M4.1 docs + ADRs 0001–0009
+└── docs/                    platform docs, UI spec/wireframes/review, ADRs 0001–0010
 ```
 
 ## 3. Environment
@@ -185,7 +206,7 @@ See `docs/DEV_ENVIRONMENT.md`.
 
 | Command / check | Result |
 |---|---|
-| `cargo test --offline --workspace` | **95 tests pass** (71 core/CLI + 4 queue + 20 desktop) |
+| `cargo test --offline --workspace` | **98 tests pass** (71 core/CLI + 4 queue + 22 desktop + 1 bench) |
 | `cargo clippy --offline --workspace --all-targets -- -D warnings` | Success |
 | `cargo fmt --all -- --check` | Success |
 | `cargo run -p f2p-cli -- convert tests/fixtures/OpenFigs.fig` | 2 detected, 1 converted, 1 approximated (vector network loss), validation passed |
@@ -212,8 +233,8 @@ See `docs/DEV_ENVIRONMENT.md`.
 | UI inspection (M3.6–M3.8) | color/typography libraries and links; 3 components + 2 variants; instance override; Light/Dark tokens and applied `brand.primary`; masked lens + boolean donut |
 | Real-world stress check | 4,629-node file with 539 symbols, 791 instances, and 22 variables: conversion completed, validator passed (6,698 checks); status Failed only because 1 node failed and 33 were unsupported, all reported |
 | Desktop shell build | `cargo build -p desktop-app` succeeds; window 1180×792 opens |
-| Desktop headless tests | 20 state/worker/UI tests, including a real fixture conversion |
-| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 95 tests pass |
+| Desktop headless tests | 22 state/worker/UI tests, including all screens, shortcuts, cancellation, and a real fixture conversion |
+| Workspace gates | `cargo fmt --check` + `cargo clippy -D warnings` pass; 98 tests pass |
 | CI for M4.1–M5 | run 41347094495: Ubuntu/macOS/Windows success, including queue and desktop |
 | CI for M6.1 | run 41349015729: Ubuntu/macOS/Windows success |
 | CI for M7.1 | run 41349735081: Ubuntu/macOS/Windows success |
@@ -422,6 +443,32 @@ follow its checklist. Do not trust a status claim without recorded evidence.
 - Confirmed bounded batch memory at 1/4/16 files with 2 workers.
 - M7 still pending: large-file corpus, checked-in regression baseline, low-disk/short-write
   and cancel-mid-write drills.
+
+### Session 14 — 2026-11-02
+
+- Redesigned the desktop UI for product designers: bundled Inter (OFL 1.1), tokenized
+  light/dark theme, reusable components, project-owned line icons, and a dev-only gallery.
+- Added `copy.rs`: designer-facing copy plus tested mappings for every file status, queue
+  state, stage, outcome, severity, validation state, and all 28 known issue codes. Raw
+  codes, node IDs, and worker messages stay under **Show details** and in exports.
+- Added a designer-first conversion report: default groups by what to do, search, severity
+  and result filters, page/what-to-do grouping, advice text, copy actions, and JSON/HTML/CSV
+  export. The report remains event-based; grouping is presentation only.
+- Wired **What matters more?** to the real engine option `keep_token_bindings` through
+  `conversion-core`, `conversion-queue`, the desktop workers, and CLI `--inline-tokens`.
+- Added cooperative single-file pause/cancel and corrected the single-file worker to honor
+  the token preference. Cancelling before saving leaves no output.
+- Added empty, loading, partial, error, and confirmation states; friendly error mapping;
+  clear-all and reset-preference confirmations; offline license modal.
+- Captured all eight screens in light and dark at large/compact sizes plus gallery, empty
+  Files, error Results, licenses, and clear-all evidence under `docs/ui/screenshots/`.
+- Wrote `docs/UI_SPEC.md`, `docs/ui/WIREFRAMES.md`, `docs/ui/REVIEW.md`, and ADR 0010.
+- `cargo fmt --all -- --check` and
+  `cargo clippy --offline --workspace --all-targets -- -D warnings` pass;
+  `cargo test --offline --workspace` reports **98 tests pass**.
+- Not verified: native dialogs, drag-and-drop, keyboard-only traversal, screen-reader
+  output, Windows/Linux visuals, and cancellation during an in-flight atomic write.
+  `cargo deny`/`cargo audit` are not installed.
 
 ### Session 9 — 2026-11-02
 

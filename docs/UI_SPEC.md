@@ -37,6 +37,12 @@ Launch
 First useful action (add files) is one click from launch. Converting is one click from the
 Files screen. No setup wizard.
 
+**Screenshot evidence:** `docs/ui/screenshots/` contains every screen in light and dark at
+two window sizes (large and compact), plus the component gallery, empty Files, error
+Results, license modal, and clear-all confirmation. Captures were taken on macOS at Retina
+resolution and scaled to 1440 px wide for the repository. Findings and fixes are in
+`docs/ui/REVIEW.md`.
+
 ## 3. Screen inventory and primary action
 
 | Screen | Purpose | One primary action |
@@ -130,7 +136,12 @@ chevron, search, upload, download, sparkle. Icons accompany labels; never replac
 - Privacy: **Everything stays on your computer.**
 - Buttons: **Choose files…**, **Choose a folder…**, **Convert**, **Cancel**, **Pause**,
   **Resume**, **Open folder**, **View report**, **Export**, **Done**, **Back**,
-  **Try again**, **Remove**, **Clear all**.
+  **Try again**, **Remove**, **Clear all**, **Check again**, **Dismiss**.
+- Output fallback: **Next to each .fig file**; **Use input folder**.
+- Offline footer: **Offline · no account**.
+- Clear-all confirmation: **Clear all files?** / “This removes every file from the list.
+  Files on your computer aren’t deleted.”
+- Paused state: **Paused. Resume when you’re ready.**
 
 ### Home
 
@@ -179,33 +190,42 @@ chevron, search, upload, download, sparkle. Icons accompany labels; never replac
 - Title: **Converting your files**
 - Stages: **Reading your file**, **Converting layers**, **Packaging for Penpot**,
   **Checking the result**, **Saving**.
-- Footer: **You can keep working. Pause stops new files; Cancel stops the batch.**
-- Partial output: **Cancelled files leave no output behind.**
+- Batch footer: **You can keep working. Pause stops new files; Cancel stops the batch.**
+- Single-file footer: **You can keep working. Pause holds this file between steps; Cancel
+  stops it.**
+- Partial output: **Cancelled files leave no output behind.** (Cooperative checkpoints
+  between stages; cancellation during an atomic write is not interruptible.)
 - No percentages unless the true denominator is known.
 
 ### Results
 
-- Title: **Your conversion is ready**
-- Summary: **{n} converted · {n} need a quick review · {n} couldn’t be converted**
+- Title: **Your conversion is ready** when files converted cleanly; **Your conversion
+  finished — some files need attention** when any failed; **Conversion cancelled** when
+  only cancellations remain.
+- Summary: **{n} converted · {n} need a quick review · {n} couldn’t be converted ·
+  {n} cancelled** (singular: **1 needs a quick review**).
 - Per file: **Converted** / **Converted — needs a quick review** /
   **Couldn’t be converted** / **Cancelled**.
 - Attention line: **{n} things to check in Penpot.**
 - Buttons: **Open folder**, **View report**, **Retry failed**.
-- Import guide: **In Penpot, open Drafts → Options → Import Penpot files, then choose the
-  .penpot file.** (Verified against Penpot 2.18.5 in `MANUAL_QA.md`.)
+- Import guide: **Bring it into Penpot** — **In Penpot, open Drafts → Options → Import
+  Penpot files, then choose the .penpot file.** (Verified against Penpot 2.18.5 in
+  `MANUAL_QA.md`.)
+- Batch report selector: **Report for**.
 
 ### Report
 
 - Title: **Conversion report**
 - Summary: **{n} layers converted · {n} need a quick review · {n} weren’t converted**
-- Default groups: **Needs your attention**, **Slightly different**, **Not converted**,
+- Default groups: **Needs your attention**, **Not converted**, **Slightly different**,
   **All good**.
+- Filters: search, **Severity**, **Result**, group by **What to do / Page / None**.
 - Issue pattern: element name; page/layer path; **What happened**, **What we did instead**,
   **What to do in Penpot**.
 - **Show details** reveals issue code, node ID, raw converter message.
+- Export: **HTML report**, **CSV report**, **JSON report**.
 - Empty: **Nothing needs your attention.**
-- Validation not run: **We couldn’t double-check this file. Open it in Penpot and look it
-  over.**
+- Validation not run: **File check didn’t run — look it over in Penpot.**
 
 ### Preferences
 
@@ -214,7 +234,11 @@ chevron, search, upload, download, sparkle. Icons accompany labels; never replac
 - **Default output folder**.
 - **Language: English** — **More languages are planned.**
 - Privacy: **No telemetry, no uploads, no network calls during conversion.**
-- **About** version, licenses link.
+- **About** version; **Licenses** opens an offline modal with the Inter OFL text
+  (“Scroll to read the full license.”).
+- **Reset preferences** asks for confirmation before restoring defaults: **Reset
+  preferences?** / “Theme, output folder, and conversion choices return to their defaults.
+  Your files and converted outputs aren’t touched.”
 
 ## 7. Status and issue mapping (presentation layer)
 
@@ -229,13 +253,45 @@ Internal values remain in data and exports. UI maps every value; tests assert to
 | `Failed` | **Couldn’t be converted** | attention |
 | `Cancelled` | **Cancelled** | neutral |
 
+### Queue state
+
+| Internal | User-facing |
+|---|---|
+| `Ready` | **Ready** |
+| `Analyzing` | **Analyzing…** |
+| `Analyzed` | **Ready** |
+| `Queued` | **Queued** |
+| `Converting` | **Converting…** |
+| `Converted` | **Converted** |
+| `Failed(message)` | **Couldn’t be converted** + `copy::failure_message(message)` |
+| `Cancelled` | **Cancelled** |
+
+### Stage
+
+| Internal | User-facing |
+|---|---|
+| `Reading` | **Reading your file** |
+| `Converting` | **Converting layers** |
+| `Writing` | **Packaging for Penpot** |
+| `Validating` | **Checking the result** |
+| `Saving` | **Saving** |
+
+### Report category
+
+| Internal | User-facing |
+|---|---|
+| `Attention` | **Needs your attention** |
+| `NotConverted` | **Not converted** |
+| `Review` | **Slightly different** |
+| `AllGood` | **All good** |
+
 ### Validation
 
 | Internal | User-facing |
 |---|---|
-| `Passed` | **Checked and ready** |
-| `Failed` | **Please check this file in Penpot** |
-| `NotRun` | **We couldn’t double-check this file** |
+| `Passed` | **File check passed** |
+| `Failed` | **File check failed — open it in Penpot and look it over** |
+| `NotRun` | **File check didn’t run — look it over in Penpot** |
 
 ### Severity / outcome
 
@@ -288,23 +344,31 @@ codes:
 | unknown | Something changed | review |
 
 The advice text for each is written for designers, not auditors. Raw converter descriptions
-remain under **Show details**.
+remain under **Show details**. Unknown codes fall back to **Something changed** and stay in
+the **Slightly different** group; they are never dropped.
+
+Tests: `copy::tests::every_issue_code_has_designer_copy`,
+`every_status_outcome_severity_and_validation_maps`, and
+`raw_worker_errors_get_designer_copy`.
 
 ## 8. Accessibility checklist
 
-- [x] Text + icon + colour for every status; no colour-only meaning.
-- [x] Contrast target WCAG AA (body 4.5:1, large text 3:1) in both themes.
-- [x] Keyboard navigation for nav, buttons, lists, dialogs, and report expand/collapse.
-- [x] Visible focus ring; no focus traps.
-- [x] Labels are programmatic where egui/AccessKit exposes them; icon-only buttons have
-      tooltips and accessible labels.
-- [x] Minimum 32 px control height for touch/pointer comfort.
-- [x] Layouts survive 40% longer strings; middle truncation + full-path tooltip.
-- [x] Reduce-motion respected (no essential motion; short optional transitions).
-- [x] Dialogs dismissible with Esc; destructive actions ask for confirmation.
-- [x] Empty/loading/error states use text, not colour or animation alone.
-- [x] Screen-reader support: build with AccessKit feature where packaging allows; document
-      what remains unverified.
+Status vocabulary follows `AGENTS.md`. Nothing below is marked **Verified** without a
+recorded check.
+
+| Check | Status | Evidence / limit |
+|---|---|---|
+| Status uses text + icon + colour, never colour alone | **Verified** | Screenshots in `docs/ui/screenshots/`; chips and banners pair icon and label. |
+| WCAG AA contrast (body 4.5:1, large 3:1) | **Verified (calculated)** | Light pairs 5.27–16.97:1; dark pairs 7.02–16.25:1. Border-only elements are decorative. |
+| Keyboard navigation for nav, buttons, lists, dialogs, report controls | **Implemented (unverified)** | egui focus/tab support and Cmd/Ctrl shortcuts; a full keyboard-only pass is still manual. |
+| Visible focus ring; no focus traps | **Implemented (unverified)** | egui default focus visuals; visual check pending. |
+| Programmatic labels / screen-reader support | **Not verified** | The current eframe build does not enable AccessKit; icon-only controls do have tooltips. |
+| Minimum 32 px control height | **Verified** | Theme interact size 34 px; primary/secondary buttons 36 px. |
+| Layouts survive 40% longer strings; middle truncation + full-path tooltip | **Partial** | Truncation and wrapping are used; no pseudo-localization or RTL pass. |
+| Reduce motion | **Not applicable / unverified** | No custom looping or essential motion; egui defaults are not audited against the OS setting. |
+| Dialogs dismissible with Esc; destructive actions ask for confirmation | **Implemented (unverified)** | Clear-all and reset-preference modals handle Esc; key interaction not manually tested. |
+| Empty/loading/partial/error states use text, not colour or animation alone | **Verified** | Empty Files, batch error, partial report, and in-progress screenshots. |
+| Screen-reader verification | **Not verified** | Requires an AccessKit-enabled build and a manual VoiceOver/NVDA pass. |
 
 ## 9. Discrepancies / decisions
 
@@ -318,4 +382,7 @@ remain under **Show details**.
 - **Concurrency** stays advanced and bounded; default 2.
 - **Jump-to-element** is a report breadcrumb plus *Copy layer name/ID* until a canvas viewer
   exists; no dead “jump” button.
+- **Component grouping** is omitted: report events do not carry a reliable main-component
+  identity. Grouping by **What to do**, **Page**, or **None** is real; a component selector
+  would be invented.
 - **Languages**: UI is English and centralized for i18n; no fake language switcher.
